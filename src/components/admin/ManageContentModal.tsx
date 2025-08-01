@@ -49,9 +49,11 @@ const deleteQuiz = async (quizId: string) => {
 
 // --- Main Component ---
 export function ManageContentModal({ isOpen, onClose, course }: { isOpen: boolean; onClose: () => void; course: Course }) {
-  const [activeTab, setActiveTab] = useState<'materials' | 'quizzes'>('materials');
-  const [showQuizForm, setShowQuizForm] = useState(false);
+ const [activeTab, setActiveTab] = useState<'materials' | 'quizzes'>('materials');
   const queryClient = useQueryClient();
+
+  const [showQuizForm, setShowQuizForm] = useState(false);
+
 
   // --- Materials Form ---
   const {

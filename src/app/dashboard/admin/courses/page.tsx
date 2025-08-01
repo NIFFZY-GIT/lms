@@ -14,28 +14,17 @@ import { ManageContentModal } from '@/components/admin/ManageContentModal';
 
 // --- Validation Schema ---
 const courseSchema = z.object({
-  title: z.string().min(3, { message: 'Title must be at least 3 characters' }),
-  description: z.string().min(10, { message: 'Description must be at least 10 characters' }),
+  title: z.string().min(1, { message: 'Title is required' }),
+  description: z.string().min(1, { message: 'Description is required' }),
   
-  // This is the definitive fix for the price field
-  price: z.preprocess(
-    // Preprocessing step: This runs BEFORE validation
-    (value) => {
-      // If the input is a string, try to parse it as a float.
-      // If it's already a number, just use it.
-      if (typeof value === 'string') {
-        // Return null for empty string to trigger 'required' error if needed
-        return value.trim() === '' ? null : parseFloat(value);
-      }
-      return value;
-    },
-    // Validation step: This runs AFTER preprocessing
-    z.number({
-      required_error: "Price is required.", // Error if the input is empty
-      invalid_type_error: "Invalid input",   // This is the error you are seeing
-    }).min(0, { message: "Price cannot be negative" })
-  ),
-  
+  // This is the definitive, correct way to handle a numeric form input
+  price: z.coerce // Use coerce to automatically attempt conversion
+    .number({
+      // This message is for when the conversion fails (e.g., input is "abc")
+      invalid_type_error: "Price must be a valid number.", 
+    })
+    .min(0, { message: "Price cannot be negative." }), // This checks the value after conversion
+    
   tutor: z.string().optional(),
   whatsappGroupLink: z.string().url({ message: 'Must be a valid URL' }).optional().or(z.literal('')),
 });
