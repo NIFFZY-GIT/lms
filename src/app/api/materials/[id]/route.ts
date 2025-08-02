@@ -5,10 +5,10 @@ import { v4 as uuidv4 } from 'uuid';
 import { Role } from '@/types';
 
 // This function handles saving the Zoom and Recording links.
-export async function POST(req: Request, { params }: { params: { courseId: string } }) {
+export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     await getServerUser(Role.ADMIN); // Only Admins can do this
-    const { courseId } = params;
+    const { id: courseId } = await params;
     const body = await req.json();
     const { zoomLink, recordingUrl } = body;
 

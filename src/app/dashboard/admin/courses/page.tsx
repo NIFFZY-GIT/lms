@@ -21,7 +21,7 @@ const courseSchema = z.object({
   price: z.coerce // Use coerce to automatically attempt conversion
     .number({
       // This message is for when the conversion fails (e.g., input is "abc")
-      invalid_type_error: "Price must be a valid number.", 
+      message: "Price must be a valid number.", 
     })
     .min(0, { message: "Price cannot be negative." }), // This checks the value after conversion
     
@@ -45,8 +45,15 @@ export default function AdminCoursesPage() {
   const queryClient = useQueryClient();
   const { data: courses, isLoading } = useQuery<Course[]>({ queryKey: ['courses'], queryFn: fetchCourses });
   
-  const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm<CourseFormData>({
+  const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm({
     resolver: zodResolver(courseSchema),
+    defaultValues: {
+      title: '',
+      description: '',
+      price: 0,
+      tutor: '',
+      whatsappGroupLink: ''
+    }
   });
 
   const mutationOptions = {

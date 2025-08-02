@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 
-export async function GET(req: Request, { params }: { params: { referenceNumber: string } }) {
+export async function GET(req: Request, { params }: { params: Promise<{ referenceNumber: string }> }) {
   try {
     // await getServerUser(Role.ADMIN); // Protect the route
-    const { referenceNumber } = params;
+    const { referenceNumber } = await params;
 
     const sqlQuery = `
       SELECT 
@@ -29,7 +29,7 @@ export async function GET(req: Request, { params }: { params: { referenceNumber:
     }
 
     return NextResponse.json(result.rows[0]);
-  } catch (error: any) {
+  } catch (error) {
     console.error(error);
     return NextResponse.json({ error: 'An internal error occurred' }, { status: 500 });
   }

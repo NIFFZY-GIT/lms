@@ -3,11 +3,11 @@ import { db } from '@/lib/db';
 import { getServerUser } from '@/lib/auth';
 
 // Get a single quiz
-export async function GET(req: Request, { params }: { params: { id: string } }) {
+export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     // Ensure user is authenticated
     await getServerUser();
-    const { id: quizId } = params;
+    const { id: quizId } = await params;
 
     // Get the quiz with its answers
     const quizQuery = `

@@ -6,6 +6,7 @@ export async function GET() {
         const user = await getServerUser();
         return NextResponse.json(user);
     } catch (error) {
+        console.error('Authentication error:', error);
         return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
 }

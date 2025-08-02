@@ -9,11 +9,6 @@ import { Video, Mic, HelpCircle, AlertTriangle } from 'lucide-react'; // <--- FI
 import Link from 'next/link';
 import { Course } from '@/types'; // Import the main Course type
 
-// Define types for what this specific page needs
-interface CourseDetails extends Course {
-  // You can extend it if this page needs more specific data
-}
-
 // API fetching function for a single course
 const fetchCourseDetails = async (courseId: string): Promise<Course> => {
   const { data } = await axios.get(`/api/courses/${courseId}`);

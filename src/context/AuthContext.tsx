@@ -33,6 +33,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(data);
       } catch (error) {
         // If the request fails (e.g., 401 Unauthorized), it means no one is logged in.
+        console.log('User not authenticated:', error);
         setUser(null);
       } finally {
         setIsLoading(false);

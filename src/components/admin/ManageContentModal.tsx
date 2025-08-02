@@ -1,206 +1,174 @@
 'use client';
 
 import { useState } from 'react';
-import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios, { AxiosError } from 'axios';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-
+import { Course, Quiz } from '@/types';
 import { Modal } from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
-import { Course, Quiz } from '@/types';
-import { Trash2, Plus } from 'lucide-react';
+import { QuizForm, QuizFormData } from './QuizForm';
+import { Trash2, Edit, Plus } from 'lucide-react';
 
-// --- Types & Schemas ---
+// --- Schemas ---
 const materialSchema = z.object({
-  recordingUrl: z.string().url({ message: 'Must be a valid URL' }).optional().or(z.literal('')),
-  zoomLink: z.string().url({ message: 'Must be a valid URL' }).optional().or(z.literal('')),
+    recordingUrl: z.string().url({ message: 'Must be a valid URL' }).optional().or(z.literal('')),
+    zoomLink: z.string().url({ message: 'Must be a valid URL' }).optional().or(z.literal('')),
 });
 type MaterialFormData = z.infer<typeof materialSchema>;
 
-const quizSchema = z.object({
-  question: z.string().min(10, { message: 'Question must be at least 10 characters' }),
-  answers: z.array(z.object({
-    answer: z.string().min(1, { message: 'Answer cannot be empty' }),
-    isCorrect: z.boolean(),
-  })).min(2, { message: 'At least 2 answers are required' }),
-});
-type QuizFormData = z.infer<typeof quizSchema>;
-
-// API Function to update materials
-const updateMaterials = async ({ courseId, data }: { courseId: string; data: MaterialFormData }) => {
-  // This should hit your backend endpoint for creating/updating materials
-  return (await axios.post(`/api/materials/${courseId}`, data)).data;
-};
-
-// API Functions for quiz management
-const fetchQuizzes = async (courseId: string): Promise<Quiz[]> => {
-  return (await axios.get(`/api/courses/${courseId}/quizzes`)).data;
-};
-
-const createQuiz = async ({ courseId, data }: { courseId: string; data: QuizFormData }) => {
-  return (await axios.post(`/api/courses/${courseId}/quizzes`, data)).data;
-};
-
-const deleteQuiz = async (quizId: string) => {
-  return (await axios.delete(`/api/quiz/${quizId}/delete`)).data;
-};
+// --- API Functions ---
+const updateMaterials = async ({ courseId, data }: { courseId: string, data: MaterialFormData }) => (await axios.post(`/api/materials/${courseId}`, data)).data;
+const fetchQuizzes = async (courseId: string): Promise<Quiz[]> => (await axios.get(`/api/courses/${courseId}/quizzes`)).data;
+const addQuiz = async ({ courseId, data }: { courseId: string; data: QuizFormData }) => (await axios.post(`/api/courses/${courseId}/quizzes`, data)).data;
+const updateQuiz = async ({ quizId, data }: { quizId: string; data: QuizFormData }) => (await axios.patch(`/api/quizzes/${quizId}`, data)).data;
+const deleteQuiz = async (quizId: string) => (await axios.delete(`/api/quizzes/${quizId}`)).data;
 
 // --- Main Component ---
 export function ManageContentModal({ isOpen, onClose, course }: { isOpen: boolean; onClose: () => void; course: Course }) {
- const [activeTab, setActiveTab] = useState<'materials' | 'quizzes'>('materials');
+  // --- THIS IS THE FIX ---
+  const [activeTab, setActiveTab] = useState<'materials' | 'quizzes'>('materials');
+  
+  const [editingQuiz, setEditingQuiz] = useState<Quiz | null>(null);
+  const [showQuizForm, setShowQuizForm] = useState(false);
+  
   const queryClient = useQueryClient();
 
-  const [showQuizForm, setShowQuizForm] = useState(false);
-
-
-  // --- Materials Form ---
-  const {
-    register: registerMaterial,
-    handleSubmit: handleMaterialSubmit,
-    formState: { errors: materialErrors },
-  } = useForm<MaterialFormData>({
+  // --- Materials Management ---
+  const { register: registerMaterial, handleSubmit: handleMaterialSubmit, formState: { errors: materialErrors } } = useForm<MaterialFormData>({
     resolver: zodResolver(materialSchema),
-    // Pre-fill the form with existing data
     defaultValues: {
-      recordingUrl: course.materials?.recordingUrl || '',
-      zoomLink: course.materials?.zoomLink || '',
+        recordingUrl: course.materials?.recordingUrl || '',
+        zoomLink: course.materials?.zoomLink || '',
     },
-  });
-
-  // --- Quiz Form ---
-  const {
-    register: registerQuiz,
-    handleSubmit: handleQuizSubmit,
-    reset: resetQuiz,
-    setValue: setQuizValue,
-    watch: watchQuiz,
-    formState: { errors: quizErrors },
-  } = useForm<QuizFormData>({
-    resolver: zodResolver(quizSchema),
-    defaultValues: {
-      question: '',
-      answers: [
-        { answer: '', isCorrect: false },
-        { answer: '', isCorrect: false },
-      ],
-    },
-  });
-
-  const watchedAnswers = watchQuiz('answers');
-
-  // --- Queries ---
-  const { data: quizzes, isLoading: quizzesLoading } = useQuery<Quiz[]>({
-    queryKey: ['quizzes', course.id],
-    queryFn: () => fetchQuizzes(course.id),
-    enabled: activeTab === 'quizzes' && isOpen,
   });
 
   const materialMutation = useMutation({
     mutationFn: updateMaterials,
     onSuccess: () => {
-      alert("Materials updated successfully!");
-      // Invalidate queries to refetch course data and show the updates
-      queryClient.invalidateQueries({ queryKey: ['courses'] }); 
-      onClose(); // Close the modal on success
+        queryClient.invalidateQueries({ queryKey: ['courses', course.id] });
+        alert("Materials Updated!");
     },
-    onError: (error: AxiosError<{ error: string }>) => {
-      alert(`Error updating materials: ${error.response?.data?.error || error.message}`);
-    }
-  });
-
-  const createQuizMutation = useMutation({
-    mutationFn: createQuiz,
-    onSuccess: () => {
-      alert("Quiz created successfully!");
-      queryClient.invalidateQueries({ queryKey: ['quizzes', course.id] });
-      resetQuiz();
-      setShowQuizForm(false);
-    },
-    onError: (error: AxiosError<{ error: string }>) => {
-      alert(`Error creating quiz: ${error.response?.data?.error || error.message}`);
-    }
-  });
-
-  const deleteQuizMutation = useMutation({
-    mutationFn: deleteQuiz,
-    onSuccess: () => {
-      alert("Quiz deleted successfully!");
-      queryClient.invalidateQueries({ queryKey: ['quizzes', course.id] });
-    },
-    onError: (error: AxiosError<{ error: string }>) => {
-      alert(`Error deleting quiz: ${error.response?.data?.error || error.message}`);
-    }
+    onError: (error: AxiosError<{ error?: string }>) => alert(`Error: ${error.response?.data?.error || error.message}`)
   });
 
   const onMaterialSubmit = (data: MaterialFormData) => {
     materialMutation.mutate({ courseId: course.id, data });
   };
 
+  // --- Quiz Management ---
+  const { data: quizzes, isLoading: quizzesLoading } = useQuery<Quiz[]>({
+    queryKey: ['quizzes', course.id],
+    queryFn: () => fetchQuizzes(course.id),
+    enabled: isOpen && activeTab === 'quizzes',
+  });
+
+  const quizMutationOptions = {
+    onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ['quizzes', course.id] });
+        setShowQuizForm(false);
+        setEditingQuiz(null);
+    },
+    onError: (error: AxiosError<{ error?: string }>) => alert(`Error: ${error.response?.data?.error || error.message}`)
+  };
+
+  const createQuizMutation = useMutation({ mutationFn: addQuiz, ...quizMutationOptions });
+  const updateQuizMutation = useMutation({ mutationFn: updateQuiz, ...quizMutationOptions });
+  const deleteQuizMutation = useMutation({ mutationFn: deleteQuiz, ...quizMutationOptions });
+
+  const handleQuizSubmit = (data: QuizFormData) => {
+    if (editingQuiz) {
+        updateQuizMutation.mutate({ quizId: editingQuiz.id, data });
+    } else {
+        createQuizMutation.mutate({ courseId: course.id, data });
+    }
+  };
+
+  const handleDeleteQuiz = (quizId: string) => {
+    if (window.confirm("Are you sure you want to delete this quiz?")) {
+      deleteQuizMutation.mutate(quizId);
+    }
+  };
+
+  const handleAddNewQuiz = () => {
+    setEditingQuiz(null);
+    setShowQuizForm(true);
+  };
+  
+  const handleEditQuiz = (quiz: Quiz) => {
+    setEditingQuiz(quiz);
+    setShowQuizForm(true);
+  };
+
+  const handleCancelQuizForm = () => {
+    setEditingQuiz(null);
+    setShowQuizForm(false);
+  };
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={`Manage Content for: ${course.title}`}>
-      <div>
         {/* Tabs */}
         <div className="border-b border-gray-200">
-          <nav className="-mb-px flex space-x-8" aria-label="Tabs">
-            <button
-              onClick={() => setActiveTab('materials')}
-              className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
-                activeTab === 'materials'
-                  ? 'border-indigo-500 text-indigo-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              Materials (Links)
-            </button>
-            <button
-              onClick={() => setActiveTab('quizzes')}
-              className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
-                activeTab === 'quizzes'
-                  ? 'border-indigo-500 text-indigo-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              Quizzes
-            </button>
-          </nav>
-        </div>
-
-        {/* Tab Content */}
-        <div className="pt-6">
-          {activeTab === 'materials' && (
-            <form onSubmit={handleMaterialSubmit(onMaterialSubmit)} className="space-y-6">
-              <h3 className="text-lg font-medium text-gray-900">Manage Links</h3>
-              <Input
-                label="Zoom Meeting Link"
-                registration={registerMaterial('zoomLink')}
-                error={materialErrors.zoomLink?.message}
-                placeholder="https://zoom.us/j/..."
-              />
-              <Input
-                label="Course Recordings URL"
-                registration={registerMaterial('recordingUrl')}
-                error={materialErrors.recordingUrl?.message}
-                placeholder="https://vimeo.com/..."
-              />
-              <div className="flex justify-end pt-4">
-                <button type="submit" className="btn-primary" disabled={materialMutation.isPending}>
-                  {materialMutation.isPending ? "Saving..." : "Save Materials"}
+            <nav className="-mb-px flex space-x-8">
+                <button
+                    onClick={() => setActiveTab('materials')}
+                    className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'materials' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                >
+                    Materials
                 </button>
-              </div>
-            </form>
-          )}
-
-          {activeTab === 'quizzes' && (
-            <div>
-              <h3 className="text-lg font-medium text-gray-900">Manage Quizzes</h3>
-              <p className="mt-2 text-sm text-gray-500">Quiz management will be implemented here.</p>
-              {/* Quiz CRUD UI would go here */}
-            </div>
-          )}
+                <button
+                    onClick={() => setActiveTab('quizzes')}
+                    className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'quizzes' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                >
+                    Quizzes
+                </button>
+            </nav>
         </div>
-      </div>
+      
+        <div className="pt-6">
+            {activeTab === 'materials' && (
+            <form onSubmit={handleMaterialSubmit(onMaterialSubmit)} className="space-y-4">
+                <Input label="Recording URL" registration={registerMaterial('recordingUrl')} error={materialErrors.recordingUrl?.message} />
+                <Input label="Zoom Link" registration={registerMaterial('zoomLink')} error={materialErrors.zoomLink?.message} />
+                <div className="flex justify-end"><button type="submit" className="btn-primary" disabled={materialMutation.isPending}>{materialMutation.isPending ? 'Saving...' : 'Save Materials'}</button></div>
+            </form>
+            )}
+
+            {activeTab === 'quizzes' && (
+            <div>
+                {showQuizForm ? (
+                    <QuizForm 
+                        onSubmit={handleQuizSubmit} 
+                        initialData={editingQuiz || undefined}
+                        isPending={createQuizMutation.isPending || updateQuizMutation.isPending}
+                        onCancel={handleCancelQuizForm}
+                    />
+                ) : (
+                    <div>
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-lg font-medium">Existing Quizzes</h3>
+                            <button onClick={handleAddNewQuiz} className="btn-primary flex items-center"><Plus className="w-5 h-5 mr-2" /> Add Quiz</button>
+                        </div>
+                        {quizzesLoading && <p>Loading quizzes...</p>}
+                        <div className="space-y-3">
+                            {quizzes?.map(quiz => (
+                                <div key={quiz.id} className="p-3 border rounded-md flex justify-between items-center">
+                                    <p className="font-medium text-gray-800">{quiz.question}</p>
+                                    <div className="space-x-2">
+                                        <button onClick={() => handleEditQuiz(quiz)} className="p-2 text-gray-500 hover:text-indigo-600" title="Edit Quiz"><Edit className="w-4 h-4" /></button>
+                                        <button onClick={() => handleDeleteQuiz(quiz.id)} className="p-2 text-gray-500 hover:text-red-600" title="Delete Quiz"><Trash2 className="w-4 h-4" /></button>
+                                    </div>
+                                </div>
+                            ))}
+                             {quizzes?.length === 0 && !quizzesLoading && <p className="text-gray-500 text-sm">No quizzes have been added to this course yet.</p>}
+                        </div>
+                    </div>
+                )}
+            </div>
+            )}
+        </div>
     </Modal>
   );
 }
