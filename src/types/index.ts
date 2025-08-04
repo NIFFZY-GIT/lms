@@ -44,3 +44,14 @@ export interface Answer {
   answerText: string;
   isCorrect: boolean;
 }
+
+// ... (keep your other types: Role, Course, etc.)
+// ... (other types)
+
+export interface Announcement {
+  id: string;
+  title: string; // <-- ADD THIS LINE
+  description: string;
+  imageUrl: string;
+  createdAt: string;
+}

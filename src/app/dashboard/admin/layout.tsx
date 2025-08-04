@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { LayoutDashboard, BookOpen, Banknote, Users, LogOut } from 'lucide-react';
+import { LayoutDashboard, BookOpen, Banknote, Users, LogOut,Megaphone, Shield } from 'lucide-react';
 
 const NavLink = ({ href, icon: Icon, children }: { href: string; icon: React.ElementType, children: React.ReactNode }) => (
     <Link href={href} className="flex items-center px-4 py-2.5 text-gray-300 rounded-lg hover:bg-gray-700 hover:text-white transition-colors">
@@ -22,7 +22,10 @@ export default function AdminLayout({
             <NavLink href="/dashboard/admin" icon={LayoutDashboard}>Dashboard</NavLink>
             <NavLink href="/dashboard/admin/courses" icon={BookOpen}>Courses</NavLink>
             <NavLink href="/dashboard/admin/payments" icon={Banknote}>Payments</NavLink>
-            <NavLink href="/dashboard/admin/users" icon={Users}>Users</NavLink>
+              <NavLink href="/dashboard/admin/announcements" icon={Megaphone}>Announcements</NavLink>
+              <NavLink href="/dashboard/admin/users" icon={Users}>Students</NavLink>
+          
+            <NavLink href="/dashboard/admin/admins" icon={Shield}>Admins</NavLink>
         </nav>
         <div className="mt-auto">
             <NavLink href="/api/auth/logout" icon={LogOut}>Logout</NavLink>

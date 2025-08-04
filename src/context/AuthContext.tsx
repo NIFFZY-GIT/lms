@@ -11,9 +11,11 @@ interface User {
   role: 'ADMIN' | 'STUDENT';
 }
 
+// --- 1. UPDATE THE TYPE DEFINITION ---
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
+  login: (userData: User) => void; // Add the login function signature
   logout: () => Promise<void>;
 }
 
@@ -25,15 +27,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
-    // This effect runs once on mount to check if a user session exists from a cookie.
     const fetchUser = async () => {
       try {
-        // This new endpoint returns the logged-in user's data if the token is valid.
         const { data } = await axios.get<User>('/api/users/me'); 
         setUser(data);
       } catch (error) {
-        // If the request fails (e.g., 401 Unauthorized), it means no one is logged in.
-        console.log('User not authenticated:', error);
         setUser(null);
       } finally {
         setIsLoading(false);
@@ -42,25 +40,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     fetchUser();
   }, []);
 
+  // --- 2. DEFINE THE LOGIN FUNCTION ---
+  // This function simply updates the local state with the user data from the login API.
+  const login = (userData: User) => {
+    setUser(userData);
+  };
+
   const logout = async () => {
     try {
       await axios.post('/api/auth/logout');
-      setUser(null); // Clear user from state
-      router.push('/auth/login'); // Redirect to login page
-      router.refresh(); // Force a refresh to ensure all server components re-evaluate
+      setUser(null);
+      router.push('/auth/login');
+      router.refresh();
     } catch (error) {
       console.error('Logout failed:', error);
     }
   };
 
+  // --- 3. PASS THE LOGIN FUNCTION TO THE PROVIDER'S VALUE ---
   return (
-    <AuthContext.Provider value={{ user, isLoading, logout }}>
+    <AuthContext.Provider value={{ user, isLoading, login, logout }}>
       {children}
     </AuthContext.Provider>
   );
 }
 
-// Custom hook to easily use the auth context in any component.
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {

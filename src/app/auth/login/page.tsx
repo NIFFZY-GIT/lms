@@ -5,12 +5,12 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import axios from 'axios';
 import { useMutation } from '@tanstack/react-query';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation'; // <-- Import useSearchParams
 import Link from 'next/link';
-
 import { AuthCard } from '@/components/auth/AuthCard';
+import { useAuth } from '@/context/AuthContext'; // <-- Import useAuth
 
-// Define the validation schema using Zod
+// --- Validation Schema ---
 const LoginSchema = z.object({
   email: z.string().email({ message: 'A valid email is required' }),
   password: z.string().min(1, { message: 'Password is required' }),
@@ -27,7 +27,12 @@ interface UserResponse {
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams(); // <-- Get search params
+  const { login } = useAuth(); // <-- Get the login function from your context
   
+  // Read the callbackUrl from the URL, if it exists
+  const callbackUrl = searchParams.get('callbackUrl');
+
   const {
     register,
     handleSubmit,
@@ -39,17 +44,25 @@ export default function LoginPage() {
   const loginMutation = useMutation<UserResponse, Error, LoginData>({
     mutationFn: (credentials) => axios.post('/api/auth/login', credentials).then(res => res.data),
     onSuccess: (data) => {
-      // On successful login, redirect based on user role
-      if (data.role === 'ADMIN') {
-        router.push('/dashboard/admin');
+      // Update the global auth state immediately
+      login(data);
+
+      // --- UPDATED REDIRECT LOGIC ---
+      // If a callbackUrl was provided by the protected route, redirect back there.
+      if (callbackUrl) {
+        router.push(callbackUrl);
       } else {
-        router.push('/dashboard/student/courses');
+        // Otherwise, perform the default role-based redirect.
+        if (data.role === 'ADMIN') {
+          router.push('/dashboard/admin');
+        } else {
+          router.push('/dashboard/student/courses');
+        }
       }
     },
     onError: (error) => {
-      // Here you can handle login errors, e.g., show a toast notification
       console.error('Login failed:', error.message);
-      // Example: set a form error to display to the user
+      // You can add more specific error handling here if needed
     },
   });
 
@@ -62,7 +75,7 @@ export default function LoginPage() {
       title="Welcome Back"
       footerContent={
         <p>
-          Don&apos;t have an account?{' '}
+          Don&#39;t have an account?{' '}
           <Link href="/auth/register" className="font-medium text-indigo-600 hover:text-indigo-500">
             Sign up
           </Link>
