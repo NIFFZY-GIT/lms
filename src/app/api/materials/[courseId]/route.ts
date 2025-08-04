@@ -6,10 +6,10 @@ import { v4 as uuidv4 } from 'uuid';
 import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
 
-export async function POST(req: Request, { params }: { params: { courseId: string } }) {
+export async function POST(req: Request, { params }: { params: Promise<{ courseId: string }> }) {
   try {
     await getServerUser(Role.ADMIN);
-    const { courseId } = params;
+    const { courseId } = await params;
     
     const formData = await req.formData();
     const zoomLink = formData.get('zoomLink') as string;

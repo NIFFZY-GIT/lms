@@ -3,7 +3,7 @@ import { db } from '../../../../lib/db';
 import { getServerUser } from '../../../../lib/auth';
 import { Role } from '../../../../types';
 import { v4 as uuidv4 } from 'uuid';
-import { writeFile, mkdir } from 'fs/promises'; // <-- 1. Import mkdir
+import { writeFile, mkdir, unlink } from 'fs/promises';
 import path from 'path';
 
 export async function POST(req: Request) {
@@ -17,31 +17,45 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Course ID and receipt file are required.' }, { status: 400 });
     }
 
-    const uniqueFilename = `${Date.now()}-${receiptFile.name.replace(/\s+/g, '_')}`;
-
-    // --- THIS IS THE FIX ---
-    // 1. Define the directory path where files will be stored.
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'receipts');
-
-    // 2. Ensure the directory exists.
-    // The { recursive: true } option means it will create parent directories if they don't exist
-    // and it won't throw an error if the directory already exists.
-    await mkdir(uploadDir, { recursive: true });
-
-    // 3. Define the full save path for the file.
-    const savePath = path.join(uploadDir, uniqueFilename);
+    // --- THIS IS THE NEW LOGIC ---
+    // Check if a payment record already exists for this user and course.
+    const existingPaymentResult = await db.query('SELECT id, status, "receiptUrl" FROM "Payment" WHERE "studentId" = $1 AND "courseId" = $2', [user.id, courseId]);
     
-    // Continue with the rest of the logic...
+    if (existingPaymentResult.rows.length > 0) {
+      const existingPayment = existingPaymentResult.rows[0];
+      
+      // If payment is PENDING or APPROVED, they cannot re-apply.
+      if (existingPayment.status === 'PENDING' || existingPayment.status === 'APPROVED') {
+        return NextResponse.json({ error: 'A payment for this course is already pending or has been approved.' }, { status: 409 });
+      }
+
+      // If payment was REJECTED, we will delete the old record to allow re-submission.
+      if (existingPayment.status === 'REJECTED') {
+        // Delete the old receipt file from the server
+        try {
+          const oldFilePath = path.join(process.cwd(), 'public', existingPayment.receiptUrl);
+          await unlink(oldFilePath);
+        } catch (fileError) {
+          console.error("Failed to delete old rejected receipt file, but proceeding:", fileError);
+        }
+        
+        // Delete the old payment record from the database
+        await db.query('DELETE FROM "Payment" WHERE id = $1', [existingPayment.id]);
+      }
+    }
+    // --- END OF NEW LOGIC ---
+
+
+    // Proceed with the new file upload and record creation
+    const uniqueFilename = `${Date.now()}-${receiptFile.name.replace(/\s+/g, '_')}`;
+    const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'receipts');
+    await mkdir(uploadDir, { recursive: true });
+    
+    const savePath = path.join(uploadDir, uniqueFilename);
     const buffer = Buffer.from(await receiptFile.arrayBuffer());
     await writeFile(savePath, buffer);
 
     const publicUrl = `/uploads/receipts/${uniqueFilename}`;
-
-    const existingPayment = await db.query('SELECT id FROM "Payment" WHERE "studentId" = $1 AND "courseId" = $2', [user.id, courseId]);
-    if (existingPayment.rows.length > 0) {
-      return NextResponse.json({ error: 'You have already submitted a payment for this course.' }, { status: 409 });
-    }
-
     const paymentId = uuidv4();
     const sql = `
       INSERT INTO "Payment" (id, "studentId", "courseId", "receiptUrl", status)

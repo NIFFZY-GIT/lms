@@ -8,10 +8,10 @@ import { Container } from '@/components/ui/Container';
 import { CheckCircle, XCircle, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 
+// --- Type Definitions ---
 interface Answer {
   id: string;
   answer: string;
-  isCorrect: boolean;
 }
 
 interface Quiz {
@@ -25,22 +25,22 @@ interface QuizSubmission {
   selectedAnswerId: string;
 }
 
-// API functions
+// --- API functions with CORRECTED paths ---
 const fetchQuiz = async (quizId: string): Promise<Quiz> => {
-  const { data } = await axios.get(`/api/quiz/${quizId}`);
+  const { data } = await axios.get(`/api/quizzes/${quizId}`); // Corrected path
   return data;
 };
 
 const submitQuiz = async ({ quizId, submission }: { quizId: string; submission: QuizSubmission }) => {
-  const { data } = await axios.post(`/api/quiz/${quizId}/submit`, submission);
+  const { data } = await axios.post(`/api/quizzes/${quizId}/submit`, submission); // Corrected path
   return data;
 };
 
-export default function QuizPage() {
 
+export default function QuizPage() {
+  const params = useParams();
   const router = useRouter();
-const params = useParams();
-const quizId = params.quizId as string;
+  const quizId = params.quizId as string;
   
   const [selectedAnswerId, setSelectedAnswerId] = useState<string>('');
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -98,7 +98,7 @@ const quizId = params.quizId as string;
           <h2 className="text-2xl font-bold mb-4">Quiz Not Found</h2>
           <p>The quiz you&apos;re looking for doesn&apos;t exist or you don&apos;t have access to it.</p>
           <Link 
-            href="/dashboard/student" 
+            href="/dashboard/student/courses" 
             className="mt-4 inline-block px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
           >
             Back to Dashboard
@@ -108,6 +108,7 @@ const quizId = params.quizId as string;
     );
   }
 
+  // --- JSX remains the same ---
   return (
     <Container className="py-10">
       <div className="max-w-2xl mx-auto">
