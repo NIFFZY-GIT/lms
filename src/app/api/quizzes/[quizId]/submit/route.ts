@@ -18,37 +18,46 @@ export async function POST(req: Request, { params }: { params: Promise<{ quizId:
     try {
       await client.query('BEGIN');
       
-      // Get all questions and answers for this quiz to build the results payload
-      const questionsResult = await client.query(`
-        SELECT q.id as "questionId", q."questionText", a.id as "answerId", a."answerText", a."isCorrect"
+      // 1. Get all questions AND all their possible answers for this quiz
+      const questionsAndAnswersQuery = `
+        SELECT 
+          q.id AS "questionId", 
+          q."questionText", 
+          a.id AS "answerId", 
+          a."answerText", 
+          a."isCorrect"
         FROM "Question" q
         JOIN "Answer" a ON q.id = a."questionId"
         WHERE q."quizId" = $1;
-      `, [quizId]);
+      `;
+      const allDataResult = await client.query(questionsAndAnswersQuery, [quizId]);
 
-      // Organize the data for easy lookup
+      // 2. Organize the data into a Map for easy lookup
       const questionsMap = new Map();
-      questionsResult.rows.forEach(row => {
+      allDataResult.rows.forEach(row => {
         if (!questionsMap.has(row.questionId)) {
           questionsMap.set(row.questionId, {
             questionId: row.questionId,
             questionText: row.questionText,
-            answers: [],
+            answers: [], // We will populate this
             correctAnswerId: null,
           });
         }
-        const question = questionsMap.get(row.questionId);
-        question.answers.push({ answerId: row.answerId, answerText: row.answerText });
+        const questionData = questionsMap.get(row.questionId);
+        // Add every answer choice to the question's answer array
+        questionData.answers.push({ id: row.answerId, answerText: row.answerText });
+        // If this answer is the correct one, store its ID
         if (row.isCorrect) {
-          question.correctAnswerId = row.answerId;
+          questionData.correctAnswerId = row.answerId;
         }
       });
       
-      // --- Score Calculation ---
+      // 3. Calculate Score
       let correctCount = 0;
-      const questionIds = Object.keys(submission);
-      questionIds.forEach(questionId => {
-        if (submission[questionId] === questionsMap.get(questionId)?.correctAnswerId) {
+      const questionIdsInSubmission = Object.keys(submission);
+      questionIdsInSubmission.forEach(questionId => {
+        const questionData = questionsMap.get(questionId);
+        if (questionData && submission[questionId] === questionData.correctAnswerId) {
           correctCount++;
         }
       });
@@ -56,30 +65,41 @@ export async function POST(req: Request, { params }: { params: Promise<{ quizId:
       const totalQuestions = questionsMap.size;
       const score = totalQuestions > 0 ? (correctCount / totalQuestions) * 100 : 0;
 
-      // --- Save Attempts ---
+      // 4. Save Attempts
       const quizAttemptId = uuidv4();
       await client.query(
         'INSERT INTO "QuizAttempt" (id, "studentId", "quizId", score) VALUES ($1, $2, $3, $4)',
         [quizAttemptId, user.id, quizId, score]
       );
-      // ... (Saving individual question attempts remains the same)
+      // ... (Saving individual question attempts can remain the same)
+      const questionAttemptPromises = questionIdsInSubmission.map(questionId => {
+        const selectedAnswerId = submission[questionId];
+        const isCorrect = selectedAnswerId === questionsMap.get(questionId)?.correctAnswerId;
+        return client.query(
+          'INSERT INTO "QuestionAttempt" (id, "quizAttemptId", "questionId", "selectedAnswerId", "isCorrect") VALUES ($1, $2, $3, $4, $5)',
+          [uuidv4(), quizAttemptId, questionId, selectedAnswerId, isCorrect]
+        );
+      });
+      await Promise.all(questionAttemptPromises);
 
       await client.query('COMMIT');
 
-      // --- NEW: Build the detailed results payload ---
-      const results = Array.from(questionsMap.values()).map(q => ({
+      // 5. --- THIS IS THE FIX ---
+      // Build the detailed results payload, which now includes the answers array for each question.
+      const detailedResults = Array.from(questionsMap.values()).map(q => ({
         questionId: q.questionId,
         questionText: q.questionText,
-        selectedAnswerId: submission[q.questionId] || null, // Student's choice
-        correctAnswerId: q.correctAnswerId, // The actual correct answer ID
-        answers: q.answers, // All possible answers
+        selectedAnswerId: submission[q.questionId] || null,
+        correctAnswerId: q.correctAnswerId,
+        answers: q.answers, // The crucial missing piece
       }));
 
+      // 6. Return the full payload
       return NextResponse.json({
         score: score,
         totalQuestions: totalQuestions,
         correctAnswers: correctCount,
-        results: results, // Send the detailed breakdown
+        results: detailedResults,
       });
 
     } catch (e) {

@@ -27,7 +27,7 @@ interface QuizResult {
     }[];
 }
 
-// --- API Functions (Restored) ---
+// --- API Functions ---
 const fetchQuiz = async (quizId: string): Promise<Quiz> => (await axios.get(`/api/quizzes/${quizId}`)).data;
 const submitQuiz = async ({ quizId, submission }: { quizId: string; submission: QuizSubmission }): Promise<QuizResult> => (await axios.post(`/api/quizzes/${quizId}/submit`, submission)).data;
 
@@ -50,46 +50,21 @@ export default function StudentQuizPage() {
 
   const submitMutation = useMutation({
     mutationFn: submitQuiz,
-    onSuccess: (data) => {
-      setResult(data);
-      setView('result');
-      queryClient.invalidateQueries({ queryKey: ['myQuizAttempts'] });
-    },
-    onError: (error: AxiosError<{ error: string }>) => {
-      alert(`Error submitting quiz: ${error.response?.data?.error || error.message}`);
-    },
+    onSuccess: (data: QuizResult) => { setResult(data); setView('result'); queryClient.invalidateQueries({ queryKey: ['myQuizAttempts'] }); },
+    onError: (error: AxiosError<{ error: string }>) => { alert(`Error submitting quiz: ${error.response?.data?.error || error.message}`); },
   });
 
-  const handleSelectAnswer = (questionId: string, answerId: string) => {
-    setAnswers(prev => ({ ...prev, [questionId]: answerId }));
-  };
-
+  const handleSelectAnswer = (questionId: string, answerId: string) => { setAnswers(prev => ({ ...prev, [questionId]: answerId })); };
   const handleSubmit = () => {
-    if (!quiz) return; // Guard clause
+    if (!quiz) return;
     const totalQuestions = quiz.questions.length;
     const answeredQuestions = Object.keys(answers).length;
-    if (answeredQuestions < totalQuestions) {
-        if (!window.confirm(`You have not answered all questions. Are you sure you want to submit?`)) {
-            return;
-        }
-    }
+    if (answeredQuestions < totalQuestions) { if (!window.confirm(`You have not answered all questions. Are you sure you want to submit?`)) return; }
     submitMutation.mutate({ quizId, submission: answers });
   };
+  const handleRetry = () => { setAnswers({}); setResult(null); setView('taking'); };
 
-  const handleRetry = () => {
-    setAnswers({});
-    setResult(null);
-    setView('taking');
-  };
-
-  if (isLoading) {
-    return (
-        <Container>
-            <div className="text-center p-10 font-semibold">Loading Quiz...</div>
-        </Container>
-    );
-  }
-  
+  if (isLoading) { return <Container><div className="text-center p-10 font-semibold">Loading Quiz...</div></Container>; }
   if (isError || !quiz) {
     return (
       <Container className="py-10">
@@ -133,6 +108,7 @@ export default function StudentQuizPage() {
                                         if (isCorrect) styles = 'bg-green-50 border-green-500 text-green-900';
                                         else if (isSelected && !isCorrect) styles = 'bg-red-50 border-red-500 text-red-900';
                                         return (
+                                            // --- THE FIX IS HERE ---
                                             <div key={ans.id} className={`flex items-center p-3 border rounded-md ${styles}`}>
                                                 {isCorrect ? <Check className="w-5 h-5 mr-3" /> : (isSelected ? <X className="w-5 h-5 mr-3" /> : <div className="w-5 h-5 mr-3" />)}
                                                 <span className="flex-grow">{ans.answerText}</span>
@@ -142,7 +118,7 @@ export default function StudentQuizPage() {
                                 </div>
                                 {!wasCorrect && correctAnswer && (
                                     <div className="mt-3 p-3 bg-yellow-50 text-yellow-800 border-l-4 border-yellow-400 flex items-start">
-                                        <Lightbulb className="w-5 h-5 mr-3 flex-shrink-0" />
+                                        <Lightbulb className="w-5 h-5 mr-3 flex-shrink-0 mt-0.5" />
                                         <div><span className="font-semibold">Correct Answer:</span> {correctAnswer.answerText}</div>
                                     </div>
                                 )}
