@@ -126,18 +126,31 @@ export default function StudentCoursePage() {
                 </section>
               </div>
               
-              <aside className="space-y-6">
-                <div className="bg-white p-6 rounded-lg shadow-md">
-                  <h2 className="text-2xl font-bold text-gray-800 flex items-center mb-4"><HelpCircle className="w-6 h-6 mr-3 text-indigo-600" />Quizzes</h2>
-                  {course.quizzes && course.quizzes.length > 0 ? (
-                    <ul className="space-y-3">
-                      {course.quizzes.map((quiz, index) => (
-                        <li key={quiz.id}><Link href={`/dashboard/student/quiz/${quiz.id}`} className="block p-4 bg-gray-100 rounded-md hover:bg-indigo-100 transition-colors"><span className="font-semibold text-gray-700">Quiz {index + 1}:</span> {quiz.question.substring(0, 50)}...</Link></li>
-                      ))}
-                    </ul>
-                  ) : (<p className="text-gray-500">No quizzes are available for this course yet.</p>)}
-                </div>
-              </aside>
+
+<aside className="space-y-6">
+  <div className="bg-white p-6 rounded-lg shadow-md">
+    <h2 className="text-2xl font-bold text-gray-800 flex items-center mb-4">
+        <HelpCircle className="w-6 h-6 mr-3 text-indigo-600" />
+        Quizzes
+    </h2>
+    {course.quizzes && course.quizzes.length > 0 ? (
+      <ul className="space-y-3">
+        {course.quizzes.map((quiz) => ( // No need for index if we're not using "Quiz 1", "Quiz 2"
+          <li key={quiz.id}>
+            <Link 
+                href={`/dashboard/student/quiz/${quiz.id}`} 
+                className="block p-4 bg-gray-100 rounded-md hover:bg-indigo-100 transition-colors font-semibold text-gray-700"
+            >
+              {quiz.title} {/* <-- THE FIX IS HERE */}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    ) : (
+      <p className="text-gray-500">No quizzes are available for this course yet.</p>
+    )}
+  </div>
+</aside>
             </div>
           </Container>
         </main>

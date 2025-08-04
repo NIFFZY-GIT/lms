@@ -20,7 +20,9 @@ export async function GET(req: Request, { params }: { params: Promise<{ courseId
 
     if (enrollmentStatus === 'APPROVED') {
       const recordingsResult = await db.query('SELECT * FROM "Recording" WHERE "courseId" = $1 ORDER BY "createdAt" ASC', [courseId]);
-      const quizzesResult = await db.query('SELECT id, question FROM "Quiz" WHERE "courseId" = $1 ORDER BY "createdAt" ASC', [courseId]);
+      // OLD, PROBLEMATIC QUERY
+// NEW, CORRECTED QUERY
+const quizzesResult = await db.query('SELECT id, title FROM "Quiz" WHERE "courseId" = $1 ORDER BY "createdAt" ASC', [courseId]);
       course.recordings = recordingsResult.rows;
       course.quizzes = quizzesResult.rows;
     } else {

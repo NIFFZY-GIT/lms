@@ -28,13 +28,19 @@ export interface Recording {
 // Represents a single quiz question.
 export interface Quiz {
   id: string;
-  question: string;
-  answers: Answer[];
+  title: string; // <-- A Quiz now has a TITLE, not a question.
+  courseId: string;
+  questions?: Question[]; // A quiz can have many questions
 }
-
+export interface Question {
+  id: string;
+  questionText: string;
+  answers: Answer[];
+  quizId: string;
+}
 // Represents one of the possible answers for a quiz question.
 export interface Answer {
   id: string;
-  answer: string;
+  answerText: string;
   isCorrect: boolean;
 }
