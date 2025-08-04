@@ -1,42 +1,85 @@
 import { NextResponse } from 'next/server';
-import { db } from '../../../../lib/db'; // Correct relative path
+import { db } from '../../../../lib/db';
 import { getServerUser } from '../../../../lib/auth';
 import { Role } from '../../../../types';
 
-// GET handler to fetch a single course
-// Add this GET function to this file
-export async function GET(req: Request, { params }: { params: { courseId: string } }) {
+export async function GET(req: Request, { params }: { params: Promise<{ courseId: string }> }) {
   try {
-    const user = await getServerUser(); // Gets current user
-    const { courseId } = params;
+    const user = await getServerUser();
+    const { courseId } = await params;
 
-    // Fetch course details
     const courseResult = await db.query('SELECT * FROM "Course" WHERE id = $1', [courseId]);
     if (courseResult.rows.length === 0) {
       return NextResponse.json({ error: 'Course not found' }, { status: 404 });
     }
     const course = courseResult.rows[0];
-    course.price = parseFloat(course.price); // Ensure price is a number
+    course.price = parseFloat(course.price);
 
-    // Check the student's payment status for THIS course
-    const paymentQuery = 'SELECT status FROM "Payment" WHERE "studentId" = $1 AND "courseId" = $2';
-    const paymentResult = await db.query(paymentQuery, [user.id, courseId]);
-    
-    const enrollmentStatus = paymentResult.rows[0]?.status || null; // 'APPROVED', 'PENDING', or null
+    const paymentResult = await db.query('SELECT status FROM "Payment" WHERE "studentId" = $1 AND "courseId" = $2', [user.id, courseId]);
+    const enrollmentStatus = paymentResult.rows[0]?.status || null;
 
-    // If approved, fetch materials and quizzes
     if (enrollmentStatus === 'APPROVED') {
-        const materialsResult = await db.query('SELECT * FROM "CourseMaterial" WHERE "courseId" = $1', [courseId]);
-        const quizzesResult = await db.query('SELECT id, question FROM "Quiz" WHERE "courseId" = $1', [courseId]);
-        course.materials = materialsResult.rows[0] || null;
-        course.quizzes = quizzesResult.rows;
+      const recordingsResult = await db.query('SELECT * FROM "Recording" WHERE "courseId" = $1 ORDER BY "createdAt" ASC', [courseId]);
+      const quizzesResult = await db.query('SELECT id, question FROM "Quiz" WHERE "courseId" = $1 ORDER BY "createdAt" ASC', [courseId]);
+      course.recordings = recordingsResult.rows;
+      course.quizzes = quizzesResult.rows;
     } else {
-        course.materials = null; // Don't send materials if not approved
-        course.quizzes = [];
+      course.recordings = [];
+      course.quizzes = [];
     }
     
     return NextResponse.json({ ...course, enrollmentStatus });
   } catch (error) {
-    // ... error handling
+    console.error("Fetch course details error:", error);
+    return NextResponse.json({ error: 'Failed to fetch course details' }, { status: 500 });
   }
+}
+
+export async function PATCH(req: Request, { params }: { params: Promise<{ courseId: string }> }) {
+    try {
+        await getServerUser(Role.ADMIN);
+        const { courseId } = await params;
+        const body = await req.json();
+
+        // --- THIS IS THE FIX ---
+        // Provide explicit types for the arrays.
+        const fields: string[] = [];
+        const values: (string | number)[] = [];
+        let queryIndex = 1;
+
+        // Use a more robust check for properties that can be updated.
+        const allowedUpdates = ['title', 'description', 'price', 'tutor', 'zoomLink', 'whatsappGroupLink'];
+
+        Object.keys(body).forEach(key => {
+            if (allowedUpdates.includes(key) && body[key] !== undefined) {
+                // Convert camelCase to snake_case for column names, e.g., zoomLink -> "zoomLink"
+                const columnName = `"${key}"`;
+                fields.push(`${columnName} = $${queryIndex++}`);
+                values.push(body[key]);
+            }
+        });
+
+        if (fields.length === 0) {
+            return NextResponse.json({ error: "No valid fields to update provided." }, { status: 400 });
+        }
+
+        const sql = `
+            UPDATE "Course"
+            SET ${fields.join(', ')}, "updatedAt" = CURRENT_TIMESTAMP
+            WHERE id = $${queryIndex}
+            RETURNING *;
+        `;
+        values.push(courseId);
+        
+        const result = await db.query(sql, values);
+
+        if (result.rows.length === 0) {
+            return NextResponse.json({ error: "Course not found" }, { status: 404 });
+        }
+
+        return NextResponse.json(result.rows[0]);
+    } catch (error) {
+        console.error("Update Course Error:", error);
+        return NextResponse.json({ error: "Failed to update course" }, { status: 500 });
+    }
 }

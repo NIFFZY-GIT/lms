@@ -1,8 +1,10 @@
+// Defines the user roles for the entire application.
 export enum Role {
   ADMIN = 'ADMIN',
-  STUDENT = 'STUDENT'
+  STUDENT = 'STUDENT',
 }
 
+// Represents a single course. This is the central model.
 export interface Course {
   id: string;
   title: string;
@@ -10,21 +12,27 @@ export interface Course {
   price: number;
   tutor?: string;
   whatsappGroupLink?: string;
-  materials?: CourseMaterial | null;
+  zoomLink?: string; // Moved from CourseMaterial
+  recordings?: Recording[]; // New: A course can have many recordings
   quizzes?: Quiz[];
 }
 
-export interface CourseMaterial {
-  recordingUrl?: string;
-  zoomLink?: string;
+// Represents a single uploaded video recording for a course.
+export interface Recording {
+  id: string;
+  title: string;
+  videoUrl: string; // Renamed from recordingUrl for clarity
+  courseId: string;
 }
 
+// Represents a single quiz question.
 export interface Quiz {
   id: string;
   question: string;
   answers: Answer[];
 }
 
+// Represents one of the possible answers for a quiz question.
 export interface Answer {
   id: string;
   answer: string;
