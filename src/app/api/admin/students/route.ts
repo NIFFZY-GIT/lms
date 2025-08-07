@@ -1,17 +1,15 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { db } from '../../../../lib/db';
 import { getServerUser } from '../../../../lib/auth';
-import { Role } from '../../../../types';
+import { Role, StudentCourseInfo } from '../../../../types';
 
 export async function GET(req: NextRequest) {
   try {
     await getServerUser(Role.ADMIN);
     const { searchParams } = new URL(req.url);
     const searchTerm = searchParams.get('search')?.toLowerCase() || '';
-    const courseIdFilter = searchParams.get('courseId') || null; // <-- NEW: Get courseId from query params
+    const courseIdFilter = searchParams.get('courseId') || null;
 
-    // --- UPDATED SQL QUERY ---
-    // We've added a dynamic WHERE clause for the courseId filter.
     const sql = `
       WITH StudentCourses AS (
         SELECT
@@ -44,7 +42,6 @@ export async function GET(req: NextRequest) {
           u.phone LIKE $1 OR
           LOWER(u.address) LIKE $1
         ) AND
-        -- This is the new filtering condition. It's ignored if courseIdFilter is NULL.
         ($2::varchar IS NULL OR u.id IN (
             SELECT "studentId" FROM "Payment" WHERE "courseId" = $2::varchar
         ))
@@ -53,20 +50,21 @@ export async function GET(req: NextRequest) {
     
     const result = await db.query(sql, [`%${searchTerm}%`, courseIdFilter]);
 
-    interface Course {
-      courseId: string;
-      courseTitle: string;
-      enrollmentStatus: string;
-      highestScore: number | null;
-    }
-
-    const students = result.rows.map(student => ({
-      ...student,
-      courses: (student.courses as Course[]).map((course: Course) => ({
+    // --- THIS IS THE CORRECTED DATA TRANSFORMATION ---
+    const students = result.rows.map(student => {
+      const formattedCourses = (student.courses as StudentCourseInfo[]).map(course => ({
         ...course,
-        highestScore: course.highestScore ? parseFloat(course.highestScore as unknown as string) : null,
-      })),
-    }));
+        // Safely convert the score to a number.
+        // String() handles null/undefined gracefully, turning them into "null" or "undefined",
+        // which parseFloat correctly parses as NaN, triggering the null fallback.
+        highestScore: course.highestScore ? parseFloat(String(course.highestScore)) : null,
+      }));
+
+      return {
+        ...student,
+        courses: formattedCourses,
+      };
+    });
 
     return NextResponse.json(students);
   } catch (error) {

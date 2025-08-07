@@ -12,8 +12,10 @@ export async function GET(req: Request, { params }: { params: Promise<{ referenc
       return NextResponse.json({ error: 'Reference number is required.' }, { status: 400 });
     }
 
+    const sanitizedRef = referenceNumber.trim();
+
     // --- THIS IS THE UPDATED SQL QUERY ---
-    // It now joins with the User table to get the student's ID and email.
+    // It now selects u.phone and u.address from the User table.
     const sql = `
       SELECT 
         p.id as "paymentId", 
@@ -22,6 +24,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ referenc
         u.id as "studentId",
         u.name as "studentName",
         u.email as "studentEmail",
+        u.phone as "studentPhone",      -- <-- ADDED
+        u.address as "studentAddress",  -- <-- ADDED
         c.title as "courseTitle"
       FROM "Payment" p
       JOIN "User" u ON p."studentId" = u.id
@@ -29,16 +33,11 @@ export async function GET(req: Request, { params }: { params: Promise<{ referenc
       WHERE p."referenceNumber" = $1;
     `;
     
-    const result = await db.query(sql, [referenceNumber.trim()]);
+    const result = await db.query(sql, [sanitizedRef]);
 
     if (result.rows.length > 0) {
-      // A payment with this reference number was found
-      return NextResponse.json({ 
-        isDuplicate: true, 
-        payment: result.rows[0] 
-      });
+      return NextResponse.json({ isDuplicate: true, payment: result.rows[0] });
     } else {
-      // This reference number is unique and available
       return NextResponse.json({ isDuplicate: false });
     }
 

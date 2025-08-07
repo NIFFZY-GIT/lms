@@ -24,6 +24,8 @@ interface VerificationResult {
         studentId: string;
         studentName: string;
         studentEmail: string;
+        studentPhone: string | null;
+        studentAddress: string | null;
         courseTitle: string;
         processedAt: string;
     }
@@ -62,14 +64,14 @@ const StatusBadge = ({ status }: { status: PaymentStatus }) => {
 };
 
 const PaymentRowSkeleton = () => (
-    <tr>
+    <tr className="animate-pulse">
       <td className="px-6 py-4 whitespace-nowrap">
-        <div className="h-4 bg-gray-200 rounded animate-pulse w-3/4"></div>
-        <div className="h-3 bg-gray-200 rounded animate-pulse w-1/2 mt-2"></div>
+        <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+        <div className="h-3 bg-gray-200 rounded w-1/2 mt-2"></div>
       </td>
-      <td className="px-6 py-4 whitespace-nowrap"><div className="h-4 bg-gray-200 rounded animate-pulse w-24"></div></td>
-      <td className="px-6 py-4 whitespace-nowrap"><div className="h-6 bg-gray-200 rounded-full animate-pulse w-20"></div></td>
-      <td className="px-6 py-4 whitespace-nowrap"><div className="h-8 bg-gray-200 rounded-md animate-pulse w-24"></div></td>
+      <td className="px-6 py-4 whitespace-nowrap"><div className="h-4 bg-gray-200 rounded w-24"></div></td>
+      <td className="px-6 py-4 whitespace-nowrap"><div className="h-6 bg-gray-200 rounded-full w-20"></div></td>
+      <td className="px-6 py-4 whitespace-nowrap"><div className="h-8 bg-gray-200 rounded-md w-24"></div></td>
     </tr>
 );
 
@@ -92,8 +94,7 @@ export default function AdminPaymentsPage() {
             closeModal();
         },
         onError: (error: AxiosError<{ error?: string }>) => {
-            const errorMessage = error.response?.data?.error || error.message;
-            alert(`Action failed: ${errorMessage}`);
+            alert(`Action failed: ${error.response?.data?.error || error.message}`);
         }
     };
 
@@ -101,28 +102,10 @@ export default function AdminPaymentsPage() {
     const rejectMutation = useMutation({ mutationFn: rejectPayment, ...mutationOptions });
     const verifyMutation = useMutation({ mutationFn: verifyRefNumber, onSuccess: (data) => setVerificationResult(data) });
 
-    const handleApprove = () => {
-        if (!selectedPayment || verificationResult?.isDuplicate) return;
-        approveMutation.mutate({ paymentId: selectedPayment.id, referenceNumber: refNumber });
-    };
-
-    const handleReject = () => {
-        if (!selectedPayment) return;
-        if (window.confirm('Are you sure you want to reject this payment?')) {
-            rejectMutation.mutate(selectedPayment.id);
-        }
-    };
-    
-    const handleVerify = () => {
-        if (!refNumber) return;
-        verifyMutation.mutate(refNumber);
-    };
-
-    const closeModal = () => {
-        setSelectedPayment(null);
-        setRefNumber('');
-        setVerificationResult(null);
-    };
+    const handleApprove = () => { if (!selectedPayment || verificationResult?.isDuplicate) return; approveMutation.mutate({ paymentId: selectedPayment.id, referenceNumber: refNumber }); };
+    const handleReject = () => { if (!selectedPayment) return; if (window.confirm('Are you sure you want to reject this payment?')) rejectMutation.mutate(selectedPayment.id); };
+    const handleVerify = () => { if (!refNumber) return; verifyMutation.mutate(refNumber); };
+    const closeModal = () => { setSelectedPayment(null); setRefNumber(''); setVerificationResult(null); };
 
     const filteredPayments = payments?.filter(p => filter === 'ALL' || p.status === filter);
 
@@ -130,6 +113,7 @@ export default function AdminPaymentsPage() {
         <div className="space-y-8">
             <h1 className="text-3xl font-bold text-gray-800">Payment Management</h1>
 
+            {/* Filter Pills */}
             <div className="flex space-x-2 border-b border-gray-200 pb-2">
                 {(['PENDING', 'APPROVED', 'REJECTED', 'ALL'] as const).map(status => (
                     <button
@@ -142,6 +126,7 @@ export default function AdminPaymentsPage() {
                 ))}
             </div>
 
+            {/* Payments Table */}
             <div className="bg-white rounded-lg shadow-md overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200">
@@ -219,10 +204,12 @@ export default function AdminPaymentsPage() {
                                                 <div>
                                                     <p className="font-bold text-base">Duplicate Reference Number!</p>
                                                     <p className="mt-1">This number was already used for the following approved payment:</p>
-                                                    <div className="mt-2 text-xs bg-red-100 p-2 rounded">
+                                                    <div className="mt-2 text-xs bg-red-100 p-2 rounded space-y-1">
                                                         <p><strong>Student:</strong> {verificationResult.payment.studentName}</p>
                                                         <p><strong>Email:</strong> {verificationResult.payment.studentEmail}</p>
-                                                        <p><strong>Student ID:</strong> {verificationResult.payment.studentId}</p>
+                                                        <p><strong>Phone:</strong> {verificationResult.payment.studentPhone || 'N/A'}</p>
+                                                        <p><strong>Address:</strong> {verificationResult.payment.studentAddress || 'N/A'}</p>
+                                                        <hr className="my-1 border-red-200"/>
                                                         <p><strong>Course:</strong> {verificationResult.payment.courseTitle}</p>
                                                         <p><strong>Processed On:</strong> {format(new Date(verificationResult.payment.processedAt), 'PPpp')}</p>
                                                     </div>

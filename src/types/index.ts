@@ -57,3 +57,20 @@ export interface Announcement {
   imageUrl: string;
   createdAt: string;
 }
+
+export interface StudentCourseInfo {
+    courseId: string;
+    courseTitle: string;
+    enrollmentStatus: 'PENDING' | 'APPROVED' | 'REJECTED';
+    highestScore: number | null;
+}
+
+// Represents a student object for the admin view
+export interface Student {
+  id: string;
+  name: string;
+  email: string;
+  phone: string | null;
+  address: string | null;
+  courses: StudentCourseInfo[];
+}
