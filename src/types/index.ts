@@ -11,9 +11,10 @@ export interface Course {
   description: string;
   price: number;
   tutor?: string;
+  imageUrl?: string;
   whatsappGroupLink?: string;
-  zoomLink?: string; // Moved from CourseMaterial
-  recordings?: Recording[]; // New: A course can have many recordings
+  zoomLink?: string;
+  recordings?: Recording[];
   quizzes?: Quiz[];
 }
 
@@ -21,36 +22,37 @@ export interface Course {
 export interface Recording {
   id: string;
   title: string;
-  videoUrl: string; // Renamed from recordingUrl for clarity
+  videoUrl: string;
   courseId: string;
 }
 
-// Represents a single quiz question.
+// Represents a single quiz container.
 export interface Quiz {
   id: string;
-  title: string; // <-- A Quiz now has a TITLE, not a question.
+  title: string;
   courseId: string;
-  questions?: Question[]; // A quiz can have many questions
+  questions?: Question[];
 }
+
+// Represents a single question within a quiz.
 export interface Question {
   id: string;
   questionText: string;
   answers: Answer[];
   quizId: string;
 }
-// Represents one of the possible answers for a quiz question.
+
+// Represents an answer for a question.
 export interface Answer {
   id: string;
   answerText: string;
   isCorrect: boolean;
 }
 
-// ... (keep your other types: Role, Course, etc.)
-// ... (other types)
-
+// Represents a public-facing announcement.
 export interface Announcement {
   id: string;
-  title: string; // <-- ADD THIS LINE
+  title: string;
   description: string;
   imageUrl: string;
   createdAt: string;
