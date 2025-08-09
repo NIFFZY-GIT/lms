@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image'; // Import the Next.js Image component
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Container } from '@/components/ui/Container';
@@ -91,8 +92,14 @@ export function Navbar() {
       <Container>
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link href="/" className="text-2xl font-bold text-gray-900 hover:text-indigo-600 transition-colors">
-            Online Thakshilawa
+          <Link href="/" className="flex items-center">
+            <Image
+                src="/logo.png" // Assumes logo.png is in the /public directory
+                alt="Online Thakshilawa Logo"
+                width={180}   // Adjust width as needed
+                height={40}  // Adjust height as needed
+                priority     // Preload the logo for better performance
+            />
           </Link>
 
           {/* Desktop Navigation */}

@@ -1,0 +1,30 @@
+{
+  "language": {
+    "changeTo": "සිංහල"
+  },
+  "navbar": {
+    "getStarted": "Get Started Now"
+  },
+  "hero": {
+    "title": "Unlock Your Potential with Our Expert-Led Courses",
+    "description": "Join a community of learners and gain access to high-quality video content, interactive quizzes, and live sessions with industry professionals.",
+    "cta": "Explore Courses"
+  },
+  "features": {
+    "title": "What We Offer",
+    "description": "Our platform is designed to provide a seamless and engaging learning experience.",
+    "videoContent": "Expert-Led Video Content",
+    "videoDescription": "Learn at your own pace with our extensive library of high-definition video recordings from top instructors.",
+    "quizzes": "Interactive Quizzes",
+    "quizzesDescription": "Test your knowledge and solidify your understanding with quizzes for every module. Track your progress easily.",
+    "liveSessions": "Live Zoom Sessions",
+    "liveSessionsDescription": "Engage directly with instructors and peers in live Q&A sessions, workshops, and project reviews."
+  },
+  "about": {
+    "title": "Why Choose Online Thakshilawa?",
+    "description": "We are dedicated to providing accessible, high-quality education that empowers students to achieve their academic and career goals.",
+    "point1": "Experienced Tutors",
+    "point2": "State-of-the-Art Platform",
+    "point3": "Supportive Community"
+  }
+}

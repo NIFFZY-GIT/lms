@@ -1,31 +1,35 @@
-import type { Metadata } from "next";
-import { Inter } from "next/font/google";
-import "./globals.css";
-import { Navbar } from "@/components/layout/Navbar";
-import { Footer } from "@/components/layout/Footer";
-import { Providers } from "@/components/providers"; // We will create this next
-import { AuthProvider } from '@/context/AuthContext'; // Import the provider
-const inter = Inter({ subsets: ["latin"] });
+// src/app/layout.tsx
+
+import type { Metadata } from 'next';
+import { Inter } from 'next/font/google';
+import './globals.css';
+import { AuthProvider } from '@/context/AuthContext';
+import { Navbar } from '@/components/layout/Navbar'; // Make sure your Navbar component is imported
+
+const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: "LMS Platform",
-  description: "A modern learning management system",
+  title: 'Online Thakshilawa',
+  description: 'Unlock Your Potential with Our Expert-Led Courses',
 };
 
-// ... your other imports
-
-
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+// The layout now accepts 'params' which will contain the 'lang' property
+export default function RootLayout({
+  children,
+  params,
+}: {
+  children: React.ReactNode;
+  params: { lang: string }; // Add this type for params
+}) {
   return (
-    <html lang="en">
-      <body className={`${inter.className} flex flex-col min-h-screen`}>
-        <Providers> {/* Your react-query provider */}
-          <AuthProvider> {/* Wrap with AuthProvider */}
-            <Navbar />
-            <div className="flex-grow">{children}</div>
-            <Footer />
-          </AuthProvider>
-        </Providers>
+    // Pass the lang parameter to the html tag
+    <html lang={params.lang}>
+      <body className={inter.className}>
+        <AuthProvider>
+          <Navbar />
+          <main>{children}</main>
+          {/* You can add a Footer component here if you have one */}
+        </AuthProvider>
       </body>
     </html>
   );
