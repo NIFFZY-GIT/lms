@@ -60,15 +60,7 @@ function AdminLayout({ children }: { children: React.ReactNode }) {
                     <NavLink href="/dashboard/admin/users" icon={Users} onClick={() => setSidebarOpen(false)}>Students</NavLink>
                     <NavLink href="/dashboard/admin/admins" icon={Shield} onClick={() => setSidebarOpen(false)}>Admins</NavLink>
                 </div>
-                <div className="mt-auto">
-                    <button
-                        onClick={() => logout()}
-                        className="flex items-center w-full px-3 py-2.5 text-sm font-medium text-gray-300 rounded-md hover:bg-red-800 hover:text-white transition-colors"
-                    >
-                        <LogOut className="w-5 h-5 mr-3" />
-                        Logout
-                    </button>
-                </div>
+            
             </nav>
         </aside>
 
