@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
-import { LayoutDashboard, BookOpen, Banknote, Users, LogOut, Megaphone, Shield, Menu, X } from 'lucide-react';
+import { LayoutDashboard, BookOpen, Banknote, Users, Megaphone, Shield, Menu, X } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { withAdminAuth } from '@/components/auth/withAdminAuth'; // Import the HOC
 
@@ -30,7 +30,7 @@ const NavLink = ({ href, icon: Icon, children, onClick }: { href: string; icon: 
 // --- Main Layout Component ---
 function AdminLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { logout, user } = useAuth();
+  const { user } = useAuth();
 
   return (
     <div className="min-h-screen bg-gray-100 flex">
