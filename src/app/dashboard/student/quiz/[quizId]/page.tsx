@@ -6,11 +6,13 @@ import axios, { AxiosError } from 'axios';
 import { useParams, useRouter } from 'next/navigation';
 import { Container } from '@/components/ui/Container';
 import { Check, X, ArrowLeft, RefreshCw, AlertTriangle, Lightbulb } from 'lucide-react';
+import { toast } from '@/components/ui/toast';
 import Link from 'next/link';
+import Image from 'next/image';
 
 // --- Type Definitions ---
 interface Answer { id: string; answerText: string; }
-interface Question { id: string; questionText: string; answers: Answer[]; }
+interface Question { id: string; questionText: string; imageUrl?: string | null; answers: Answer[]; }
 interface Quiz { id: string; title: string; courseId: string; questions: Question[]; }
 interface QuizSubmission { [questionId: string]: string; }
 
@@ -50,8 +52,8 @@ export default function StudentQuizPage() {
 
   const submitMutation = useMutation({
     mutationFn: submitQuiz,
-    onSuccess: (data: QuizResult) => { setResult(data); setView('result'); queryClient.invalidateQueries({ queryKey: ['myQuizAttempts'] }); },
-    onError: (error: AxiosError<{ error: string }>) => { alert(`Error submitting quiz: ${error.response?.data?.error || error.message}`); },
+  onSuccess: (data: QuizResult) => { setResult(data); setView('result'); queryClient.invalidateQueries({ queryKey: ['myQuizAttempts'] }); },
+  onError: (error: AxiosError<{ error: string }>) => { toast.error(error.response?.data?.error || error.message); },
   });
 
   const handleSelectAnswer = (questionId: string, answerId: string) => { setAnswers(prev => ({ ...prev, [questionId]: answerId })); };
@@ -87,9 +89,9 @@ export default function StudentQuizPage() {
             <div className="max-w-3xl mx-auto bg-white p-8 rounded-lg shadow-xl">
                 <h1 className="text-3xl font-bold mb-2">Quiz Completed!</h1>
                 <p className="text-gray-600 mb-6">Results for: <strong>{quiz.title}</strong></p>
-                <div className="text-center p-6 my-8 bg-indigo-50 border border-indigo-200 rounded-lg">
-                    <p className="text-lg text-indigo-800">Your Final Score:</p>
-                    <p className="text-6xl font-extrabold text-indigo-600 my-2">{result.score.toFixed(0)}%</p>
+        <div className="text-center p-6 my-8 bg-blue-50 border border-blue-200 rounded-lg">
+          <p className="text-lg text-blue-800">Your Final Score:</p>
+          <p className="text-6xl font-extrabold text-blue-600 my-2">{result.score.toFixed(0)}%</p>
                     <p>You answered <strong>{result.correctAnswers}</strong> of <strong>{result.totalQuestions}</strong> correctly.</p>
                 </div>
                 <h2 className="text-2xl font-bold mb-4">Detailed Review</h2>
@@ -138,7 +140,7 @@ export default function StudentQuizPage() {
   return (
     <Container className="py-10">
       <div className="max-w-3xl mx-auto">
-        <button onClick={() => router.push(`/dashboard/student/course/${quiz.courseId}`)} className="flex items-center text-indigo-600 hover:underline mb-4 font-medium">
+  <button onClick={() => router.push(`/dashboard/student/course/${quiz.courseId}`)} className="flex items-center text-blue-600 hover:underline mb-4 font-medium">
             <ArrowLeft className="w-4 h-4 mr-2" /> Back to Course
         </button>
         <div className="bg-white p-8 rounded-lg shadow-lg">
@@ -146,11 +148,18 @@ export default function StudentQuizPage() {
           <div className="space-y-10 mt-8">
             {quiz.questions.map((question, index) => (
                 <div key={question.id} className="border-t pt-6 first:border-t-0 first:pt-0">
-                    <h2 className="font-semibold text-lg text-gray-800">Question {index + 1}: <span className="font-normal">{question.questionText}</span></h2>
+          <h2 className="font-semibold text-lg text-gray-800">Question {index + 1}:</h2>
+          {question.imageUrl ? (
+            <div className="mt-3">
+                            <Image src={question.imageUrl} alt={`Question ${index + 1}`} width={960} height={540} className="max-h-72 w-auto h-auto rounded-md border" />
+                        </div>
+                     ) : (
+                        <p className="mt-2 text-gray-700">{question.questionText}</p>
+                     )}
                     <div className="space-y-3 mt-4">
                         {question.answers.map(answer => (
-                            <label key={answer.id} className={`flex items-center p-4 border rounded-lg cursor-pointer transition-colors ${answers[question.id] === answer.id ? 'bg-indigo-50 border-indigo-500' : 'hover:bg-gray-50 border-gray-300'}`}>
-                                <input type="radio" name={`question-${question.id}`} checked={answers[question.id] === answer.id} onChange={() => handleSelectAnswer(question.id, answer.id)} className="h-4 w-4 text-indigo-600" />
+              <label key={answer.id} className={`flex items-center p-4 border rounded-lg cursor-pointer transition-colors ${answers[question.id] === answer.id ? 'bg-blue-50 border-blue-500' : 'hover:bg-gray-50 border-gray-300'}`}>
+                <input type="radio" name={`question-${question.id}`} checked={answers[question.id] === answer.id} onChange={() => handleSelectAnswer(question.id, answer.id)} className="h-4 w-4 text-blue-600" />
                                 <span className="ml-3 text-gray-700">{answer.answerText}</span>
                             </label>
                         ))}

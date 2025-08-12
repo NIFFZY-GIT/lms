@@ -2,6 +2,7 @@ import { Container } from '@/components/ui/Container';
 import { Announcement } from '@/types';
 import { format } from 'date-fns';
 import { Megaphone } from 'lucide-react';
+import Image from 'next/image';
 import { getBaseUrl } from '@/lib/utils';
 
 // This function runs on the server to fetch the data
@@ -29,12 +30,17 @@ function AnnouncementPost({ announcement }: { announcement: Announcement }) {
         Image Container: Uses a standard <img> to respect the original aspect ratio,
         ensuring the full poster is visible.
       */}
-      <div className="bg-gray-100">
-        <img
-          src={announcement.imageUrl}
-          alt={announcement.title}
-          className="w-full h-auto object-contain max-h-[600px] mx-auto" // object-contain ensures full visibility
-        />
+      <div className="bg-gray-100 relative w-full max-h-[600px] flex items-center justify-center">
+        {announcement.imageUrl && (
+          <Image
+            src={announcement.imageUrl}
+            alt={announcement.title}
+            width={1200}
+            height={600}
+            className="w-full h-auto object-contain max-h-[600px]"
+            priority
+          />
+        )}
       </div>
       <div className="p-8 md:p-10">
         <p className="text-sm text-indigo-600 font-semibold uppercase tracking-wider">{format(new Date(announcement.createdAt), 'MMMM d, yyyy')}</p>

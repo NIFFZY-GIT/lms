@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import type { UseMutationResult } from '@tanstack/react-query';
 import { Recording } from '@/types';
+import { toast } from '@/components/ui/toast';
 
 function RecordingForm({
     courseId,
@@ -18,10 +19,7 @@ function RecordingForm({
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!title || !file) {
-            alert("Title and a video file are required.");
-            return;
-        }
+    if (!title || !file) { toast.warning('Title and a video file are required.'); return; }
         const formData = new FormData();
         formData.append('title', title);
         formData.append('video', file);
@@ -42,7 +40,7 @@ function RecordingForm({
             </div>
             <div>
                 <label className="block text-sm font-medium text-gray-700">Video File</label>
-                <input type="file" onChange={e => setFile(e.target.files ? e.target.files[0] : null)} required accept="video/mp4,video/webm" className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"/>
+                <input type="file" onChange={e => setFile(e.target.files ? e.target.files[0] : null)} required accept="video/mp4,video/webm" className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"/>
             </div>
             <div className="flex justify-end space-x-2">
                 <button type="button" onClick={onCancel} className="btn-secondary">Cancel</button>

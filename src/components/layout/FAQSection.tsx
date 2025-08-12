@@ -36,7 +36,7 @@ const FAQItem = ({ question, answer }: { question: string; answer: string }) => 
             >
                 <span className="text-lg font-medium text-gray-900">{question}</span>
                 <span className="ml-6 flex-shrink-0">
-                    {isOpen ? <Minus className="h-6 w-6 text-indigo-600" /> : <Plus className="h-6 w-6 text-gray-400" />}
+                    {isOpen ? <Minus className="h-6 w-6 text-blue-600" /> : <Plus className="h-6 w-6 text-gray-400" />}
                 </span>
             </button>
             {isOpen && (

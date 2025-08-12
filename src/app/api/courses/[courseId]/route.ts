@@ -4,6 +4,7 @@ import { getServerUser } from '../../../../lib/auth';
 import { Role } from '../../../../types';
 import { writeFile, mkdir, unlink } from 'fs/promises';
 import path from 'path';
+import { IMAGE_5MB, assertFile, uniqueFileName } from '@/lib/security';
 
 // --- GET function (no changes) ---
 export async function GET(req: Request, { params }: { params: Promise<{ courseId: string }> }) {
@@ -41,8 +42,13 @@ export async function GET(req: Request, { params }: { params: Promise<{ courseId
 // --- PATCH function (no changes) ---
 export async function PATCH(req: Request, { params }: { params: Promise<{ courseId: string }> }) {
     try {
-        await getServerUser(Role.ADMIN);
+        const user = await getServerUser([Role.ADMIN, Role.INSTRUCTOR]);
         const { courseId } = await params;
+        if (user.role === Role.INSTRUCTOR) {
+            const ownerCheck = await db.query('SELECT "createdById" FROM "Course" WHERE id = $1', [courseId]);
+            if (ownerCheck.rows.length === 0) return NextResponse.json({ error: 'Course not found' }, { status: 404 });
+            if (ownerCheck.rows[0].createdById !== user.id) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+        }
         const formData = await req.formData();
 
         const fields: string[] = [];
@@ -64,25 +70,35 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ course
         if(zoomLink) { fields.push(`"zoomLink" = $${queryIndex++}`); values.push(zoomLink); }
         if(whatsappGroupLink) { fields.push(`"whatsappGroupLink" = $${queryIndex++}`); values.push(whatsappGroupLink); }
 
-        const imageFile = formData.get('image') as File | null;
+    const imageFile = formData.get('image') as File | null;
+    const removeImage = formData.get('removeImage') as string | null;
         if (imageFile) {
+            try {
+                assertFile(imageFile, IMAGE_5MB, 'image');
+            } catch (e) {
+                const message = e instanceof Error ? e.message : 'Invalid file';
+                return NextResponse.json({ error: message }, { status: 400 });
+            }
             const oldImageResult = await db.query('SELECT "imageUrl" FROM "Course" WHERE id = $1', [courseId]);
             if (oldImageResult.rows.length > 0 && oldImageResult.rows[0].imageUrl) {
-                try {
-                    await unlink(path.join(process.cwd(), 'public', oldImageResult.rows[0].imageUrl));
-                } catch (e) { console.error("Failed to delete old image:", e); }
+                try { await unlink(path.join(process.cwd(), 'public', oldImageResult.rows[0].imageUrl)); } catch (e) { console.error("Failed to delete old image:", e); }
             }
-
-            const uniqueFilename = `${Date.now()}-${imageFile.name.replace(/\s+/g, '_')}`;
+            const uniqueFilename = uniqueFileName(imageFile.name);
             const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'posters');
             await mkdir(uploadDir, { recursive: true });
             const savePath = path.join(uploadDir, uniqueFilename);
             const buffer = Buffer.from(await imageFile.arrayBuffer());
             await writeFile(savePath, buffer);
             const newImageUrl = `/uploads/posters/${uniqueFilename}`;
-            
             fields.push(`"imageUrl" = $${queryIndex++}`);
             values.push(newImageUrl);
+        } else if (removeImage) {
+            // Remove existing image without replacement
+            const existing = await db.query('SELECT "imageUrl" FROM "Course" WHERE id = $1', [courseId]);
+            if (existing.rows.length > 0 && existing.rows[0].imageUrl) {
+                try { await unlink(path.join(process.cwd(), 'public', existing.rows[0].imageUrl)); } catch (e) { console.error("Failed to delete old image:", e); }
+            }
+            fields.push('"imageUrl" = NULL');
         }
 
         if (fields.length === 0) {
@@ -114,8 +130,13 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ course
 // --- NEW: DELETE function ---
 export async function DELETE(req: Request, { params }: { params: Promise<{ courseId: string }> }) {
     try {
-        await getServerUser(Role.ADMIN);
+        const user = await getServerUser([Role.ADMIN, Role.INSTRUCTOR]);
         const { courseId } = await params;
+        if (user.role === Role.INSTRUCTOR) {
+            const ownerCheck = await db.query('SELECT "createdById" FROM "Course" WHERE id = $1', [courseId]);
+            if (ownerCheck.rows.length === 0) return NextResponse.json({ error: 'Course not found' }, { status: 404 });
+            if (ownerCheck.rows[0].createdById !== user.id) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+        }
 
         // 1. Find the course to get its image URL before deleting the DB record
         const findResult = await db.query('SELECT "imageUrl" FROM "Course" WHERE id = $1', [courseId]);

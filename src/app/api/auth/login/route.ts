@@ -8,39 +8,33 @@ import { cookies } from 'next/headers';
 
 export async function POST(req: Request) {
   try {
-    const { email, password } = await req.json();
-    console.log('--- LOGIN ATTEMPT ---');
-    console.log('Attempting login for email:', email);
-    
-    if (!email || !password) {
-      return NextResponse.json({ error: 'Email and password are required' }, { status: 400 });
+    const body = await req.json();
+    const email: string | undefined = body?.email;
+    const phone: string | undefined = body?.phone;
+    const password: string | undefined = body?.password;
+
+    if ((!email && !phone) || !password) {
+      return NextResponse.json({ error: 'Email/phone and password are required' }, { status: 400 });
     }
 
-    // 1. Find the user in the database
-    const userQuery = `SELECT * FROM "User" WHERE email = $1`;
-    const userResult = await db.query(userQuery, [email]);
-    
+    const where = email ? 'email = $1' : 'phone = $1';
+    const value = email ?? phone;
+
+    const userQuery = `SELECT * FROM "User" WHERE ${where}`;
+    const userResult = await db.query(userQuery, [value]);
+
     if (userResult.rows.length === 0) {
-      console.log('User not found in database.');
+      // Keep generic to avoid user enumeration
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
 
     const user = userResult.rows[0];
-    console.log('User found:', { id: user.id, email: user.email });
-    console.log('Hashed password from DB:', user.password);
-    console.log('Password from login form:', password);
-    
-    // 2. Compare the provided password with the stored hash
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-    console.log('bcrypt.compare result:', isPasswordValid); // <-- THIS IS THE MOST IMPORTANT LOG
 
+    const isPasswordValid = await bcrypt.compare(password!, user.password);
     if (!isPasswordValid) {
-      console.log('Password comparison failed.');
+      // Keep generic but use 401
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
-    
-    // --- If we reach here, the password is correct ---
-    console.log('Login successful! Creating JWT.');
 
     const token = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET!, {
       expiresIn: '7d',
@@ -51,16 +45,14 @@ export async function POST(req: Request) {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
-      maxAge: 60 * 60 * 24 * 7, // 1 week
+      maxAge: 60 * 60 * 24 * 7,
       path: '/',
     });
 
-    // Don't send the password hash back to the client
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { password: _, ...userWithoutPassword } = user;
     return NextResponse.json(userWithoutPassword);
-  } catch (error) {
-    console.error('--- LOGIN API ERROR ---', error);
-    return NextResponse.json({ error: 'Something went wrong on the server' }, { status: 500 });
+  } catch {
+    return NextResponse.json({ error: 'An internal error occurred' }, { status: 500 });
   }
 }

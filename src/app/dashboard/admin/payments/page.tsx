@@ -7,6 +7,7 @@ import { Modal } from '@/components/ui/Modal';
 import { format } from 'date-fns';
 import { Eye, CheckCircle, XCircle, Clock, Search, ShieldCheck, ShieldAlert, Loader2 } from 'lucide-react';
 import Image from 'next/image';
+import { toast } from '@/components/ui/toast';
 
 // --- Type Definitions ---
 type PaymentStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
@@ -93,9 +94,7 @@ export default function AdminPaymentsPage() {
             queryClient.invalidateQueries({ queryKey: ['payments'] });
             closeModal();
         },
-        onError: (error: AxiosError<{ error?: string }>) => {
-            alert(`Action failed: ${error.response?.data?.error || error.message}`);
-        }
+    onError: (error: AxiosError<{ error?: string }>) => { toast.error(error.response?.data?.error || error.message); }
     };
 
     const approveMutation = useMutation({ mutationFn: approvePayment, ...mutationOptions });
@@ -119,7 +118,7 @@ export default function AdminPaymentsPage() {
                     <button
                         key={status}
                         onClick={() => setFilter(status)}
-                        className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${filter === status ? 'bg-indigo-600 text-white shadow' : 'bg-white text-gray-600 hover:bg-gray-100'}`}
+                        className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${filter === status ? 'bg-blue-600 text-white shadow' : 'bg-white text-gray-600 hover:bg-gray-100'}`}
                     >
                         {status.charAt(0) + status.slice(1).toLowerCase()}
                     </button>
@@ -176,7 +175,7 @@ export default function AdminPaymentsPage() {
                            <div className="relative border rounded-lg p-2 bg-gray-100 h-96 w-full">
                                 <Image src={selectedPayment.receiptUrl} alt="Payment Receipt" fill style={{ objectFit: 'contain' }} className="rounded-md" />
                             </div>
-                            <a href={selectedPayment.receiptUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-indigo-600 hover:underline">Open image in new tab</a>
+                            <a href={selectedPayment.receiptUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline">Open image in new tab</a>
                         </div>
                         <div className="space-y-6 flex flex-col">
                             <div>
@@ -191,7 +190,7 @@ export default function AdminPaymentsPage() {
                             <div className="flex-grow">
                                 <label htmlFor="refNumber" className="block text-sm font-medium text-gray-700">Bank Reference Number</label>
                                 <div className="mt-1 flex rounded-md shadow-sm">
-                                    <input id="refNumber" type="text" value={refNumber} onChange={(e) => {setRefNumber(e.target.value); setVerificationResult(null);}} className="flex-1 block w-full rounded-none rounded-l-md border-gray-300 focus:ring-indigo-500 focus:border-indigo-500" placeholder="Enter Ref# from receipt" />
+                                    <input id="refNumber" type="text" value={refNumber} onChange={(e) => {setRefNumber(e.target.value); setVerificationResult(null);}} className="flex-1 block w-full rounded-none rounded-l-md border-gray-300 focus:ring-blue-500 focus:border-blue-500" placeholder="Enter Ref# from receipt" />
                                     <button onClick={handleVerify} disabled={!refNumber || verifyMutation.isPending} className="inline-flex items-center px-3 rounded-r-md border border-l-0 border-gray-300 bg-gray-50 text-gray-500 text-sm hover:bg-gray-100 disabled:cursor-not-allowed">
                                         {verifyMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
                                     </button>

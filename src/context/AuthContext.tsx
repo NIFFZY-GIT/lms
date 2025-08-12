@@ -8,7 +8,7 @@ interface User {
   id: string;
   name: string;
   email: string;
-  role: 'ADMIN' | 'STUDENT';
+  role: 'ADMIN' | 'INSTRUCTOR' | 'STUDENT';
 }
 
 // --- 1. UPDATE THE TYPE DEFINITION ---
@@ -31,7 +31,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const { data } = await axios.get<User>('/api/users/me'); 
         setUser(data);
-      } catch (error) {
+  } catch {
         setUser(null);
       } finally {
         setIsLoading(false);

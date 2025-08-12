@@ -11,7 +11,10 @@ import { Course } from '@/types';
 import { Input } from '@/components/ui/Input';
 import { Plus, Edit, Trash2, BookCopy } from 'lucide-react';
 import { ManageContentModal } from '@/components/admin/ManageContentModal';
+import { formatCurrency } from '@/lib/utils';
 import Image from 'next/image';
+import { toast } from '@/components/ui/toast';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 
 // --- Zod Schema (Corrected) ---
 const courseSchema = z.object({
@@ -50,6 +53,7 @@ export default function AdminCoursesPage() {
   });
 
   const closeModal = () => { setIsCourseModalOpen(false); setSelectedCourse(null); reset(); };
+  const confirm = useConfirm();
   const mutationOptions = { onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['courses'] }); closeModal(); }, onError: (error: AxiosError<{ error?: string }>) => alert(`An error occurred: ${error.response?.data?.error || error.message}`), };
   
   const createMutation = useMutation({ mutationFn: createCourse, ...mutationOptions });
@@ -74,12 +78,15 @@ export default function AdminCoursesPage() {
     if (selectedCourse) {
       updateMutation.mutate({ id: selectedCourse.id, data: formData });
     } else {
-      if (!data.image || data.image.length === 0) { alert("A poster image is required for new courses."); return; }
+      if (!data.image || data.image.length === 0) { toast.error('A poster image is required for new courses.'); return; }
       createMutation.mutate(formData);
     }
   };
 
-  const handleDelete = (id: string) => { if (window.confirm('Are you sure?')) { deleteMutation.mutate(id); } };
+  const handleDelete = async (id: string) => {
+    const ok = await confirm({ title: 'Delete Course', description: 'Are you sure you want to delete this course? This cannot be undone.', confirmText: 'Delete', destructive: true });
+    if (ok) deleteMutation.mutate(id);
+  };
 
   return (
     <div className="space-y-8">
@@ -103,7 +110,7 @@ export default function AdminCoursesPage() {
                     </div>
                     <div>
                         <h3 className="font-bold text-lg text-gray-800">{course.title}</h3>
-                        <p className="text-sm font-semibold text-green-600">${course.price.toFixed(2)}</p>
+                        <p className="text-sm font-semibold text-green-600">{formatCurrency(course.price)}</p>
                     </div>
                 </div>
                 <div className="flex items-center space-x-2">
@@ -129,7 +136,7 @@ export default function AdminCoursesPage() {
             {errors.description && <p className="text-sm text-red-600 mt-1">{errors.description.message}</p>}
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input label="Price ($)" registration={register('price')} error={errors.price?.message} type="number" step="0.01" />
+            <Input label="Price (LKR)" registration={register('price')} error={errors.price?.message} type="number" step="0.01" />
             <Input label="WhatsApp Group Link" registration={register('whatsappGroupLink')} error={errors.whatsappGroupLink?.message} />
           </div>
           <div>

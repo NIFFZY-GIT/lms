@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios, { AxiosError } from 'axios';
 import { Modal } from '@/components/ui/Modal';
@@ -10,6 +10,8 @@ import * as z from 'zod';
 import { Announcement } from '@/types';
 import Image from 'next/image';
 import { Plus, Trash2, Edit } from 'lucide-react';
+import { toast } from '@/components/ui/toast';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 import { Input } from '@/components/ui/Input';
 
 // --- Zod Schema (Updated for Edit) ---
@@ -30,6 +32,7 @@ const updateAnnouncement = async ({ id, data }: { id: string, data: FormData }):
 const deleteAnnouncement = async (id: string): Promise<void> => (await axios.delete(`/api/announcements/${id}`)).data;
 
 export default function AdminAnnouncementsPage() {
+  const confirm = useConfirm();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAnnouncement, setEditingAnnouncement] = useState<Announcement | null>(null); // State to track which item is being edited
   
@@ -41,9 +44,10 @@ export default function AdminAnnouncementsPage() {
   const mutationOptions = {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['announcements'] });
+      toast.success(editingAnnouncement ? 'Announcement updated' : 'Announcement created');
       closeModal();
     },
-    onError: (error: AxiosError<{ error?: string }>) => alert(`Error: ${error.response?.data?.error || error.message}`),
+    onError: (error: AxiosError<{ error?: string }>) => toast.error(error.response?.data?.error || error.message || 'Action failed'),
   };
   
   const createMutation = useMutation({ mutationFn: createAnnouncement, ...mutationOptions });
@@ -84,10 +88,16 @@ export default function AdminAnnouncementsPage() {
     reset();
   };
   
-  const handleDelete = (id: string) => {
-    if (window.confirm('Are you sure you want to delete this announcement?')) {
-      deleteMutation.mutate(id);
-    }
+  const handleDelete = async (id: string) => {
+    const ok = await confirm({ title: 'Delete announcement', description: 'This action cannot be undone.', destructive: true, confirmText: 'Delete' });
+    if (!ok) return;
+    deleteMutation.mutate(id, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ['announcements'] });
+        toast.success('Announcement deleted');
+      },
+      onError: (error: AxiosError<{ error?: string }>) => toast.error(error.response?.data?.error || error.message || 'Delete failed')
+    });
   };
 
   return (

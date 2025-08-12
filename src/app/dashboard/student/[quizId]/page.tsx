@@ -5,6 +5,7 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import axios, { AxiosError } from 'axios';
 import { useParams, useRouter } from 'next/navigation';
 import { Container } from '@/components/ui/Container';
+import { toast } from '@/components/ui/toast';
 import { CheckCircle, XCircle, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 
@@ -58,15 +59,12 @@ export default function QuizPage() {
       setResult(data);
     },
     onError: (error: AxiosError<{ error: string }>) => {
-      alert(`Error submitting quiz: ${error.response?.data?.error || error.message}`);
+      toast.error(error.response?.data?.error || error.message);
     },
   });
 
   const handleSubmit = () => {
-    if (!selectedAnswerId) {
-      alert('Please select an answer before submitting.');
-      return;
-    }
+  if (!selectedAnswerId) { toast.warning('Please select an answer before submitting.'); return; }
     
     submitMutation.mutate({
       quizId,
@@ -98,7 +96,7 @@ export default function QuizPage() {
           <p>The quiz you&apos;re looking for doesn&apos;t exist or you don&apos;t have access to it.</p>
           <Link 
             href="/dashboard/student" 
-            className="mt-4 inline-block px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+            className="mt-4 inline-block px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
           >
             Back to Dashboard
           </Link>
@@ -112,7 +110,7 @@ export default function QuizPage() {
       <div className="max-w-2xl mx-auto">
         <button
           onClick={goBack}
-          className="flex items-center text-indigo-600 hover:text-indigo-700 mb-6"
+          className="flex items-center text-blue-600 hover:text-blue-700 mb-6"
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back to Course
@@ -132,7 +130,7 @@ export default function QuizPage() {
                       key={answer.id}
                       className={`flex items-center p-4 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors ${
                         selectedAnswerId === answer.id 
-                          ? 'border-indigo-500 bg-indigo-50' 
+                          ? 'border-blue-500 bg-blue-50' 
                           : 'border-gray-300'
                       }`}
                     >
@@ -142,7 +140,7 @@ export default function QuizPage() {
                         value={answer.id}
                         checked={selectedAnswerId === answer.id}
                         onChange={(e) => setSelectedAnswerId(e.target.value)}
-                        className="mr-3 text-indigo-600"
+                        className="mr-3 text-blue-600"
                       />
                       <span className="text-gray-700">{answer.answer}</span>
                     </label>
@@ -153,7 +151,7 @@ export default function QuizPage() {
               <button
                 onClick={handleSubmit}
                 disabled={!selectedAnswerId || submitMutation.isPending}
-                className="w-full px-6 py-3 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+                className="w-full px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
               >
                 {submitMutation.isPending ? 'Submitting...' : 'Submit Answer'}
               </button>
@@ -182,7 +180,7 @@ export default function QuizPage() {
 
               <button
                 onClick={goBack}
-                className="px-6 py-3 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition-colors"
+                className="px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
               >
                 Back to Course
               </button>

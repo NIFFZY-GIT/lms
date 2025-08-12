@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { Course } from '@/types';
 import Image from 'next/image';
 import { BookOpen } from 'lucide-react';
+import { formatCurrency } from '@/lib/utils';
 
 interface CourseCardProps {
   course: Course;
@@ -26,18 +27,18 @@ export function CourseCard({ course }: CourseCardProps) {
             />
           ) : (
             // Otherwise, show a placeholder
-            <div className="w-full h-full flex items-center justify-center bg-indigo-500">
-                <BookOpen className="w-16 h-16 text-indigo-200" />
+            <div className="w-full h-full flex items-center justify-center bg-blue-500">
+                <BookOpen className="w-16 h-16 text-blue-200" />
             </div>
           )}
         </div>
         
         <div className="p-6 flex-grow flex flex-col">
-          <h3 className="font-extrabold text-xl text-gray-900 mb-2 leading-tight group-hover:text-indigo-600 transition-colors">{course.title}</h3>
+          <h3 className="font-extrabold text-xl text-gray-900 mb-2 leading-tight group-hover:text-blue-600 transition-colors">{course.title}</h3>
           <p className="text-gray-600 text-sm leading-relaxed flex-grow mb-4">{course.description}</p>
           <p className="text-sm text-gray-500 mb-4"><strong>Tutor:</strong> {course.tutor || 'N/A'}</p>
           <div className="mt-auto flex justify-between items-center pt-4 border-t border-gray-100">
-            <p className="text-2xl font-bold text-gray-800">${course.price.toFixed(2)}</p>
+            <p className="text-2xl font-bold text-gray-800">{formatCurrency(course.price)}</p>
             <span className="btn-primary text-sm">View Details</span>
           </div>
         </div>

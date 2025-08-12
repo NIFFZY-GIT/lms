@@ -1,38 +1,88 @@
 @import "tailwindcss";
 
+:root {
+  /* Primary brand color set to blue-600 */
+  --brand: 37 99 235; /* blue-600 */
+  --surface: 255 255 255; /* white */
+  --muted: 248 250 252; /* slate-50 */
+}
+
+/****************************
+ Modern UI helpers
+*****************************/
+
+
+.glass-card {
+  background-color: rgb(var(--surface) / 0.8);
+  backdrop-filter: saturate(180%) blur(16px);
+  border: 1px solid rgb(255 255 255 / 0.3);
+  box-shadow: 0 10px 25px -10px rgb(0 0 0 / 0.15);
+}
+
+.section-title {
+  font-size: clamp(1.875rem, 1.5rem + 1vw, 2.25rem);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: #111827;
+}
+
+/****************************
+ Buttons
+*****************************/
 .btn-primary {
-  padding: 0.5rem 1rem;
-  background-color: rgb(79 70 229);
-  color: white;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
   border-radius: 0.5rem;
-  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 150ms;
+  padding: 0.5rem 1rem;
+  color: #fff;
+  background-color: rgb(var(--brand));
+  transition: filter 150ms ease, opacity 150ms ease, background-color 150ms ease;
 }
 
-.btn-primary:hover {
-  background-color: rgb(67 56 202);
-}
-
-.btn-primary:disabled {
-  background-color: rgb(129 140 248);
-}
+.btn-primary:hover { filter: brightness(0.95); }
+.btn-primary:disabled { filter: grayscale(0.3); opacity: 0.8; }
+.btn-primary:focus-visible { outline: none; box-shadow: 0 0 0 2px rgb(37 99 235 / 0.6), 0 0 0 4px #ffffff; }
 
 .btn-secondary {
-  padding: 0.5rem 1rem;
-  background-color: rgb(229 231 235);
-  color: rgb(31 41 55);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
   border-radius: 0.5rem;
-  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 150ms;
+  padding: 0.5rem 1rem;
+  color: #1f2937; /* gray-800 */
+  background-color: #f3f4f6; /* gray-100 */
+  transition: background-color 150ms ease;
 }
 
-.btn-secondary:hover {
-  background-color: rgb(209 213 219);
+.btn-secondary:hover { background-color: #e5e7eb; }
+.btn-secondary:focus-visible { outline: none; box-shadow: 0 0 0 2px rgb(156 163 175 / 0.6), 0 0 0 4px #ffffff; }
+
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 0.5rem;
+  padding: 0.5rem 1rem;
+  color: #374151; /* gray-700 */
+  background-color: transparent;
+  transition: background-color 150ms ease;
 }
 
+.btn-ghost:hover { background-color: #f3f4f6; }
+
+/* Override any gradient utility used as brand separators to a solid blue */
+.gradient-brand { background-color: rgb(var(--brand)); }
+
+/* If any text-gradient utility is used, fall back to solid brand color (no gradient) */
+.text-gradient { background: none !important; -webkit-background-clip: initial !important; background-clip: initial !important; color: rgb(var(--brand)) !important; }
+
+/****************************
+ Legacy styles retained for compatibility
+*****************************/
 .btn-danger {
   padding: 0.5rem 1rem;
   background-color: rgb(220 38 38);
@@ -44,6 +94,4 @@
   transition-duration: 150ms;
 }
 
-.btn-danger:hover {
-  background-color: rgb(185 28 28);
-}
+.btn-danger:hover { background-color: rgb(185 28 28); }

@@ -5,10 +5,12 @@ export async function POST() {
   try {
     // To delete a cookie, you set it again with a maxAge of 0 or an expiry date in the past.
     const cookieStore = await cookies();
-    cookieStore.set('token', '', { 
-      httpOnly: true, 
-      maxAge: 0, 
-      path: '/' // The path must match the path of the cookie you set on login!
+    cookieStore.set('token', '', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 0,
+      path: '/', // The path must match the path of the cookie you set on login!
     });
     return NextResponse.json({ message: 'Logged out successfully' });
   } catch (error) {

@@ -1,6 +1,7 @@
 // Defines the user roles for the entire application.
 export enum Role {
   ADMIN = 'ADMIN',
+  INSTRUCTOR = 'INSTRUCTOR',
   STUDENT = 'STUDENT',
 }
 
@@ -38,6 +39,7 @@ export interface Quiz {
 export interface Question {
   id: string;
   questionText: string;
+  imageUrl?: string | null;
   answers: Answer[];
   quizId: string;
 }
@@ -74,3 +76,24 @@ export interface Student {
   address: string | null;
   courses: StudentCourseInfo[];
 }
+
+// Generic application user shape (can be promoted to its own file later)
+export interface AppUser {
+  id: string;
+  email: string;
+  name: string;
+  role: Role;
+}
+
+// Basic permission helpers (expand as RBAC grows)
+export const isAdmin = (user: AppUser | undefined | null): boolean => user?.role === Role.ADMIN;
+export const isInstructor = (user: AppUser | undefined | null): boolean => user?.role === Role.INSTRUCTOR;
+export const isStudent = (user: AppUser | undefined | null): boolean => user?.role === Role.STUDENT;
+export const canManageCourse = (user: AppUser | undefined | null, courseOwnerId?: string, userId?: string): boolean => {
+  if (!user) return false;
+  if (isAdmin(user)) return true;
+  if (isInstructor(user) && courseOwnerId && user.id === courseOwnerId) return true;
+  // allow student self-only operations optionally by comparing provided userId
+  if (isStudent(user) && userId && user.id === userId) return true;
+  return false;
+};

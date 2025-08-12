@@ -1,9 +1,9 @@
-import { NextResponse, NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getServerUser } from '@/lib/auth';
 import { Role } from '@/types';
 
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
     await getServerUser(Role.ADMIN);
 

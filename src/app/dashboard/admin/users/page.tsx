@@ -10,6 +10,7 @@ import * as z from 'zod';
 import { Plus, Edit, Trash2, Search } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { Course } from '@/types';
+import { toast } from '@/components/ui/toast';
 
 // --- Type Definitions ---
 interface StudentCourseInfo {
@@ -77,7 +78,7 @@ export default function AdminStudentsPage() {
             queryClient.invalidateQueries({ queryKey: ['adminStudents'] });
             closeModal();
         },
-        onError: (error: AxiosError<{ error?: string }>) => alert(`Error: ${error.response?.data?.error || error.message}`),
+    onError: (error: AxiosError<{ error?: string }>) => toast.error(error.response?.data?.error || error.message),
     };
 
     const createMutation = useMutation({ mutationFn: createStudent, ...mutationOptions });
@@ -108,10 +109,7 @@ export default function AdminStudentsPage() {
         if (editingStudent) {
             updateMutation.mutate({ id: editingStudent.id, data });
         } else {
-            if (!data.password) {
-                alert("Password is required for new students.");
-                return;
-            }
+            if (!data.password) { toast.warning('Password is required for new students.'); return; }
             createMutation.mutate(data);
         }
     };
@@ -173,7 +171,7 @@ export default function AdminStudentsPage() {
                                 </td>
                                 <td className="px-6 py-4 flex items-center space-x-2">
                                     {/* --- CORRECTED JSX --- */}
-                                    <button onClick={() => openModalForEdit(student)} className="p-2 text-gray-500 hover:text-indigo-600"><Edit className="w-4 h-4" /></button>
+                                    <button onClick={() => openModalForEdit(student)} className="p-2 text-gray-500 hover:text-blue-600"><Edit className="w-4 h-4" /></button>
                                     <button onClick={() => handleDelete(student.id)} className="p-2 text-gray-500 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
                                 </td>
                             </tr>

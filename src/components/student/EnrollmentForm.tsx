@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import axios, { AxiosError } from 'axios';
 import { useRouter } from 'next/navigation';
+import { toast } from '@/components/ui/toast';
 
 // API function to submit the payment
 const submitPayment = async ({ courseId, file }: { courseId: string; file: File }) => {
@@ -27,14 +28,14 @@ export function EnrollmentForm({ courseId }: { courseId: string }) {
             return submitPayment({ courseId, file });
         },
         onSuccess: () => {
-            alert('Receipt submitted successfully! An admin will review it shortly.');
+            toast.success('Receipt submitted. Awaiting admin approval.');
             // Force a hard reload to get the new 'PENDING' status
             router.refresh();
             queryClient.invalidateQueries({ queryKey: ['course', courseId] });
         },
         onError: (err: AxiosError<{ error?: string }>) => {
             const errorMessage = err.response?.data?.error || err.message;
-            alert(`Submission failed: ${errorMessage}`);
+            toast.error(errorMessage || 'Submission failed');
         }
     });
 
@@ -78,7 +79,7 @@ export function EnrollmentForm({ courseId }: { courseId: string }) {
                     onClick={(event: React.MouseEvent<HTMLInputElement>) => {
                         (event.target as HTMLInputElement).value = '';
                     }}
-                    className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
+                    className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
                 />
                 {file && <p className="text-xs text-gray-500 mt-2">Selected file: {file.name}</p>}
                 {error && <p className="text-sm text-red-600 mt-2">{error}</p>}

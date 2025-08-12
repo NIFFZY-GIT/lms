@@ -5,13 +5,14 @@ import { Role } from '../../../types';
 import { v4 as uuidv4 } from 'uuid';
 import { writeFile, mkdir, unlink } from 'fs/promises';
 import path from 'path';
+import { IMAGE_10MB, assertFile, uniqueFileName } from '@/lib/security';
 
 // GET: Fetch all announcements (public)
 export async function GET() {
   try {
     const result = await db.query('SELECT * FROM "Announcement" ORDER BY "createdAt" DESC');
     return NextResponse.json(result.rows);
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: 'Failed to fetch announcements' }, { status: 500 });
   }
 }
@@ -29,9 +30,15 @@ export async function POST(req: Request) {
     if (!title || !description || !imageFile) { // <-- Add title to validation
       return NextResponse.json({ error: 'Title, description, and image are required.' }, { status: 400 });
     }
+    try {
+      assertFile(imageFile, IMAGE_10MB, 'image');
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Invalid file';
+      return NextResponse.json({ error: message }, { status: 400 });
+    }
 
     // ... (file upload logic remains the same) ...
-    const uniqueFilename = `${Date.now()}-${imageFile.name.replace(/\s+/g, '_')}`;
+  const uniqueFilename = uniqueFileName(imageFile.name);
     const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'announcements');
     await mkdir(uploadDir, { recursive: true });
     

@@ -8,6 +8,9 @@ import { Video, Mic, HelpCircle, AlertTriangle, ArrowLeft, LogOut } from 'lucide
 import Link from 'next/link';
 import { Course, Recording } from '@/types';
 import { EnrollmentForm } from '@/components/student/EnrollmentForm';
+import { toast } from '@/components/ui/toast';
+import { useConfirm } from '@/components/ui/confirm-dialog';
+import { formatCurrency } from '@/lib/utils';
 
 // --- Type Definition for this page's data ---
 interface CourseDetails extends Course {
@@ -38,23 +41,27 @@ export default function StudentCoursePage() {
   });
 
   // --- Mutation for unenrolling from the course ---
+  const confirm = useConfirm();
   const unenrollMutation = useMutation({
     mutationFn: unenrollFromCourse,
-    onSuccess: () => {
-        alert("You have successfully unenrolled from the course.");
+  onSuccess: () => {
+    toast.success('You have successfully unenrolled from the course.');
         // Invalidate this course's query to refetch its data.
         // This will automatically update the UI to show the enrollment form again.
         queryClient.invalidateQueries({ queryKey: ['course', courseId] });
     },
     onError: (error: AxiosError<{ error?: string }>) => {
-        alert(`Failed to unenroll: ${error.response?.data?.error || error.message}`);
+        toast.error(error.response?.data?.error || error.message || 'Failed to unenroll');
     }
   });
 
   const handleUnenroll = () => {
-    if (window.confirm("Are you sure you want to unenroll from this course? This will remove your access to all materials and quiz history, and this action cannot be undone.")) {
-        unenrollMutation.mutate(courseId);
-    }
+    confirm({
+      title: 'Unenroll from Course',
+      description: 'Are you sure you want to unenroll? You will lose access to materials and quiz history. This cannot be undone.',
+      confirmText: 'Unenroll',
+      destructive: true,
+    }).then(ok => { if (ok) unenrollMutation.mutate(courseId); });
   };
 
   if (isLoading) {
@@ -104,7 +111,7 @@ export default function StudentCoursePage() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               <div className="lg:col-span-2 space-y-8">
                 <section className="bg-white p-6 rounded-lg shadow-md">
-                  <h2 className="text-2xl font-bold text-gray-800 flex items-center mb-4"><Video className="w-6 h-6 mr-3 text-indigo-600" />Course Recordings</h2>
+                  <h2 className="text-2xl font-bold text-gray-800 flex items-center mb-4"><Video className="w-6 h-6 mr-3 text-blue-600" />Course Recordings</h2>
                   {course.recordings && course.recordings.length > 0 ? (
                     <div className="space-y-6">
                         {course.recordings.map(rec => (
@@ -121,8 +128,8 @@ export default function StudentCoursePage() {
                 </section>
                 
                 <section className="bg-white p-6 rounded-lg shadow-md">
-                  <h2 className="text-2xl font-bold text-gray-800 flex items-center mb-4"><Mic className="w-6 h-6 mr-3 text-indigo-600" />Live Session Link</h2>
-                  {course.zoomLink ? (<a href={course.zoomLink} target="_blank" rel="noopener noreferrer" className="font-medium text-indigo-600 hover:underline">Join the next live session on Zoom</a>) : (<p className="text-gray-500">The Zoom link has not been posted yet.</p>)}
+                  <h2 className="text-2xl font-bold text-gray-800 flex items-center mb-4"><Mic className="w-6 h-6 mr-3 text-blue-600" />Live Session Link</h2>
+                  {course.zoomLink ? (<a href={course.zoomLink} target="_blank" rel="noopener noreferrer" className="font-medium text-blue-600 hover:underline">Join the next live session on Zoom</a>) : (<p className="text-gray-500">The Zoom link has not been posted yet.</p>)}
                 </section>
               </div>
               
@@ -130,7 +137,7 @@ export default function StudentCoursePage() {
 <aside className="space-y-6">
   <div className="bg-white p-6 rounded-lg shadow-md">
     <h2 className="text-2xl font-bold text-gray-800 flex items-center mb-4">
-        <HelpCircle className="w-6 h-6 mr-3 text-indigo-600" />
+  <HelpCircle className="w-6 h-6 mr-3 text-blue-600" />
         Quizzes
     </h2>
     {course.quizzes && course.quizzes.length > 0 ? (
@@ -139,7 +146,7 @@ export default function StudentCoursePage() {
           <li key={quiz.id}>
             <Link 
                 href={`/dashboard/student/quiz/${quiz.id}`} 
-                className="block p-4 bg-gray-100 rounded-md hover:bg-indigo-100 transition-colors font-semibold text-gray-700"
+                className="block p-4 bg-gray-100 rounded-md hover:bg-blue-100 transition-colors font-semibold text-gray-700"
             >
               {quiz.title} {/* <-- THE FIX IS HERE */}
             </Link>
@@ -167,7 +174,7 @@ export default function StudentCoursePage() {
           </button>
           <div className="bg-white p-8 rounded-lg shadow-xl">
             <h1 className="text-3xl font-bold mb-2">{course?.title}</h1>
-            {course && <p className="text-2xl font-semibold text-indigo-600 mb-6">${course.price.toFixed(2)}</p>}
+            {course && <p className="text-2xl font-semibold text-indigo-600 mb-6">{formatCurrency(course.price)}</p>}
             <p className="text-gray-600 mb-2"><strong>Tutor:</strong> {course?.tutor || 'N/A'}</p>
             <p className="text-gray-600 mb-8">{course?.description}</p>
             

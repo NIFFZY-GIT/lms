@@ -6,19 +6,26 @@ import { v4 as uuidv4 } from 'uuid';
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { email, name, password, address, phone } = body;
+    const { email, name, password, address, phone } = body as {
+      email?: string; name?: string; password?: string; address?: string; phone?: string;
+    };
 
-    // Basic validation on the backend
-    if (!email || !name || !password) {
-      return NextResponse.json({ error: 'Name, email, and password are required.' }, { status: 400 });
+    // Validate required fields
+    if (!name || !email || !password || !address || !phone) {
+      return NextResponse.json({ error: 'Name, email, phone, address, and password are required.' }, { status: 400 });
+    }
+
+    // Check if email already exists (friendly early check)
+    const exists = await db.query('SELECT 1 FROM "User" WHERE email = $1 LIMIT 1', [email]);
+    if (exists.rowCount && exists.rowCount > 0) {
+      return NextResponse.json({ error: 'This email is already registered' }, { status: 409 });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
     const userId = uuidv4();
 
-    // Updated SQL query to include the new fields
     const sql = `
-      INSERT INTO "User" (id, email, name, password, address, phone) 
+      INSERT INTO "User" (id, email, name, password, address, phone)
       VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING id, email, name;
     `;
@@ -26,8 +33,9 @@ export async function POST(req: Request) {
 
     return NextResponse.json(result.rows[0], { status: 201 });
   } catch (error: unknown) {
-    if (typeof error === 'object' && error !== null && 'code' in error && (error as { code?: string }).code === '23505') { // Handles duplicate email
-      return NextResponse.json({ error: 'User with this email already exists' }, { status: 409 });
+    // Fallback if unique constraint triggers
+    if (typeof error === 'object' && error !== null && 'code' in error && (error as { code?: string }).code === '23505') {
+      return NextResponse.json({ error: 'This email is already registered' }, { status: 409 });
     }
     console.error('Registration error:', error);
     return NextResponse.json({ error: 'An internal error occurred' }, { status: 500 });

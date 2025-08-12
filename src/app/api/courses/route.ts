@@ -5,18 +5,34 @@ import { v4 as uuidv4 } from 'uuid';
 import { Role } from '../../../types';
 import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
+import { IMAGE_5MB, uniqueFileName, assertFile } from '@/lib/security';
 
 // GET handler (no changes needed)
-export async function GET() {
+export async function GET(req: Request) {
   try {
-    const result = await db.query('SELECT * FROM "Course" ORDER BY "createdAt" DESC');
-    const courses = result.rows.map(course => ({
+    const { searchParams } = new URL(req.url);
+    const mine = searchParams.get('mine');
+    let rows;
+    if (mine === '1') {
+      // attempt to get user (admin or instructor). If fails, return unauthorized.
+      try {
+      const user = await getServerUser([Role.ADMIN, Role.INSTRUCTOR]);
+        const result = await db.query('SELECT * FROM "Course" WHERE "createdById" = $1 ORDER BY "createdAt" DESC', [user.id]);
+        rows = result.rows;
+      } catch {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
+    } else {
+      const result = await db.query('SELECT * FROM "Course" ORDER BY "createdAt" DESC');
+      rows = result.rows;
+    }
+    const courses = rows.map(course => ({
       ...course,
       price: parseFloat(course.price),
     }));
     return NextResponse.json(courses);
   } catch (error) {
-    console.error("Failed to fetch courses:", error);
+    console.error('Failed to fetch courses:', error);
     return NextResponse.json({ error: 'Failed to fetch courses' }, { status: 500 });
   }
 }
@@ -24,7 +40,7 @@ export async function GET() {
 // POST handler (UPDATED to handle file uploads)
 export async function POST(req: Request) {
   try {
-    const user = await getServerUser(Role.ADMIN);
+  const user = await getServerUser([Role.ADMIN, Role.INSTRUCTOR]);
     const formData = await req.formData();
 
     // Get text fields from FormData
@@ -35,7 +51,7 @@ export async function POST(req: Request) {
     const whatsappGroupLink = formData.get('whatsappGroupLink') as string | null;
     
     // Get the optional image file
-    const imageFile = formData.get('image') as File | null;
+  const imageFile = formData.get('image') as File | null;
 
     if (!title || !description || isNaN(price)) {
         return NextResponse.json({ error: 'Title, description, and price are required.' }, { status: 400 });
@@ -43,17 +59,23 @@ export async function POST(req: Request) {
 
     let imageUrl: string | null = null;
     if (imageFile) {
-        // Save the file to the server
-        const uniqueFilename = `${Date.now()}-${imageFile.name.replace(/\s+/g, '_')}`;
+        // validate and save the file to the server
+        try {
+          assertFile(imageFile, IMAGE_5MB, 'image');
+        } catch (e) {
+          const message = e instanceof Error ? e.message : 'Invalid file';
+          return NextResponse.json({ error: message }, { status: 400 });
+        }
+        const uniqueFilename = uniqueFileName(imageFile.name);
         const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'posters');
         await mkdir(uploadDir, { recursive: true });
         
         const savePath = path.join(uploadDir, uniqueFilename);
-        const buffer = Buffer.from(await imageFile.arrayBuffer());
+  const buffer = Buffer.from(await imageFile.arrayBuffer());
         await writeFile(savePath, buffer);
         
         // Store the public URL
-        imageUrl = `/uploads/posters/${uniqueFilename}`;
+  imageUrl = `/uploads/posters/${uniqueFilename}`;
     }
 
     const courseId = uuidv4();

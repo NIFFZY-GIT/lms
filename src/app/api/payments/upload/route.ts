@@ -5,6 +5,7 @@ import { Role } from '../../../../types';
 import { v4 as uuidv4 } from 'uuid';
 import { writeFile, mkdir, unlink } from 'fs/promises';
 import path from 'path';
+import { IMAGE_10MB, assertFile, uniqueFileName } from '@/lib/security';
 
 export async function POST(req: Request) {
   try {
@@ -46,8 +47,14 @@ export async function POST(req: Request) {
     // --- END OF NEW LOGIC ---
 
 
-    // Proceed with the new file upload and record creation
-    const uniqueFilename = `${Date.now()}-${receiptFile.name.replace(/\s+/g, '_')}`;
+    // Validate and proceed with the new file upload and record creation
+    try {
+      assertFile(receiptFile, IMAGE_10MB, 'receipt');
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Invalid file';
+      return NextResponse.json({ error: message }, { status: 400 });
+    }
+    const uniqueFilename = uniqueFileName(receiptFile.name);
     const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'receipts');
     await mkdir(uploadDir, { recursive: true });
     

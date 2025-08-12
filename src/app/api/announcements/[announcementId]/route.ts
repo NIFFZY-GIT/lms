@@ -4,6 +4,7 @@ import { getServerUser } from '../../../../lib/auth';
 import { Role } from '../../../../types';
 import { unlink, writeFile, mkdir } from 'fs/promises';
 import path from 'path';
+import { IMAGE_10MB, assertFile, uniqueFileName } from '@/lib/security';
 
 // --- PATCH handler for updating an announcement ---
 export async function PATCH(req: Request, { params }: { params: Promise<{ announcementId: string }> }) {
@@ -30,6 +31,12 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ announ
         values.push(description);
 
         if (imageFile) {
+            try {
+                assertFile(imageFile, IMAGE_10MB, 'image');
+            } catch (e) {
+                const message = e instanceof Error ? e.message : 'Invalid file';
+                return NextResponse.json({ error: message }, { status: 400 });
+            }
             const oldImageResult = await db.query('SELECT "imageUrl" FROM "Announcement" WHERE id = $1', [announcementId]);
             if (oldImageResult.rows.length > 0 && oldImageResult.rows[0].imageUrl) {
                 try {
@@ -39,7 +46,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ announ
                 }
             }
 
-            const uniqueFilename = `${Date.now()}-${imageFile.name.replace(/\s+/g, '_')}`;
+            const uniqueFilename = uniqueFileName(imageFile.name);
             const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'announcements');
             await mkdir(uploadDir, { recursive: true });
             

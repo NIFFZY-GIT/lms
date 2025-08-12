@@ -5,22 +5,13 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { 
   PlayCircle, 
-  Star, 
-  MonitorPlay,
-  Award,
-  MessageSquare,
-  Search,    // New Icon
-  Laptop,    // New Icon
-  Trophy     // New Icon
+  Search,
+  Laptop,
+  Trophy
 } from 'lucide-react';
 import { FAQSection } from '@/components/layout/FAQSection';
 
-// --- Data Placeholders ---
-const featuredCourses = [
-  { title: 'Modern React with Next.js 14', instructor: 'Jane Doe', image: '/images/courses/course-react.jpg', rating: 4.9, reviews: 1250, href: '/courses/react-nextjs' },
-  { title: 'Advanced Node.js and Express', instructor: 'John Smith', image: '/images/courses/course-node.jpg', rating: 4.8, reviews: 980, href: '/courses/advanced-node' },
-  { title: 'UI/UX Design Masterclass', instructor: 'Emily White', image: '/images/courses/course-uiux.jpg', rating: 5.0, reviews: 2100, href: '/courses/uiux-masterclass' }
-];
+// (Removed unused featuredCourses placeholder to satisfy ESLint)
 
 const testimonials = [
   { name: 'Sarah L.', role: 'Software Engineer', avatar: '/images/avatars/avatar-1.jpg', quote: "This platform completely changed how I learn. The video quality is superb, and the live sessions are incredibly helpful. I landed a new job thanks to the skills I gained here!" },
@@ -53,9 +44,9 @@ function HeroSection() {
       <div className="absolute top-0 left-0 w-full h-full bg-black/60 z-10"></div>
       <Container className="relative z-20 pt-16 text-center">
         <h1 className="text-4xl font-extrabold tracking-tight text-white sm:text-5xl md:text-7xl">
-          Transform Your Future with <span className="text-indigo-400">Expert-Led Learning</span>
+          Transform Your Future with <span className="text-blue-300">Expert-Led Learning</span>
         </h1>
-        <p className="mt-6 max-w-3xl mx-auto text-lg text-indigo-100/90 md:text-xl">
+        <p className="mt-6 max-w-3xl mx-auto text-lg text-blue-100/90 md:text-xl">
           Join a community of ambitious learners. Gain in-demand skills through high-quality video courses, interactive projects, and direct access to industry experts.
         </p>
         <div className="mt-10 flex flex-wrap justify-center gap-4">
@@ -161,7 +152,7 @@ function HowItWorksSection() {
                             <div className="mb-6">
                                 <Image src={step.image} alt={step.title} width={400} height={400} className="rounded-full h-64 w-64 object-cover shadow-xl"/>
                             </div>
-                            <div className="mb-4 bg-indigo-600 text-white rounded-full h-12 w-12 flex items-center justify-center">
+                            <div className="mb-4 bg-blue-600 text-white rounded-full h-12 w-12 flex items-center justify-center">
                                 <step.icon className="h-6 w-6"/>
                             </div>
                             <h3 className="text-2xl font-bold text-gray-800 mb-2">{step.title}</h3>
@@ -206,20 +197,15 @@ function TestimonialsSection() {
 
 function FinalCTASection() {
   return (
-    <section className="bg-indigo-700">
+  <section className="bg-blue-700">
       <Container>
         <div className="relative isolate overflow-hidden px-6 py-24 text-center sm:px-16 sm:py-32">
           <h2 className="mx-auto max-w-2xl text-3xl font-bold tracking-tight text-white sm:text-4xl">Ready to Start Your Learning Journey?</h2>
-          <p className="mx-auto mt-6 max-w-xl text-lg leading-8 text-indigo-100">Create an account today and get instant access to our free introductory courses.</p>
+          <p className="mx-auto mt-6 max-w-xl text-lg leading-8 text-blue-100">Create an account today and get instant access to our free introductory courses.</p>
           <div className="mt-10">
-            <Link href="/auth/register" className="rounded-md bg-white px-8 py-4 text-lg font-semibold text-indigo-600 shadow-sm hover:bg-indigo-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">Sign Up Now</Link>
+            <Link href="/auth/register" className="rounded-md bg-white px-8 py-4 text-lg font-semibold text-blue-600 shadow-sm hover:bg-blue-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">Sign Up Now</Link>
           </div>
-          <svg viewBox="0 0 1024 1024" className="absolute left-1/2 top-1/2 -z-10 h-[64rem] w-[64rem] -translate-x-1/2 [mask-image:radial-gradient(closest-side,white,transparent)]" aria-hidden="true">
-            <circle cx={512} cy={512} r={512} fill="url(#827591b1-ce8c-4110-b064-7cb85a0b1217)" fillOpacity="0.7" />
-            <defs>
-              <radialGradient id="827591b1-ce8c-4110-b064-7cb85a0b1217"><stop stopColor="#7775D6" /><stop offset={1} stopColor="#E935C1" /></radialGradient>
-            </defs>
-          </svg>
+          {/* Background accent removed to avoid gradients */}
         </div>
       </Container>
     </section>
