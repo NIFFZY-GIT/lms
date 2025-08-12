@@ -38,12 +38,13 @@ export default function MyResultsPage() {
   });
 
   return (
-    <div className="space-y-8">
-      <h1 className="text-3xl font-bold text-gray-800">My Quiz Results</h1>
+    <div className="space-y-6 md:space-y-8">
+      <h1 className="text-2xl md:text-3xl font-bold text-gray-800">My Quiz Results</h1>
 
-      <div className="bg-white rounded-lg shadow-md overflow-hidden">
+      {/* Desktop/tablet view */}
+      <div className="hidden md:block bg-white rounded-lg shadow-md overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
+          <table className="min-w-full divide-y divide-gray-200" aria-label="Quiz results">
             <thead className="bg-gray-50">
               <tr>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quiz Title</th>
@@ -54,7 +55,6 @@ export default function MyResultsPage() {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {isLoading ? (
-                // Show skeleton loaders while fetching data
                 Array.from({ length: 4 }).map((_, i) => <ResultRowSkeleton key={i} />)
               ) : isError ? (
                 <tr>
@@ -65,7 +65,6 @@ export default function MyResultsPage() {
                   <td colSpan={4} className="text-center py-10 text-gray-500">You have not attempted any quizzes yet.</td>
                 </tr>
               ) : (
-                // Render the actual data
                 attempts?.map((attempt) => (
                   <tr key={attempt.attemptId} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -90,6 +89,44 @@ export default function MyResultsPage() {
             </tbody>
           </table>
         </div>
+      </div>
+
+      {/* Mobile view: stacked cards */}
+      <div className="md:hidden space-y-3">
+        {isLoading ? (
+          Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="bg-white rounded-lg shadow-sm p-4 animate-pulse">
+              <div className="h-4 bg-gray-200 rounded w-3/4 mb-2" />
+              <div className="h-3 bg-gray-200 rounded w-1/2 mb-4" />
+              <div className="flex items-center justify-between">
+                <div className="h-6 bg-gray-200 rounded-full w-16" />
+                <div className="h-3 bg-gray-200 rounded w-24" />
+              </div>
+            </div>
+          ))
+        ) : isError ? (
+          <div className="bg-white rounded-lg shadow-sm p-6 text-center text-red-600">Failed to load your results.</div>
+        ) : attempts?.length === 0 ? (
+          <div className="bg-white rounded-lg shadow-sm p-6 text-center text-gray-600">You have not attempted any quizzes yet.</div>
+        ) : (
+          attempts?.map((attempt) => (
+            <div key={attempt.attemptId} className="bg-white rounded-lg shadow-sm p-4">
+              <div className="font-semibold text-gray-900 mb-1 line-clamp-2">{attempt.quizTitle}</div>
+              <Link
+                href={`/dashboard/student/course/${attempt.courseId}`}
+                className="text-sm text-indigo-600 hover:underline"
+              >
+                {attempt.courseTitle}
+              </Link>
+              <div className="mt-3 flex items-center justify-between">
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${attempt.score >= 50 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                  {attempt.score.toFixed(0)}%
+                </span>
+                <span className="text-xs text-gray-500">{format(new Date(attempt.attemptedAt), 'PP')}</span>
+              </div>
+            </div>
+          ))
+        )}
       </div>
     </div>
   );

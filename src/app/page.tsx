@@ -42,8 +42,19 @@ export default function LandingPage() {
 function HeroSection() {
   return (
     <section className="relative h-screen flex items-center justify-center text-white">
-      <video src="/videos/hero-video.mp4" autoPlay loop muted playsInline className="absolute top-0 left-0 w-full h-full object-cover z-0" />
-      <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-t from-black/80 via-black/60 to-transparent z-10"></div>
+      <video
+        src="/videos/hero-video.mp4"
+        autoPlay
+        loop
+        muted
+        playsInline
+        aria-hidden
+        className="absolute top-0 left-0 w-full h-full object-cover z-0 pointer-events-none"
+      />
+      <div
+        aria-hidden
+        className="absolute top-0 left-0 w-full h-full bg-gradient-to-t from-black/80 via-black/60 to-transparent z-10 pointer-events-none"
+      />
       
       <Container className="relative z-20 pt-16 text-center">
         <h1 className="font-display text-5xl font-bold tracking-tight text-white sm:text-6xl md:text-7xl">

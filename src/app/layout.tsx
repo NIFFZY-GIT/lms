@@ -21,7 +21,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Providers>
           <AuthProvider>
             <Navbar />
-            <div className="flex-grow">{children}</div>
+            <main id="main-content" className="flex-grow focus:outline-none">{children}</main>
             <Footer />
           </AuthProvider>
         </Providers>

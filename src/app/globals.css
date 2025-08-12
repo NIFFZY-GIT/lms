@@ -5,6 +5,8 @@
   --brand: 37 99 235; /* blue-600 */
   --surface: 255 255 255; /* white */
   --muted: 248 250 252; /* slate-50 */
+  /* App header height (updated at runtime). Keep a sensible default. */
+  --app-header-h: 64px;
 }
 
 /****************************
@@ -79,6 +81,32 @@
 
 /* If any text-gradient utility is used, fall back to solid brand color (no gradient) */
 .text-gradient { background: none !important; -webkit-background-clip: initial !important; background-clip: initial !important; color: rgb(var(--brand)) !important; }
+
+/* Skip link accessibility helper */
+.skip-link {
+  position: absolute;
+  left: 0.5rem;
+  top: 0.5rem;
+  transform: translateY(-150%);
+  background: #111827;
+  color: #fff;
+  padding: 0.375rem 0.75rem;
+  border-radius: 0.375rem;
+  transition: transform 150ms ease;
+  z-index: 9999;
+}
+.skip-link:focus {
+  transform: translateY(0);
+}
+
+/* Mobile menu animation */
+.mobile-menu-panel {
+  animation: slideDown 160ms ease-out;
+}
+@keyframes slideDown {
+  from { transform: translateY(-4%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
 
 /****************************
  Legacy styles retained for compatibility

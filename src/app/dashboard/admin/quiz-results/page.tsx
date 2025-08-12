@@ -41,7 +41,7 @@ export default function AdminQuizResultsPage() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {results?.map((result, index) => (
+              {results?.map((result) => (
                 <tr key={`${result.studentId}-${result.courseId}`}>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{result.studentName}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{result.courseTitle}</td>
