@@ -10,8 +10,8 @@ const inter = Inter({ subsets: ["latin"], variable: '--font-inter' });
 const jakarta = Plus_Jakarta_Sans({ subsets: ["latin"], variable: '--font-jakarta' });
 
 export const metadata: Metadata = {
-  title: "LMS Platform",
-  description: "A modern learning management system",
+  title: "Online Thakshilawa",
+  description: "Sri Lanka’s First and Best Online Classes",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
