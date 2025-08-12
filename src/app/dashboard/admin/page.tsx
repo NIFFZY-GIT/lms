@@ -116,7 +116,7 @@ export default async function AdminDashboardPage() {
         <div className="space-y-6">
           <div className="bg-white p-6 rounded-xl shadow-md">
             <h3 className="text-sm font-semibold text-gray-700 mb-3">Revenue (Approved)</h3>
-            <p className="text-2xl sm:text-3xl font-bold text-gray-800">${(stats?.revenue ?? 0).toFixed(2)}</p>
+            <p className="text-2xl sm:text-3xl font-bold text-gray-800">LKR{(stats?.revenue ?? 0).toFixed(2)}</p>
             <p className="text-xs text-gray-400 mt-1">Sum of approved payments * course price</p>
           </div>
           <div className="bg-white p-6 rounded-xl shadow-md">
