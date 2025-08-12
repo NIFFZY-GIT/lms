@@ -85,7 +85,7 @@ export function Navbar() {
     <header className="bg-white/90 backdrop-blur-lg sticky top-0 z-50 border-b border-gray-200">
       <Container>
         <div className="flex items-center justify-between h-16">
-          <Link href="/">
+          <Link href="/" className={`${isMenuOpen ? 'pointer-events-none' : ''} inline-flex shrink-0`}>
             <Image
                 src="/logo.png" // Assumes logo.png is in /public
                 alt="Online Thakshilawa Logo"
@@ -107,25 +107,38 @@ export function Navbar() {
                 <Link href="/auth/register" className="btn-primary text-sm">Register</Link>
               </div>
             )}
-            <div className="md:hidden">
-              <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="p-2 ...">
+            <div className="md:hidden relative z-[80]">
+              <button
+                onClick={() => setIsMenuOpen(!isMenuOpen)}
+                type="button"
+                aria-label={isMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
+                className="p-2 rounded-md text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-sky-500"
+              >
                 {isMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
               </button>
             </div>
           </div>
         </div>
         {isMenuOpen && (
-          <div className="md:hidden pt-4 pb-4 border-t">
-            <nav className="flex flex-col space-y-4 text-lg ...">
+          <>
+            {/* Screen overlay to capture outside clicks and prevent accidental navigation */}
+            <div
+              className="fixed inset-0 z-[60] bg-black/30 md:hidden"
+              onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); closeMenu(); }}
+              aria-hidden
+            />
+            <div className="md:hidden pt-4 pb-4 border-t relative z-[70] bg-white">
+              <nav className="flex flex-col space-y-4 text-lg px-1">
               <NavLinksContent />
-            </nav>
-            {!user && (
-              <div className="mt-6 pt-4 border-t ...">
-                <Link href="/auth/login" className="..." onClick={closeMenu}>Login</Link>
-                <Link href="/auth/register" className="..." onClick={closeMenu}>Register</Link>
-              </div>
-            )}
-          </div>
+              </nav>
+              {!user && (
+                <div className="mt-6 pt-4 border-t grid grid-cols-2 gap-2">
+                  <Link href="/auth/login" className="btn-ghost justify-center" onClick={closeMenu}>Login</Link>
+                  <Link href="/auth/register" className="btn-primary justify-center" onClick={closeMenu}>Register</Link>
+                </div>
+              )}
+            </div>
+          </>
         )}
       </Container>
     </header>

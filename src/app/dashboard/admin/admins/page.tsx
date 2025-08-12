@@ -98,73 +98,146 @@ export default function ManageAdminsPage() {
 
     return (
         <div className="space-y-8">
-            <div className="flex justify-between items-center">
-                                <div className="space-y-2">
-                                    <h1 className="text-3xl font-bold">Manage {roleFilter === 'ADMIN' ? 'Admins' : 'Instructors'}</h1>
-                                    <div>
-                                        <select
-                                            value={roleFilter}
-                                            onChange={e => setRoleFilter(e.target.value as 'ADMIN' | 'INSTRUCTOR')}
-                                            className="border rounded px-3 py-2 text-sm focus:outline-none focus:ring focus:ring-indigo-200"
-                                        >
-                                            <option value="ADMIN">Show Admins</option>
-                                            <option value="INSTRUCTOR">Show Instructors</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <button onClick={() => setIsModalOpen(true)} className="btn-primary flex items-center">
-                                        <Plus className="w-5 h-5 mr-2" /> {roleFilter === 'ADMIN' ? 'Add Admin' : 'Add Instructor'}
-                                </button>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="space-y-2">
+                    <h1 className="text-3xl font-bold">Manage {roleFilter === 'ADMIN' ? 'Admins' : 'Instructors'}</h1>
+                    <div>
+                        <select
+                            value={roleFilter}
+                            onChange={e => setRoleFilter(e.target.value as 'ADMIN' | 'INSTRUCTOR')}
+                            className="border rounded px-3 py-2 text-sm focus:outline-none focus:ring focus:ring-blue-200"
+                        >
+                            <option value="ADMIN">Show Admins</option>
+                            <option value="INSTRUCTOR">Show Instructors</option>
+                        </select>
+                    </div>
+                </div>
+                <button type="button" onClick={() => setIsModalOpen(true)} className="btn-primary flex items-center justify-center w-full sm:w-auto">
+                    <Plus className="w-5 h-5 mr-2" /> {roleFilter === 'ADMIN' ? 'Add Admin' : 'Add Instructor'}
+                </button>
+            </div>
+            {/* Mobile role filter pills */}
+            <div className="sm:hidden flex gap-2 overflow-x-auto border-b border-gray-200 pb-2 -mx-2 px-2">
+                {(['ADMIN','INSTRUCTOR'] as const).map(role => (
+                    <button
+                        key={role}
+                        type="button"
+                        onClick={() => setRoleFilter(role)}
+                        className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${roleFilter === role ? 'bg-blue-600 text-white shadow' : 'bg-white text-gray-600 hover:bg-gray-100'}`}
+                    >
+                        {role === 'ADMIN' ? 'Admins' : 'Instructors'}
+                    </button>
+                ))}
             </div>
             
             <div className="bg-white rounded-lg shadow-md overflow-hidden">
-                <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                        <tr>
-                            <th className="px-6 py-3 text-left ...">{roleFilter === 'ADMIN' ? 'Admin Name' : 'Instructor Name'}</th>
-                              <th className="px-6 py-3 text-left ...">Email</th>
-                              {roleFilter === 'INSTRUCTOR' && <th className="px-6 py-3 text-left ...">Courses</th>}
-                            <th className="px-6 py-3 text-left ...">Date Added</th>
-                            <th className="relative px-6 py-3"></th>
-                        </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                        {isLoading && <tr><td colSpan={4} className="text-center p-8">Loading {roleFilter === 'ADMIN' ? 'admins' : 'instructors'}...</td></tr>}
-                        {admins?.map(admin => (
-                            <tr key={admin.id}>
-                                <td className="px-6 py-4 font-medium text-gray-900">{admin.name}</td>
-                                <td className="px-6 py-4 text-gray-500">{admin.email}</td>
-                                                                {roleFilter === 'INSTRUCTOR' && (
-                                                                    <td className="px-6 py-4 text-gray-500">
-                                                                        <div className="flex flex-col gap-1">
-                                                                            <span className="font-medium">{admin.courseCount ?? 0}</span>
-                                                                            {admin.courseTitles && admin.courseTitles.length > 0 && (
-                                                                                <span className="text-xs text-gray-400 line-clamp-2" title={admin.courseTitles.join(', ')}>
-                                                                                    {admin.courseTitles.slice(0,3).join(', ')}
-                                                                                    {admin.courseTitles.length > 3 && '…'}
-                                                                                </span>
-                                                                            )}
-                                                                        </div>
-                                                                    </td>
-                                                                )}
-                                <td className="px-6 py-4 text-gray-500">{format(new Date(admin.createdAt), 'PP')}</td>
-                                <td className="px-6 py-4 text-right">
-                                    <button 
-                                        onClick={() => handleDelete(admin.id, admin.name)} 
-                                        className="p-2 text-gray-500 hover:text-red-600 disabled:text-gray-300 disabled:cursor-not-allowed"
-                                        title={currentUser?.id === admin.id ? "Cannot delete yourself" : (roleFilter === 'ADMIN' ? 'Delete Admin' : 'Delete Instructor')}
+                {/* Desktop/Tablet table view */}
+                <div className="hidden sm:block w-full overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                            <tr>
+                                <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">{roleFilter === 'ADMIN' ? 'Admin Name' : 'Instructor Name'}</th>
+                                <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Email</th>
+                                {roleFilter === 'INSTRUCTOR' && <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Courses</th>}
+                                <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Date Added</th>
+                                <th className="relative px-4 sm:px-6 py-3"></th>
+                            </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                            {isLoading && (
+                                <tr>
+                                    <td colSpan={roleFilter === 'INSTRUCTOR' ? 5 : 4} className="text-center p-8">
+                                        Loading {roleFilter === 'ADMIN' ? 'admins' : 'instructors'}...
+                                    </td>
+                                </tr>
+                            )}
+                            {!isLoading && (!admins || admins.length === 0) && (
+                                <tr>
+                                    <td colSpan={roleFilter === 'INSTRUCTOR' ? 5 : 4} className="text-center p-8 text-gray-500">
+                                        No {roleFilter === 'ADMIN' ? 'admins' : 'instructors'} found.
+                                    </td>
+                                </tr>
+                            )}
+                            {admins?.map(admin => (
+                                <tr key={admin.id}>
+                                    <td className="px-4 sm:px-6 py-4 font-medium text-gray-900 break-words">{admin.name}</td>
+                                    <td className="px-4 sm:px-6 py-4 text-gray-500 break-words">{admin.email}</td>
+                                    {roleFilter === 'INSTRUCTOR' && (
+                                        <td className="px-4 sm:px-6 py-4 text-gray-500">
+                                            <div className="flex flex-col gap-1">
+                                                <span className="font-medium">{admin.courseCount ?? 0}</span>
+                                                {admin.courseTitles && admin.courseTitles.length > 0 && (
+                                                    <span className="text-xs text-gray-400 line-clamp-2" title={admin.courseTitles.join(', ')}>
+                                                        {admin.courseTitles.slice(0,3).join(', ')}
+                                                        {admin.courseTitles.length > 3 && '…'}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </td>
+                                    )}
+                                    <td className="px-4 sm:px-6 py-4 text-gray-500 whitespace-nowrap">{format(new Date(admin.createdAt), 'PP')}</td>
+                                    <td className="px-4 sm:px-6 py-4 text-right">
+                                        <button
+                                            type="button"
+                                            onClick={() => handleDelete(admin.id, admin.name)} 
+                                            className="p-2 text-gray-500 hover:text-red-600 disabled:text-gray-300 disabled:cursor-not-allowed"
+                                            title={currentUser?.id === admin.id ? "Cannot delete yourself" : (roleFilter === 'ADMIN' ? 'Delete Admin' : 'Delete Instructor')}
+                                            disabled={currentUser?.id === admin.id}
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+                {/* Mobile card view */}
+                <div className="sm:hidden">
+                    {isLoading && (
+                        <div className="p-4 text-center text-gray-500">Loading {roleFilter === 'ADMIN' ? 'admins' : 'instructors'}...</div>
+                    )}
+                    {!isLoading && (!admins || admins.length === 0) && (
+                        <div className="p-6 text-center text-gray-500">No {roleFilter === 'ADMIN' ? 'admins' : 'instructors'} found.</div>
+                    )}
+                    <ul className="divide-y divide-gray-200">
+                        {admins?.map((admin) => (
+                            <li key={admin.id} className="p-4">
+                                <div className="flex items-start justify-between gap-3">
+                                    <div>
+                                        <div className="font-semibold text-gray-900">{admin.name}</div>
+                                        <div className="text-sm text-gray-500 break-words">{admin.email}</div>
+                                    </div>
+                                </div>
+                                {roleFilter === 'INSTRUCTOR' && (
+                                    <div className="mt-2 text-sm text-gray-700">
+                                        <div><span className="text-gray-500">Courses: </span><span className="font-medium">{admin.courseCount ?? 0}</span></div>
+                                        {admin.courseTitles && admin.courseTitles.length > 0 && (
+                                            <div className="text-xs text-gray-500 break-words mt-1">
+                                                {admin.courseTitles.slice(0,3).join(', ')}{admin.courseTitles.length > 3 && '…'}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                                <div className="mt-2 text-sm text-gray-500">Added: <span className="text-gray-900">{format(new Date(admin.createdAt), 'PP')}</span></div>
+                                <div className="mt-4">
+                                    <button
+                                        type="button"
+                                        onClick={() => handleDelete(admin.id, admin.name)}
+                                        className="btn-danger w-full disabled:opacity-60 disabled:cursor-not-allowed"
+                                        title={currentUser?.id === admin.id ? 'Cannot delete yourself' : (roleFilter === 'ADMIN' ? 'Delete Admin' : 'Delete Instructor')}
                                         disabled={currentUser?.id === admin.id}
                                     >
-                                        <Trash2 className="w-4 h-4" />
+                                        Delete
                                     </button>
-                                </td>
-                            </tr>
+                                </div>
+                            </li>
                         ))}
-                    </tbody>
-                </table>
+                    </ul>
+                </div>
             </div>
 
-                        <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={roleFilter === 'ADMIN' ? 'Add New Admin' : 'Add New Instructor'}>
+            <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={roleFilter === 'ADMIN' ? 'Add New Admin' : 'Add New Instructor'}>
                 <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
                     <Input label="Full Name" registration={register('name')} error={errors.name?.message} />
                     <Input label="Email Address" registration={register('email')} error={errors.email?.message} type="email" />
@@ -173,7 +246,7 @@ export default function ManageAdminsPage() {
                                             <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
                                             <select
                                                 {...register('role')}
-                                                className="w-full border rounded px-3 py-2 focus:outline-none focus:ring focus:ring-indigo-200"
+                                                className="w-full border rounded px-3 py-2 focus:outline-none focus:ring focus:ring-blue-200"
                                                 defaultValue={roleFilter}
                                             >
                                                 <option value="ADMIN">Admin</option>
@@ -182,9 +255,9 @@ export default function ManageAdminsPage() {
                                             {errors.role && <p className="mt-1 text-xs text-red-500">{errors.role.message}</p>}
                                         </div>
                                         <p className="text-xs text-gray-500">Select the appropriate role. Instructors have limited permissions.</p>
-                    <div className="flex justify-end pt-4 space-x-2">
-                        <button type="button" onClick={() => setIsModalOpen(false)} className="btn-secondary">Cancel</button>
-                        <button type="submit" disabled={createMutation.isPending} className="btn-primary">
+                    <div className="flex flex-col sm:flex-row justify-end pt-4 gap-2">
+                        <button type="button" onClick={() => setIsModalOpen(false)} className="btn-secondary w-full sm:w-auto">Cancel</button>
+                        <button type="submit" disabled={createMutation.isPending} className="btn-primary w-full sm:w-auto">
                                                         {createMutation.isPending ? 'Creating...' : (roleFilter === 'ADMIN' ? 'Create Admin' : 'Create Instructor')}
                         </button>
                     </div>

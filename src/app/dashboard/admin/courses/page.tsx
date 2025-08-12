@@ -54,7 +54,7 @@ export default function AdminCoursesPage() {
 
   const closeModal = () => { setIsCourseModalOpen(false); setSelectedCourse(null); reset(); };
   const confirm = useConfirm();
-  const mutationOptions = { onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['courses'] }); closeModal(); }, onError: (error: AxiosError<{ error?: string }>) => alert(`An error occurred: ${error.response?.data?.error || error.message}`), };
+  const mutationOptions = { onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['courses'] }); closeModal(); }, onError: (error: AxiosError<{ error?: string }>) => toast.error(error.response?.data?.error || error.message), };
   
   const createMutation = useMutation({ mutationFn: createCourse, ...mutationOptions });
   const updateMutation = useMutation({ mutationFn: updateCourse, ...mutationOptions });
@@ -90,33 +90,35 @@ export default function AdminCoursesPage() {
 
   return (
     <div className="space-y-8">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-wrap justify-between items-center gap-4">
         <h1 className="text-3xl font-bold">Manage Courses</h1>
-        <button onClick={openModalForCreate} className="btn-primary flex items-center"><Plus className="w-5 h-5 mr-2" /> Add New Course</button>
+        <button type="button" onClick={openModalForCreate} className="btn-primary flex items-center justify-center w-full sm:w-auto"><Plus className="w-5 h-5 mr-2" /> Add New Course</button>
       </div>
       
       <div className="bg-white p-6 rounded-lg shadow-md">
         {isLoading ? <p>Loading courses...</p> : (
           <div className="space-y-4">
             {courses?.map((course) => (
-              <div key={course.id} className="flex items-center justify-between p-4 border rounded-md hover:bg-gray-50">
-                <div className="flex items-center space-x-4">
+              <div key={course.id} className="p-4 border rounded-md hover:bg-gray-50">
+                <div className="flex items-start sm:items-center justify-between gap-4 flex-wrap sm:flex-nowrap">
+                  <div className="flex items-center gap-4 min-w-0">
                     <div className="relative h-16 w-28 bg-gray-200 rounded-md overflow-hidden flex-shrink-0">
-                        {course.imageUrl ? (
-                            <Image src={course.imageUrl} alt={course.title} fill style={{objectFit: 'cover'}} />
-                        ) : (
-                            <div className="w-full h-full flex items-center justify-center bg-indigo-50"><BookCopy className="w-8 h-8 text-indigo-200" /></div>
-                        )}
+                      {course.imageUrl ? (
+                        <Image src={course.imageUrl} alt={course.title} fill style={{ objectFit: 'cover' }} />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-indigo-50"><BookCopy className="w-8 h-8 text-indigo-200" /></div>
+                      )}
                     </div>
-                    <div>
-                        <h3 className="font-bold text-lg text-gray-800">{course.title}</h3>
-                        <p className="text-sm font-semibold text-green-600">{formatCurrency(course.price)}</p>
+                    <div className="min-w-0">
+                      <h3 className="font-bold text-lg text-gray-800 truncate">{course.title}</h3>
+                      <p className="text-sm font-semibold text-green-600 whitespace-nowrap">{formatCurrency(course.price)}</p>
                     </div>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <button onClick={() => openContentManager(course)} className="btn-secondary p-2" title="Manage Content"><BookCopy className="w-5 h-5" /></button>
-                  <button onClick={() => openModalForEdit(course)} className="btn-secondary p-2" title="Edit Course"><Edit className="w-5 h-5" /></button>
-                  <button onClick={() => handleDelete(course.id)} className="btn-danger p-2" title="Delete Course"><Trash2 className="w-5 h-5" /></button>
+                  </div>
+                  <div className="w-full sm:w-auto grid grid-cols-3 gap-2">
+                    <button onClick={() => openContentManager(course)} className="btn-secondary p-2 w-full" title="Manage Content"><BookCopy className="w-5 h-5 mx-auto" /></button>
+                    <button onClick={() => openModalForEdit(course)} className="btn-secondary p-2 w-full" title="Edit Course"><Edit className="w-5 h-5 mx-auto" /></button>
+                    <button onClick={() => handleDelete(course.id)} className="btn-danger p-2 w-full" title="Delete Course"><Trash2 className="w-5 h-5 mx-auto" /></button>
+                  </div>
                 </div>
               </div>
             ))}

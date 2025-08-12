@@ -102,9 +102,12 @@ export default function AdminAnnouncementsPage() {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-8">
         <h1 className="text-3xl font-bold">Manage Announcements</h1>
-        <button onClick={openModalForCreate} className="btn-primary flex items-center"><Plus className="w-5 h-5 mr-2" /> Add Announcement</button>
+        <button type="button" onClick={openModalForCreate} className="btn-primary flex items-center justify-center w-full sm:w-auto">
+          <Plus className="w-5 h-5 mr-2" />
+          Add Announcement
+        </button>
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -117,11 +120,11 @@ export default function AdminAnnouncementsPage() {
               <p className="text-gray-600 text-sm">{announcement.description}</p>
             </div>
             {/* Edit and Delete Buttons */}
-            <div className="absolute top-2 right-2 flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button onClick={() => openModalForEdit(announcement)} className="p-2 bg-white/70 text-indigo-600 rounded-full hover:bg-indigo-600 hover:text-white">
+            <div className="absolute top-2 right-2 flex space-x-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 md:focus-within:opacity-100 transition-opacity">
+                <button type="button" onClick={() => openModalForEdit(announcement)} aria-label="Edit announcement" className="p-2 bg-white/70 text-blue-600 rounded-full hover:bg-blue-600 hover:text-white">
                     <Edit className="w-4 h-4" />
                 </button>
-                <button onClick={() => handleDelete(announcement.id)} className="p-2 bg-white/70 text-red-600 rounded-full hover:bg-red-600 hover:text-white">
+                <button type="button" onClick={() => handleDelete(announcement.id)} aria-label="Delete announcement" className="p-2 bg-white/70 text-red-600 rounded-full hover:bg-red-600 hover:text-white">
                     <Trash2 className="w-4 h-4" />
                 </button>
             </div>
@@ -140,11 +143,11 @@ export default function AdminAnnouncementsPage() {
           <div>
             <label className="block text-sm font-medium">Image</label>
             {editingAnnouncement && <p className="text-xs text-gray-500 mb-1">Leave blank to keep the current image.</p>}
-            <input type="file" {...register('image')} accept="image/*" className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 ..."/>
+            <input type="file" {...register('image')} accept="image/*" className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0"/>
             {errors.image && <p className="text-sm text-red-600 mt-1">{errors.image.message as string}</p>}
           </div>
-          <div className="flex justify-end pt-2">
-            <button type="submit" disabled={createMutation.isPending || updateMutation.isPending} className="btn-primary">
+          <div className="flex pt-2">
+            <button type="submit" disabled={createMutation.isPending || updateMutation.isPending} className="btn-primary w-full sm:w-auto ml-auto">
               {createMutation.isPending || updateMutation.isPending ? 'Saving...' : (editingAnnouncement ? 'Save Changes' : 'Publish Announcement')}
             </button>
           </div>

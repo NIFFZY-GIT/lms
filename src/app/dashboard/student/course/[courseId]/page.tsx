@@ -97,7 +97,7 @@ export default function StudentCoursePage() {
               <button 
                 onClick={handleUnenroll}
                 disabled={unenrollMutation.isPending}
-                className="btn-danger flex items-center flex-shrink-0"
+                className="btn-danger flex items-center flex-shrink-0 w-full sm:w-auto justify-center"
               >
                 <LogOut className="w-4 h-4 mr-2"/>
                 {unenrollMutation.isPending ? 'Unenrolling...' : 'Unenroll'}

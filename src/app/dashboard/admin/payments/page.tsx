@@ -110,15 +110,17 @@ export default function AdminPaymentsPage() {
 
     return (
         <div className="space-y-8">
-            <h1 className="text-3xl font-bold text-gray-800">Payment Management</h1>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+                <h1 className="text-3xl font-bold text-gray-800">Payment Management</h1>
+            </div>
 
             {/* Filter Pills */}
-            <div className="flex space-x-2 border-b border-gray-200 pb-2">
+            <div className="flex gap-2 overflow-x-auto border-b border-gray-200 pb-2 -mx-2 px-2">
                 {(['PENDING', 'APPROVED', 'REJECTED', 'ALL'] as const).map(status => (
                     <button
                         key={status}
                         onClick={() => setFilter(status)}
-                        className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${filter === status ? 'bg-blue-600 text-white shadow' : 'bg-white text-gray-600 hover:bg-gray-100'}`}
+                        className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${filter === status ? 'bg-blue-600 text-white shadow' : 'bg-white text-gray-600 hover:bg-gray-100'}`}
                     >
                         {status.charAt(0) + status.slice(1).toLowerCase()}
                     </button>
@@ -128,13 +130,13 @@ export default function AdminPaymentsPage() {
             {/* Payments Table */}
             <div className="bg-white rounded-lg shadow-md overflow-hidden">
                 <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
+            <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-50">
                             <tr>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student & Course</th>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Submitted</th>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                <th scope="col" className="relative px-6 py-3"><span className="sr-only">Actions</span></th>
+                <th scope="col" className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student & Course</th>
+                <th scope="col" className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Submitted</th>
+                <th scope="col" className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                <th scope="col" className="relative px-4 sm:px-6 py-3"><span className="sr-only">Actions</span></th>
                             </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
@@ -143,15 +145,15 @@ export default function AdminPaymentsPage() {
                             ) : (
                                 filteredPayments?.map(payment => (
                                     <tr key={payment.id} className="hover:bg-gray-50 transition-colors">
-                                        <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-4 sm:px-6 py-4 whitespace-normal break-words">
                                             <div className="text-sm font-medium text-gray-900">{payment.studentName}</div>
                                             <div className="text-sm text-gray-500">{payment.courseTitle}</div>
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{format(new Date(payment.createdAt), 'PP')}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap"><StatusBadge status={payment.status} /></td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500">{format(new Date(payment.createdAt), 'PP')}</td>
+                    <td className="px-4 sm:px-6 py-4 whitespace-nowrap"><StatusBadge status={payment.status} /></td>
+                    <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                             {payment.status === 'PENDING' && (
-                                                <button onClick={() => setSelectedPayment(payment)} className="btn-secondary flex items-center"><Eye className="w-4 h-4 mr-2" /> Review</button>
+                        <button type="button" onClick={() => setSelectedPayment(payment)} className="btn-secondary flex items-center"><Eye className="w-4 h-4 mr-2" /> Review</button>
                                             )}
                                         </td>
                                     </tr>
@@ -169,10 +171,10 @@ export default function AdminPaymentsPage() {
 
             {selectedPayment && (
                 <Modal isOpen={!!selectedPayment} onClose={closeModal} title="Review Payment" size="4xl" >
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
                         <div className="space-y-2">
                            <h3 className="text-lg font-medium text-gray-900">Uploaded Receipt</h3>
-                           <div className="relative border rounded-lg p-2 bg-gray-100 h-96 w-full">
+                           <div className="relative border rounded-lg p-2 bg-gray-100 h-72 md:h-96 w-full">
                                 <Image src={selectedPayment.receiptUrl} alt="Payment Receipt" fill style={{ objectFit: 'contain' }} className="rounded-md" />
                             </div>
                             <a href={selectedPayment.receiptUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline">Open image in new tab</a>
@@ -191,7 +193,7 @@ export default function AdminPaymentsPage() {
                                 <label htmlFor="refNumber" className="block text-sm font-medium text-gray-700">Bank Reference Number</label>
                                 <div className="mt-1 flex rounded-md shadow-sm">
                                     <input id="refNumber" type="text" value={refNumber} onChange={(e) => {setRefNumber(e.target.value); setVerificationResult(null);}} className="flex-1 block w-full rounded-none rounded-l-md border-gray-300 focus:ring-blue-500 focus:border-blue-500" placeholder="Enter Ref# from receipt" />
-                                    <button onClick={handleVerify} disabled={!refNumber || verifyMutation.isPending} className="inline-flex items-center px-3 rounded-r-md border border-l-0 border-gray-300 bg-gray-50 text-gray-500 text-sm hover:bg-gray-100 disabled:cursor-not-allowed">
+                                    <button onClick={handleVerify} disabled={!refNumber || verifyMutation.isPending} className="inline-flex items-center px-3 rounded-r-md border border-l-0 border-gray-300 bg-gray-50 text-gray-500 text-sm hover:bg-gray-100 disabled:cursor-not-allowed" type="button">
                                         {verifyMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
                                     </button>
                                 </div>
@@ -220,9 +222,9 @@ export default function AdminPaymentsPage() {
                                     </div>
                                 )}
                             </div>
-                            <div className="flex justify-end space-x-3 pt-4">
-                                <button onClick={handleReject} disabled={rejectMutation.isPending} className="btn-danger">{rejectMutation.isPending ? 'Rejecting...' : 'Reject'}</button>
-                                <button onClick={handleApprove} disabled={!refNumber || approveMutation.isPending || verifyMutation.isPending || !verificationResult || verificationResult.isDuplicate} className="btn-primary">{approveMutation.isPending ? 'Approving...' : 'Approve Payment'}</button>
+                            <div className="flex flex-col sm:flex-row justify-end gap-2 pt-4">
+                                <button type="button" onClick={handleReject} disabled={rejectMutation.isPending} className="btn-danger w-full sm:w-auto">{rejectMutation.isPending ? 'Rejecting...' : 'Reject'}</button>
+                                <button type="button" onClick={handleApprove} disabled={!refNumber || approveMutation.isPending || verifyMutation.isPending || !verificationResult || verificationResult.isDuplicate} className="btn-primary w-full sm:w-auto">{approveMutation.isPending ? 'Approving...' : 'Approve Payment'}</button>
                             </div>
                         </div>
                     </div>

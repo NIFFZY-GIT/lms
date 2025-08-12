@@ -120,9 +120,9 @@ export function ManageContentModal({ isOpen, onClose, course }: { isOpen: boolea
                 <div className="space-y-8">
                     <form onSubmit={handleMaterialSubmit(onZoomLinkSubmit)} className="space-y-2">
                          <h3 className="text-lg font-medium text-gray-900 flex items-center"><LinkIcon className="w-5 h-5 mr-2" /> Zoom Meeting Link</h3>
-                        <div className="flex items-center space-x-2">
-                           <Input label="" registration={registerMaterial('zoomLink')} placeholder="https://zoom.us/j/..."/>
-                           <button type="submit" className="btn-primary mt-1" disabled={updateCourseMutation.isPending}>
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                           <div className="w-full sm:flex-1"><Input label="" registration={registerMaterial('zoomLink')} placeholder="https://zoom.us/j/..."/></div>
+                           <button type="submit" className="btn-primary mt-1 w-full sm:w-auto" disabled={updateCourseMutation.isPending}>
                                {updateCourseMutation.isPending ? 'Saving...' : 'Save'}
                            </button>
                         </div>
@@ -140,8 +140,8 @@ export function ManageContentModal({ isOpen, onClose, course }: { isOpen: boolea
                                 <div className="space-y-3">
                                     {recordings?.map(rec => (
                                         <div key={rec.id} className="p-3 border rounded-md flex justify-between items-center bg-gray-50">
-                                            <p className="font-medium text-gray-700">{rec.title}</p>
-                                            <button onClick={() => deleteRecordingMutation.mutate(rec.id)} className="p-2 text-gray-500 hover:text-red-600" title="Delete Recording"><Trash2 className="w-4 h-4" /></button>
+                                            <p className="font-medium text-gray-700 break-words pr-2">{rec.title}</p>
+                                            <button onClick={() => deleteRecordingMutation.mutate(rec.id)} className="p-2 text-gray-500 hover:text-red-600 flex-shrink-0" title="Delete Recording"><Trash2 className="w-4 h-4" /></button>
                                         </div>
                                     ))}
                                 </div>
@@ -197,9 +197,9 @@ export function ManageContentModal({ isOpen, onClose, course }: { isOpen: boolea
                             <hr className="my-6" />
                             <div>
                                 <h4 className="text-lg font-medium">Add New Quiz</h4>
-                                <div className="flex items-center space-x-2 mt-2">
-                                    <input type="text" value={newQuizTitle} onChange={(e) => setNewQuizTitle(e.target.value)} placeholder="e.g., Week 1 Final Exam" className="flex-grow w-full border-gray-300 rounded-md shadow-sm" />
-                                    <button onClick={handleCreateQuiz} disabled={createQuizMutation.isPending} className="btn-primary flex items-center">
+                                <div className="flex flex-col sm:flex-row gap-2 mt-2">
+                                    <input type="text" value={newQuizTitle} onChange={(e) => setNewQuizTitle(e.target.value)} placeholder="e.g., Week 1 Final Exam" className="w-full sm:flex-1 border-gray-300 rounded-md shadow-sm" />
+                                    <button onClick={handleCreateQuiz} disabled={createQuizMutation.isPending} className="btn-primary flex items-center w-full sm:w-auto justify-center">
                                         <Plus className="w-5 h-5 mr-2" />
                                         {createQuizMutation.isPending ? "Adding..." : "Add Quiz"}
                                     </button>
