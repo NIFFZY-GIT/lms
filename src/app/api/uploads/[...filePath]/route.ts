@@ -18,13 +18,13 @@ function getMime(fullPath: string) {
   return mimeMap[ext] || 'application/octet-stream';
 }
 
-type ParamsShape = { filePath?: string[] } | Record<string, unknown>;
+type ParamsShape = { filePath?: string[] } | undefined;
 
-export async function GET(request: Request, { params }: { params: ParamsShape }) {
+export async function GET(request: Request, { params }: { params: Promise<ParamsShape> }) {
   try {
   // `params` may be an async object in Next.js runtime; await it before using its properties
   const resolvedParams = (await params) as { filePath?: string[] } | undefined | null;
-  const segments: string[] = Array.isArray(resolvedParams?.filePath) ? resolvedParams!.filePath! : [];
+  const segments: string[] = Array.isArray(resolvedParams?.filePath) ? resolvedParams.filePath! : [];
   if (segments.length === 0) return NextResponse.json({ error: 'No file specified' }, { status: 400 });
 
     // Decode segments (they may be encoded in the URL) and prevent path traversal.
