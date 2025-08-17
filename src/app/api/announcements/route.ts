@@ -3,9 +3,8 @@ import { db } from '../../../lib/db';
 import { getServerUser } from '../../../lib/auth';
 import { Role } from '../../../types';
 import { v4 as uuidv4 } from 'uuid';
-import { writeFile, mkdir, unlink } from 'fs/promises';
-import path from 'path';
-import { IMAGE_10MB, assertFile, uniqueFileName } from '@/lib/security';
+import { IMAGE_10MB, assertFile } from '@/lib/security';
+import { saveUploadFile, removeUploadByUrl } from '@/lib/uploads';
 
 // GET: Fetch all announcements (public)
 export async function GET() {
@@ -38,15 +37,8 @@ export async function POST(req: Request) {
     }
 
     // ... (file upload logic remains the same) ...
-  const uniqueFilename = uniqueFileName(imageFile.name);
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'announcements');
-    await mkdir(uploadDir, { recursive: true });
-    
-    const savePath = path.join(uploadDir, uniqueFilename);
-    const buffer = Buffer.from(await imageFile.arrayBuffer());
-    await writeFile(savePath, buffer);
-
-    const imageUrl = `/uploads/announcements/${uniqueFilename}`;
+  const { publicPath } = await saveUploadFile(imageFile, 'announcements');
+  const imageUrl = publicPath;
     const announcementId = uuidv4();
 
     // --- UPDATED SQL QUERY ---
@@ -90,25 +82,17 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ announ
         if (imageFile) {
             // Find the old image URL to delete it
             const oldImageResult = await db.query('SELECT "imageUrl" FROM "Announcement" WHERE id = $1', [announcementId]);
-            if (oldImageResult.rows.length > 0) {
-                const oldImageUrl = oldImageResult.rows[0].imageUrl;
-                try {
-                    await unlink(path.join(process.cwd(), 'public', oldImageUrl));
-                } catch (e) {
-                    console.error("Failed to delete old image, but proceeding:", e);
-                }
-            }
+      if (oldImageResult.rows.length > 0) {
+        const oldImageUrl = oldImageResult.rows[0].imageUrl;
+        try {
+          await removeUploadByUrl(oldImageUrl);
+        } catch (e) {
+          console.error("Failed to delete old image, but proceeding:", e);
+        }
+      }
 
-            // Save the new image
-            const uniqueFilename = `${Date.now()}-${imageFile.name.replace(/\s+/g, '_')}`;
-            const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'announcements');
-            await mkdir(uploadDir, { recursive: true });
-            
-            const savePath = path.join(uploadDir, uniqueFilename);
-            const buffer = Buffer.from(await imageFile.arrayBuffer());
-            await writeFile(savePath, buffer);
-            
-            const newImageUrl = `/uploads/announcements/${uniqueFilename}`;
+      // Save the new image via helper
+      const { publicPath: newImageUrl } = await saveUploadFile(imageFile, 'announcements');
             fieldsToUpdate.push(`"imageUrl" = $${queryIndex++}`);
             values.push(newImageUrl);
         }

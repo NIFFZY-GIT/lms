@@ -2,9 +2,8 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getServerUser } from '@/lib/auth';
 import { Role } from '@/types';
-import { IMAGE_5MB, assertFile, uniqueFileName } from '@/lib/security';
-import path from 'path';
-import { mkdir, writeFile } from 'fs/promises';
+import { IMAGE_5MB, assertFile } from '@/lib/security';
+import { saveUploadFile, removeUploadByUrl } from '@/lib/uploads';
 
 // PATCH (update) a question and its answers
 export async function PATCH(req: Request, { params }: { params: Promise<{ questionId: string }> }) {
@@ -47,14 +46,19 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ questi
                     const message = e instanceof Error ? e.message : 'Invalid image';
                     return NextResponse.json({ error: message }, { status: 400 });
                 }
-                const uniqueName = uniqueFileName(uploadedFile.name);
-                const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'quizzes');
-                await mkdir(uploadDir, { recursive: true });
-                const savePath = path.join(uploadDir, uniqueName);
-                const buffer = Buffer.from(await uploadedFile.arrayBuffer());
-                await writeFile(savePath, buffer);
-                imageUrl = `/uploads/quizzes/${uniqueName}`;
+                // Remove old image if exists
+                const oldImageRes = await client.query('SELECT "imageUrl" FROM "Question" WHERE id = $1', [questionId]);
+                if (oldImageRes.rows.length > 0 && oldImageRes.rows[0].imageUrl) {
+                    try { await removeUploadByUrl(oldImageRes.rows[0].imageUrl); } catch (e) { console.error('Failed to remove old question image:', e); }
+                }
+                const { publicPath } = await saveUploadFile(uploadedFile, 'quizzes');
+                imageUrl = publicPath;
             } else if (removeImage) {
+                // remove existing image if removeImage flag set
+                const oldImageRes = await client.query('SELECT "imageUrl" FROM "Question" WHERE id = $1', [questionId]);
+                if (oldImageRes.rows.length > 0 && oldImageRes.rows[0].imageUrl) {
+                    try { await removeUploadByUrl(oldImageRes.rows[0].imageUrl); } catch (e) { console.error('Failed to remove question image:', e); }
+                }
                 imageUrl = null; // explicit removal
             }
 

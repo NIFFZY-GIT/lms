@@ -3,9 +3,8 @@ import { db } from '../../../../../lib/db';
 import { getServerUser } from '../../../../../lib/auth';
 import { Role } from '../../../../../types';
 import { v4 as uuidv4 } from 'uuid';
-import { IMAGE_5MB, assertFile, uniqueFileName } from '@/lib/security';
-import path from 'path';
-import { mkdir, writeFile } from 'fs/promises';
+import { IMAGE_5MB, assertFile } from '@/lib/security';
+import { saveUploadFile } from '@/lib/uploads';
 
 interface AnswerInput { answerText: string; isCorrect: boolean; }
 
@@ -83,13 +82,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ quizId:
           const message = e instanceof Error ? e.message : 'Invalid image';
           return NextResponse.json({ error: message }, { status: 400 });
         }
-        const uniqueName = uniqueFileName(uploadedFile.name);
-        const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'quizzes');
-        await mkdir(uploadDir, { recursive: true });
-        const savePath = path.join(uploadDir, uniqueName);
-        const buffer = Buffer.from(await uploadedFile.arrayBuffer());
-        await writeFile(savePath, buffer);
-        imageUrl = `/uploads/quizzes/${uniqueName}`;
+        const { publicPath } = await saveUploadFile(uploadedFile, 'quizzes');
+        imageUrl = publicPath;
       }
 
   const questionQuery = 'INSERT INTO "Question" (id, "questionText", "imageUrl", "quizId") VALUES ($1, $2, $3, $4) RETURNING *;';

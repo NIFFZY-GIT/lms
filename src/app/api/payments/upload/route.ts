@@ -3,9 +3,8 @@ import { db } from '../../../../lib/db';
 import { getServerUser } from '../../../../lib/auth';
 import { Role } from '../../../../types';
 import { v4 as uuidv4 } from 'uuid';
-import { writeFile, mkdir, unlink } from 'fs/promises';
-import path from 'path';
-import { IMAGE_10MB, assertFile, uniqueFileName } from '@/lib/security';
+import { IMAGE_10MB, assertFile } from '@/lib/security';
+import { saveUploadFile, removeUploadByUrl } from '@/lib/uploads';
 
 export async function POST(req: Request) {
   try {
@@ -34,12 +33,10 @@ export async function POST(req: Request) {
       if (existingPayment.status === 'REJECTED') {
         // Delete the old receipt file from the server
         try {
-          const oldFilePath = path.join(process.cwd(), 'public', existingPayment.receiptUrl);
-          await unlink(oldFilePath);
+          await removeUploadByUrl(existingPayment.receiptUrl);
         } catch (fileError) {
           console.error("Failed to delete old rejected receipt file, but proceeding:", fileError);
         }
-        
         // Delete the old payment record from the database
         await db.query('DELETE FROM "Payment" WHERE id = $1', [existingPayment.id]);
       }
@@ -54,15 +51,7 @@ export async function POST(req: Request) {
       const message = e instanceof Error ? e.message : 'Invalid file';
       return NextResponse.json({ error: message }, { status: 400 });
     }
-    const uniqueFilename = uniqueFileName(receiptFile.name);
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'receipts');
-    await mkdir(uploadDir, { recursive: true });
-    
-    const savePath = path.join(uploadDir, uniqueFilename);
-    const buffer = Buffer.from(await receiptFile.arrayBuffer());
-    await writeFile(savePath, buffer);
-
-    const publicUrl = `/uploads/receipts/${uniqueFilename}`;
+  const { publicPath: publicUrl } = await saveUploadFile(receiptFile, 'receipts');
     const paymentId = uuidv4();
     const sql = `
       INSERT INTO "Payment" (id, "studentId", "courseId", "receiptUrl", status)

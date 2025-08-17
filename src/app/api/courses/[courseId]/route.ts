@@ -2,9 +2,8 @@ import { NextResponse } from 'next/server';
 import { db } from '../../../../lib/db';
 import { getServerUser } from '../../../../lib/auth';
 import { Role } from '../../../../types';
-import { writeFile, mkdir, unlink } from 'fs/promises';
-import path from 'path';
-import { IMAGE_5MB, assertFile, uniqueFileName } from '@/lib/security';
+import { IMAGE_5MB, assertFile } from '@/lib/security';
+import { saveUploadFile, removeUploadByUrl } from '@/lib/uploads';
 
 // --- GET function (no changes) ---
 export async function GET(req: Request, { params }: { params: Promise<{ courseId: string }> }) {
@@ -81,22 +80,16 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ course
             }
             const oldImageResult = await db.query('SELECT "imageUrl" FROM "Course" WHERE id = $1', [courseId]);
             if (oldImageResult.rows.length > 0 && oldImageResult.rows[0].imageUrl) {
-                try { await unlink(path.join(process.cwd(), 'public', oldImageResult.rows[0].imageUrl)); } catch (e) { console.error("Failed to delete old image:", e); }
+                try { await removeUploadByUrl(oldImageResult.rows[0].imageUrl); } catch (e) { console.error("Failed to delete old image:", e); }
             }
-            const uniqueFilename = uniqueFileName(imageFile.name);
-            const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'posters');
-            await mkdir(uploadDir, { recursive: true });
-            const savePath = path.join(uploadDir, uniqueFilename);
-            const buffer = Buffer.from(await imageFile.arrayBuffer());
-            await writeFile(savePath, buffer);
-            const newImageUrl = `/uploads/posters/${uniqueFilename}`;
+            const { publicPath: newImageUrl } = await saveUploadFile(imageFile, 'posters');
             fields.push(`"imageUrl" = $${queryIndex++}`);
             values.push(newImageUrl);
         } else if (removeImage) {
             // Remove existing image without replacement
             const existing = await db.query('SELECT "imageUrl" FROM "Course" WHERE id = $1', [courseId]);
             if (existing.rows.length > 0 && existing.rows[0].imageUrl) {
-                try { await unlink(path.join(process.cwd(), 'public', existing.rows[0].imageUrl)); } catch (e) { console.error("Failed to delete old image:", e); }
+                try { await removeUploadByUrl(existing.rows[0].imageUrl); } catch (e) { console.error("Failed to delete old image:", e); }
             }
             fields.push('"imageUrl" = NULL');
         }
@@ -152,10 +145,8 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ cours
         // 3. If an image existed, delete the physical file from the server
         if (imageUrl) {
             try {
-                const filePath = path.join(process.cwd(), 'public', imageUrl);
-                await unlink(filePath);
+                await removeUploadByUrl(imageUrl);
             } catch (fileError) {
-                // Log the error but don't fail the request, as the DB deletion is the most critical part
                 console.error("Failed to delete course poster file, but DB record was removed:", fileError);
             }
         }

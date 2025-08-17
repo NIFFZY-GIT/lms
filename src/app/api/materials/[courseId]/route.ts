@@ -3,8 +3,7 @@ import { db } from '../../../../lib/db';
 import { getServerUser } from '../../../../lib/auth';
 import { Role } from '../../../../types';
 import { v4 as uuidv4 } from 'uuid';
-import { writeFile, mkdir } from 'fs/promises';
-import path from 'path';
+import { saveUploadFile } from '@/lib/uploads';
 
 export async function POST(req: Request, { params }: { params: Promise<{ courseId: string }> }) {
   try {
@@ -18,17 +17,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ courseI
     let recordingUrl: string | undefined;
 
     // Handle the file upload if a file was provided
-    if (recordingFile) {
-        const uniqueFilename = `${Date.now()}-${recordingFile.name.replace(/\s+/g, '_')}`;
-        const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'recordings');
-        await mkdir(uploadDir, { recursive: true });
-        
-        const savePath = path.join(uploadDir, uniqueFilename);
-        const buffer = Buffer.from(await recordingFile.arrayBuffer());
-        await writeFile(savePath, buffer);
-        
-        recordingUrl = `/uploads/recordings/${uniqueFilename}`;
-    }
+  if (recordingFile) {
+    const { publicPath } = await saveUploadFile(recordingFile, 'recordings');
+    recordingUrl = publicPath;
+  }
 
     // Upsert logic: Update if exists, insert if not.
     const sql = `

@@ -4,9 +4,8 @@ import { db } from '../../../../../lib/db';
 import { getServerUser } from '../../../../../lib/auth';
 import { Role } from '../../../../../types';
 import { v4 as uuidv4 } from 'uuid';
-import { writeFile, mkdir } from 'fs/promises';
-import path from 'path';
-import { VIDEO_500MB, assertFile, uniqueFileName } from '@/lib/security';
+import { VIDEO_500MB, assertFile } from '@/lib/security';
+import { saveUploadFile } from '@/lib/uploads';
 
 // GET all recordings for a course
 export async function GET(req: Request, { params }: { params: Promise<{ courseId: string }> }) {
@@ -45,15 +44,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ courseI
                     return NextResponse.json({ error: message }, { status: 400 });
                 }
 
-    const uniqueFilename = uniqueFileName(videoFile.name);
-        const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'recordings');
-        await mkdir(uploadDir, { recursive: true });
-
-        const savePath = path.join(uploadDir, uniqueFilename);
-        const buffer = Buffer.from(await videoFile.arrayBuffer());
-        await writeFile(savePath, buffer);
-
-        const videoUrl = `/uploads/recordings/${uniqueFilename}`;
+    const { publicPath: videoUrl } = await saveUploadFile(videoFile, 'recordings');
         const recordingId = uuidv4();
 
         const sql = 'INSERT INTO "Recording" (id, title, "videoUrl", "courseId") VALUES ($1, $2, $3, $4) RETURNING *;';

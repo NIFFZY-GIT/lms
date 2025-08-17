@@ -2,9 +2,8 @@ import { NextResponse } from 'next/server';
 import { db } from '../../../../lib/db';
 import { getServerUser } from '../../../../lib/auth';
 import { Role } from '../../../../types';
-import { unlink, writeFile, mkdir } from 'fs/promises';
-import path from 'path';
-import { IMAGE_10MB, assertFile, uniqueFileName } from '@/lib/security';
+import { IMAGE_10MB, assertFile } from '@/lib/security';
+import { saveUploadFile, removeUploadByUrl } from '@/lib/uploads';
 
 // --- PATCH handler for updating an announcement ---
 export async function PATCH(req: Request, { params }: { params: Promise<{ announcementId: string }> }) {
@@ -40,21 +39,13 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ announ
             const oldImageResult = await db.query('SELECT "imageUrl" FROM "Announcement" WHERE id = $1', [announcementId]);
             if (oldImageResult.rows.length > 0 && oldImageResult.rows[0].imageUrl) {
                 try {
-                    await unlink(path.join(process.cwd(), 'public', oldImageResult.rows[0].imageUrl));
+                    await removeUploadByUrl(oldImageResult.rows[0].imageUrl);
                 } catch (e) {
                     console.error("Failed to delete old image, but proceeding:", e);
                 }
             }
 
-            const uniqueFilename = uniqueFileName(imageFile.name);
-            const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'announcements');
-            await mkdir(uploadDir, { recursive: true });
-            
-            const savePath = path.join(uploadDir, uniqueFilename);
-            const buffer = Buffer.from(await imageFile.arrayBuffer());
-            await writeFile(savePath, buffer);
-            
-            const newImageUrl = `/uploads/announcements/${uniqueFilename}`;
+            const { publicPath: newImageUrl } = await saveUploadFile(imageFile, 'announcements');
             fieldsToUpdate.push(`"imageUrl" = $${queryIndex++}`);
             values.push(newImageUrl);
         }
@@ -98,8 +89,7 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ annou
     const imageUrl = findResult.rows[0].imageUrl;
     if (imageUrl) {
         try {
-            const filePath = path.join(process.cwd(), 'public', imageUrl);
-            await unlink(filePath);
+            await removeUploadByUrl(imageUrl);
         } catch (fileError) {
             console.error("Failed to delete announcement file, but DB record was removed:", fileError);
         }

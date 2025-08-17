@@ -3,9 +3,8 @@ import { db } from '../../../lib/db';
 import { getServerUser } from '../../../lib/auth';
 import { v4 as uuidv4 } from 'uuid';
 import { Role } from '../../../types';
-import { writeFile, mkdir } from 'fs/promises';
-import path from 'path';
-import { IMAGE_5MB, uniqueFileName, assertFile } from '@/lib/security';
+import { IMAGE_5MB, assertFile } from '@/lib/security';
+import { saveUploadFile } from '@/lib/uploads';
 
 // GET handler (no changes needed)
 export async function GET(req: Request) {
@@ -58,7 +57,7 @@ export async function POST(req: Request) {
     }
 
     let imageUrl: string | null = null;
-    if (imageFile) {
+  if (imageFile) {
         // validate and save the file to the server
         try {
           assertFile(imageFile, IMAGE_5MB, 'image');
@@ -66,16 +65,8 @@ export async function POST(req: Request) {
           const message = e instanceof Error ? e.message : 'Invalid file';
           return NextResponse.json({ error: message }, { status: 400 });
         }
-        const uniqueFilename = uniqueFileName(imageFile.name);
-        const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'posters');
-        await mkdir(uploadDir, { recursive: true });
-        
-        const savePath = path.join(uploadDir, uniqueFilename);
-  const buffer = Buffer.from(await imageFile.arrayBuffer());
-        await writeFile(savePath, buffer);
-        
-        // Store the public URL
-  imageUrl = `/uploads/posters/${uniqueFilename}`;
+    const { publicPath } = await saveUploadFile(imageFile, 'posters');
+    imageUrl = publicPath;
     }
 
     const courseId = uuidv4();
