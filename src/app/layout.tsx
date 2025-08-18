@@ -5,6 +5,7 @@ import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { Providers } from "@/components/providers"; // We will create this next
 import { AuthProvider } from '@/context/AuthContext'; // Import the provider
+import { AutoLogoutIndicator } from '@/components/ui/AutoLogoutIndicator';
 
 const inter = Inter({ subsets: ["latin"], variable: '--font-inter' });
 const jakarta = Plus_Jakarta_Sans({ subsets: ["latin"], variable: '--font-jakarta' });
@@ -21,6 +22,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Providers>
           <AuthProvider>
             <Navbar />
+            <AutoLogoutIndicator />
             <main id="main-content" className="flex-grow focus:outline-none">{children}</main>
             <Footer />
           </AuthProvider>

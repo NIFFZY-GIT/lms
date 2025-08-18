@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useForm, type Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -42,6 +42,7 @@ export function LoginForm() {
 
   const [mode, setMode] = useState<'email' | 'phone'>('email');
   const [formError, setFormError] = useState<string | null>(null);
+  const [idleMessage, setIdleMessage] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
 
   const resolver = useMemo<Resolver<LoginFields>>(() => {
@@ -89,6 +90,17 @@ export function LoginForm() {
     loginMutation.mutate(data);
   };
 
+  // Show idle logout message if redirected after inactivity
+  useEffect(() => {
+    try {
+      const v = sessionStorage.getItem('idle-logout');
+      if (v) {
+        setIdleMessage('You were logged out due to inactivity for security reasons. Please sign in again.');
+        sessionStorage.removeItem('idle-logout');
+      }
+    } catch {}
+  }, []);
+
   const switchMode = (next: 'email' | 'phone') => {
     setMode(next);
     reset();
@@ -130,6 +142,13 @@ export function LoginForm() {
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          {idleMessage && (
+            <div className="flex items-center text-sm text-yellow-800 bg-yellow-100 p-3 rounded-md">
+              <AlertCircle className="w-5 h-5 mr-2 text-yellow-700" />
+              <div className="flex-1">{idleMessage}</div>
+              <button type="button" onClick={() => setIdleMessage(null)} className="ml-3 text-sm text-yellow-700 underline">Dismiss</button>
+            </div>
+          )}
           {mode === 'email' ? (
             <InputWithIcon
               icon={(props) => <Mail {...props} />}
