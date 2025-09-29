@@ -21,16 +21,25 @@ const NavLink = ({ href, children, onClick, icon: Icon }: { href: string; childr
             href={href}
             onClick={onClick}
             className={`
-                flex items-center gap-2.5 transition-all duration-200
-                w-full md:w-auto px-4 py-3 md:px-3 md:py-2 rounded-lg font-medium
+                flex items-center gap-3 transition-all duration-300
+                w-full md:w-auto px-4 py-3.5 md:px-3 md:py-2 rounded-xl font-semibold
+                relative overflow-hidden group
                 ${isActive
-                    ? 'bg-blue-100 text-blue-600' // Active state: light blue background, dark blue text
-                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900' // Default state
+                    ? 'bg-gradient-to-r from-blue-50 to-blue-100/80 text-blue-700 shadow-sm border border-blue-200/50' // Active state
+                    : 'text-slate-600 hover:bg-white/60 hover:text-slate-900 hover:shadow-sm backdrop-blur-sm border border-transparent hover:border-slate-200/50' // Default state
                 }
             `}
         >
-            {Icon && <Icon className="w-5 h-5 opacity-80" />}
-            <span>{children}</span>
+            {Icon && (
+                <div className={`relative z-10 transition-all duration-300 ${
+                    isActive ? 'text-blue-600' : 'text-slate-500 group-hover:text-slate-700'
+                }`}>
+                    <Icon className="w-5 h-5" />
+                </div>
+            )}
+            <span className="relative z-10">{children}</span>
+            {/* Hover effect */}
+            <div className="absolute inset-0 bg-gradient-to-r from-blue-50/0 via-blue-50/50 to-blue-50/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
         </Link>
     );
 };
@@ -177,7 +186,7 @@ export function Navbar() {
   return (
     <header 
       ref={headerRef} 
-      className={`sticky top-0 z-40 transition-all duration-300 ${isScrolled ? 'bg-white/80 shadow-md border-b border-slate-200/80' : 'bg-white/60'} backdrop-blur-xl`}
+      className={`sticky top-0 z-50 transition-all duration-300 ${isScrolled ? 'bg-white/80 shadow-md border-b border-slate-200/80' : 'bg-white/60'} backdrop-blur-xl`}
       style={{ borderRadius: '0 0 1.5rem 1.5rem' }}>
       <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:p-4 bg-white text-blue-600 rounded-lg shadow-lg">Skip to main content</a>
       <Container>
@@ -198,24 +207,34 @@ export function Navbar() {
             <NavLink href={`/${locale}/announcements`} icon={Megaphone}>Announcements</NavLink>
           </nav>
 
-          <div className="flex items-center space-x-4 w-full md:w-auto">
-            {isLoading ? (
-              <div className="w-24 h-10 bg-slate-200 rounded-full animate-pulse" />
-            ) : user ? (
-                <UserDropdown user={user} logout={logout} />
-            ) : (
-              <div className="hidden md:flex items-center space-x-2">
-                <Link href={`/${locale}/auth/login`} className="px-5 py-2.5 rounded-lg text-sm font-semibold text-slate-700 hover:text-blue-600 hover:bg-blue-50/70 transition-colors">Login</Link>
-                <Link href={`/${locale}/auth/register`} className="px-5 py-2.5 rounded-lg text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700 shadow-sm hover:shadow-md transition">Get Started</Link>
-                {/* LanguageSwitcher sits after register button, at far right */}
-                <div className="ml-4 flex items-center">
-                  <LanguageSwitcher />
+          {/* Right side content */}
+          <div className="flex items-center justify-end space-x-4">
+            {/* Desktop auth/user section */}
+            <div className="hidden md:flex items-center space-x-4">
+              {isLoading ? (
+                <div className="w-24 h-10 bg-slate-200 rounded-full animate-pulse" />
+              ) : user ? (
+                <div className="flex items-center space-x-4">
+                  <UserDropdown user={user} logout={logout} />
+                  {/* LanguageSwitcher for logged-in users on desktop */}
+                  <div className="flex items-center">
+                    <LanguageSwitcher />
+                  </div>
                 </div>
-              </div>
-            )}
-            {/* For logged-in users, show LanguageSwitcher at far right */}
-            {!user && <div className="md:hidden ml-2"><LanguageSwitcher /></div>}
-            <div className="md:hidden">
+              ) : (
+                <div className="flex items-center space-x-2">
+                  <Link href={`/${locale}/auth/login`} className="px-5 py-2.5 rounded-lg text-sm font-semibold text-slate-700 hover:text-blue-600 hover:bg-blue-50/70 transition-colors">Login</Link>
+                  <Link href={`/${locale}/auth/register`} className="px-5 py-2.5 rounded-lg text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700 shadow-sm hover:shadow-md transition">Get Started</Link>
+                  {/* LanguageSwitcher sits after register button, at far right */}
+                  <div className="ml-4 flex items-center">
+                    <LanguageSwitcher />
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            {/* Mobile menu button - positioned at far right */}
+            <div className="md:hidden ml-auto">
               <button
                 ref={triggerRef}
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
@@ -223,9 +242,35 @@ export function Navbar() {
                 aria-label={isMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
                 aria-expanded={isMenuOpen}
                 aria-controls="mobile-menu-panel"
-                className="p-2 rounded-lg text-slate-700 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500 shadow-sm"
+                className={`relative p-3.5 rounded-2xl backdrop-blur-xl border text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-400 shadow-xl transition-all duration-300 active:scale-90 group overflow-hidden ${
+                  isMenuOpen 
+                    ? 'bg-blue-50/90 border-blue-200/80 text-blue-700 shadow-blue-200/50' 
+                    : 'bg-white/85 border-slate-200/70 hover:bg-white/95 hover:border-slate-300/80 hover:shadow-2xl'
+                }`}
               >
-                {isMenuOpen ? <X className="w-7 h-7" /> : <Menu className="w-7 h-7" />}
+                {/* Animated background */}
+                <div className={`absolute inset-0 bg-gradient-to-br from-blue-500/10 via-purple-500/5 to-blue-600/10 transition-opacity duration-300 ${
+                  isMenuOpen ? 'opacity-100' : 'opacity-0 group-hover:opacity-50'
+                }`} />
+                
+                {/* Icon container with better animations */}
+                <div className="relative w-6 h-6 flex items-center justify-center">
+                  <Menu className={`absolute w-5 h-5 transition-all duration-500 ease-out transform ${
+                    isMenuOpen 
+                      ? 'opacity-0 rotate-180 scale-0' 
+                      : 'opacity-100 rotate-0 scale-100'
+                  }`} />
+                  <X className={`absolute w-5 h-5 transition-all duration-500 ease-out transform ${
+                    isMenuOpen 
+                      ? 'opacity-100 rotate-0 scale-100' 
+                      : 'opacity-0 -rotate-180 scale-0'
+                  }`} />
+                </div>
+                
+                {/* Ripple effect */}
+                <div className={`absolute inset-0 rounded-2xl transition-all duration-300 ${
+                  isMenuOpen ? 'bg-blue-400/20 animate-ping' : ''
+                }`} style={{ animationDuration: '1s', animationIterationCount: '1' }} />
               </button>
             </div>
           </div>
@@ -236,7 +281,7 @@ export function Navbar() {
       <Portal>
         {/* Backdrop Overlay */}
         <div
-          className={`fixed inset-0 bg-black/50 md:hidden transition-opacity duration-300 ease-in-out ${isMenuOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+          className={`fixed inset-0 z-[60] bg-gradient-to-br from-slate-900/60 via-slate-800/50 to-slate-900/70 backdrop-blur-sm md:hidden transition-all duration-500 ease-out ${isMenuOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
           onClick={closeMenu}
           aria-hidden="true"
         />
@@ -247,42 +292,132 @@ export function Navbar() {
           role="dialog"
           aria-modal="true"
           aria-label="Mobile menu"
-          className={`fixed top-0 bottom-0 right-0 w-full max-w-sm bg-white/95 backdrop-blur-xl shadow-2xl md:hidden flex flex-col transition-transform duration-300 ease-in-out border-l border-slate-200/80 ${isMenuOpen ? 'translate-x-0' : 'translate-x-full'}`}
+          className={`fixed top-0 bottom-0 right-0 w-full max-w-sm z-[70] backdrop-blur-3xl shadow-2xl md:hidden flex flex-col transition-all duration-500 ease-out border-l border-white/30 ${
+            isMenuOpen 
+              ? 'translate-x-0' 
+              : 'translate-x-full'
+          }`}
+          style={{
+            background: 'linear-gradient(145deg, rgba(255,255,255,0.95) 0%, rgba(248,250,252,0.98) 30%, rgba(241,245,249,0.96) 70%, rgba(248,250,252,0.98) 100%)',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.3)'
+          }}
         >
-          <div className="flex items-center justify-between p-5 border-b border-slate-200/80">
-            <span className="font-semibold text-slate-800 text-lg">Menu</span>
-            <button
-              ref={closeBtnRef}
-              onClick={closeMenu}
-              aria-label="Close menu"
-              className="p-2 rounded-lg text-slate-700 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500 shadow-sm"
-            >
-              <X className="w-6 h-6" />
-            </button>
-          </div>
-          {/* Navigation Links */}
-          <nav className="flex-grow p-4 space-y-2">
-            <NavLink href={`/${locale}`} icon={House} onClick={closeMenu}>Home</NavLink>
-            <NavLink href={`/${locale}/courses`} icon={BookOpen} onClick={closeMenu}>Courses</NavLink>
-            <NavLink href={`/${locale}/announcements`} icon={Megaphone} onClick={closeMenu}>Announcements</NavLink>
-          </nav>
-          {/* Bottom Action Area */}
-          <div className="p-4 border-t border-slate-200/80 bg-slate-50/70 pb-[env(safe-area-inset-bottom)]">
-            {user ? (
-              <Link href={user?.role === 'ADMIN'
-                ? `/${locale}/dashboard/admin`
-                : user?.role === 'INSTRUCTOR'
-                  ? `/${locale}/dashboard/instructor`
-                  : `/${locale}/dashboard/student/courses`} className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 shadow-sm hover:shadow-md transition" onClick={closeMenu}>
-                <LayoutDashboard className="w-5 h-5" />
-                Dashboard
-              </Link>
-            ) : (
-              <div className="grid grid-cols-2 gap-3">
-                <Link href={`/${locale}/auth/login`} className="w-full flex justify-center px-4 py-3 rounded-lg font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 transition" onClick={closeMenu}>Login</Link>
-                <Link href={`/${locale}/auth/register`} className="w-full flex justify-center px-4 py-3 rounded-lg font-semibold bg-blue-600 text-white hover:bg-blue-700 shadow-sm hover:shadow-md transition" onClick={closeMenu}>Get Started</Link>
+          {/* Modern Header */}
+          <div className="relative p-6 pb-4">
+            {/* Background gradient */}
+            <div className="absolute inset-0 bg-gradient-to-r from-blue-50/80 via-transparent to-purple-50/80" />
+            
+            <div className="relative flex items-center justify-between">
+              {/* Brand section */}
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <div className="w-3 h-3 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 animate-pulse" />
+                  <div className="absolute inset-0 w-3 h-3 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 animate-ping opacity-30" />
+                </div>
+                <div>
+                  <h2 className="font-black text-slate-800 text-xl tracking-tight">Menu</h2>
+                  <p className="text-xs text-slate-500 font-medium">Navigate with ease</p>
+                </div>
               </div>
-            )}
+              
+              {/* Close button */}
+              <button
+                ref={closeBtnRef}
+                onClick={closeMenu}
+                aria-label="Close menu"
+                className="relative p-3 rounded-2xl bg-white/70 hover:bg-white/90 text-slate-600 hover:text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/40 transition-all duration-300 active:scale-90 group backdrop-blur-sm border border-white/50 shadow-lg hover:shadow-xl"
+              >
+                <X className="w-5 h-5 transition-transform duration-300 group-hover:rotate-90" />
+                <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-red-50/0 to-red-100/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              </button>
+            </div>
+            
+            {/* Decorative line */}
+            <div className="absolute bottom-0 left-6 right-6 h-px bg-gradient-to-r from-transparent via-slate-200/60 to-transparent" />
+          </div>
+          {/* Enhanced Navigation Links */}
+          <nav className="flex-grow px-6 py-6 space-y-6">
+            {/* Main Navigation Section */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-1 h-4 bg-gradient-to-b from-blue-500 to-purple-500 rounded-full" />
+                <p className="text-xs font-bold text-slate-600 uppercase tracking-wider">Explore</p>
+              </div>
+              
+              <div className="space-y-2">
+                <NavLink href={`/${locale}`} icon={House} onClick={closeMenu}>Home</NavLink>
+                <NavLink href={`/${locale}/courses`} icon={BookOpen} onClick={closeMenu}>Courses</NavLink>
+                <NavLink href={`/${locale}/announcements`} icon={Megaphone} onClick={closeMenu}>Announcements</NavLink>
+              </div>
+            </div>
+            
+            {/* Quick Stats or Info Section */}
+            <div className="p-4 rounded-2xl bg-gradient-to-br from-blue-50/80 to-purple-50/80 border border-blue-100/50">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-xl bg-white/70 backdrop-blur-sm">
+                  <BookOpen className="w-4 h-4 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-slate-800">Start Learning</p>
+                  <p className="text-xs text-slate-600">Explore courses & grow your skills</p>
+                </div>
+              </div>
+            </div>
+          </nav>
+          {/* Enhanced Bottom Action Area */}
+          <div className="p-6 mt-auto">
+            {/* Action buttons */}
+            <div className="space-y-3 mb-6">
+              {user ? (
+                <Link 
+                  href={user?.role === 'ADMIN'
+                    ? `/${locale}/dashboard/admin`
+                    : user?.role === 'INSTRUCTOR'
+                      ? `/${locale}/dashboard/instructor`
+                      : `/${locale}/dashboard/student/courses`} 
+                  className="group w-full flex items-center justify-center gap-3 px-6 py-4 rounded-2xl bg-gradient-to-r from-blue-600 via-blue-700 to-blue-800 text-white font-bold shadow-xl hover:shadow-2xl transition-all duration-300 active:scale-95 relative overflow-hidden" 
+                  onClick={closeMenu}
+                >
+                  {/* Animated background */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-blue-500 via-purple-600 to-blue-700 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                  <LayoutDashboard className="w-5 h-5 relative z-10 transition-transform duration-300 group-hover:scale-110" />
+                  <span className="relative z-10">Dashboard</span>
+                  <div className="absolute inset-0 rounded-2xl bg-white/20 opacity-0 group-hover:opacity-100 group-active:opacity-30 transition-opacity duration-200" />
+                </Link>
+              ) : (
+                <>
+                  <Link 
+                    href={`/${locale}/auth/login`} 
+                    className="group w-full flex justify-center items-center gap-3 px-6 py-4 rounded-2xl font-bold text-slate-700 bg-white/90 border-2 border-slate-200/60 hover:bg-white hover:border-slate-300/80 hover:shadow-lg transition-all duration-300 active:scale-95 backdrop-blur-sm relative overflow-hidden" 
+                    onClick={closeMenu}
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-r from-slate-50 to-slate-100 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                    <span className="relative z-10">Sign In</span>
+                  </Link>
+                  
+                  <Link 
+                    href={`/${locale}/auth/register`} 
+                    className="group w-full flex justify-center items-center gap-3 px-6 py-4 rounded-2xl font-bold bg-gradient-to-r from-blue-600 via-blue-700 to-purple-700 text-white shadow-xl hover:shadow-2xl transition-all duration-300 active:scale-95 relative overflow-hidden" 
+                    onClick={closeMenu}
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-r from-purple-600 via-blue-600 to-blue-700 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                    <span className="relative z-10">Get Started</span>
+                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-yellow-400 rounded-full animate-pulse" />
+                  </Link>
+                </>
+              )}
+            </div>
+            
+            {/* Language switcher with modern design */}
+            <div className="p-4 rounded-2xl bg-gradient-to-r from-slate-50/80 via-white/70 to-slate-50/80 backdrop-blur-sm border border-white/50">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                  <span className="text-sm font-medium text-slate-700">Language</span>
+                </div>
+                <LanguageSwitcher />
+              </div>
+            </div>
           </div>
         </div>
       </Portal>

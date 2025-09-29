@@ -3,13 +3,20 @@
 import { useTranslations } from 'next-intl';
 import { Container } from '@/components/ui/Container';
 import Link from 'next/link';
+import Image from 'next/image';
 import { ArrowRight } from 'lucide-react';
 
 export default function HeroSection() {
   const t = useTranslations('LandingPage.Hero');
   return (
     <section className="relative h-[91vh] flex items-center justify-center text-white overflow-hidden">
-      <video src="/videos/v1.mp4" autoPlay loop muted playsInline aria-hidden className="absolute top-0 left-0 w-full h-full object-cover z-0 pointer-events-none scale-105" />
+      <Image 
+        src="/images/p6.jpg" 
+        alt="Hero background" 
+        fill
+        className="absolute object-cover z-0 pointer-events-none scale-100 md:scale-100 animate-zoom-in" 
+        priority
+      />
       <div aria-hidden className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-blue-900/80 via-blue-700/60 to-transparent z-10" />
       <Container className="relative z-20 pt-16 text-center animate-fade-in">
         <h1
