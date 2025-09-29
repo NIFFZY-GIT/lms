@@ -7,6 +7,7 @@ import { useAuth } from '@/context/AuthContext';
 import { Container } from '@/components/ui/Container';
 import { Menu, X, LogOut, LayoutDashboard, House, BookOpen, Megaphone } from 'lucide-react';
 import { usePathname } from 'next/navigation';
+import { LanguageSwitcher } from '@/components/ui/LanguageSwitcher';
 import { Portal } from '@/components/ui/Portal';
 
 // --- Reusable NavLink Component (Modern "Pill" Style) ---
@@ -42,7 +43,15 @@ interface User {
 const UserDropdown = ({ user, logout }: { user: User; logout: () => void }) => {
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
-    const dashboardHref = user?.role === 'ADMIN' ? '/dashboard/admin' : user?.role === 'INSTRUCTOR' ? '/dashboard/instructor' : '/dashboard/student/courses';
+    // Get current locale from pathname (assumes /:locale/...)
+    const pathname = usePathname();
+    const localeMatch = /^\/([a-zA-Z-]+)(\/|$)/.exec(pathname);
+    const locale = localeMatch ? localeMatch[1] : 'en';
+    const dashboardHref = user?.role === 'ADMIN'
+      ? `/${locale}/dashboard/admin`
+      : user?.role === 'INSTRUCTOR'
+        ? `/${locale}/dashboard/instructor`
+        : `/${locale}/dashboard/student/courses`;
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) setIsOpen(false);
@@ -83,6 +92,16 @@ export function Navbar() {
   const panelRef = useRef<HTMLDivElement | null>(null);
   const closeBtnRef = useRef<HTMLButtonElement | null>(null);
   const pathname = usePathname();
+  // Get current locale from pathname (assumes /:locale/...)
+  const localeMatch = /^\/([a-zA-Z-]+)(\/|$)/.exec(pathname);
+  const locale = localeMatch ? localeMatch[1] : 'en';
+
+  // Redirect to locale-aware dashboard if user lands on non-locale dashboard URLs
+  useEffect(() => {
+    if (/^\/dashboard\/.*/.test(pathname) && !/^\/[a-zA-Z-]+\//.test(pathname)) {
+      window.location.replace(`/${locale}${pathname}`);
+    }
+  }, [pathname, locale]);
 
   const closeMenu = () => setIsMenuOpen(false);
 
@@ -163,7 +182,7 @@ export function Navbar() {
       <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:p-4 bg-white text-blue-600 rounded-lg shadow-lg">Skip to main content</a>
       <Container>
         <div className="flex items-center justify-between h-20 px-2 md:px-0">
-          <Link href="/" className="inline-flex shrink-0 items-center gap-2" onClick={() => isMenuOpen && closeMenu()}>
+          <Link href={`/${locale}`} className="inline-flex shrink-0 items-center gap-2" onClick={() => isMenuOpen && closeMenu()}>
             <Image
                 src="/logo.png"
                 alt="Online Thakshilawa Logo"
@@ -174,22 +193,28 @@ export function Navbar() {
 
           {/* --- Desktop Navigation --- */}
           <nav className="hidden md:flex items-center space-x-2 text-base" aria-label="Primary">
-            <NavLink href="/" icon={House}>Home</NavLink>
-            <NavLink href="/courses" icon={BookOpen}>Courses</NavLink>
-            <NavLink href="/announcements" icon={Megaphone}>Announcements</NavLink>
+            <NavLink href={`/${locale}`} icon={House}>Home</NavLink>
+            <NavLink href={`/${locale}/courses`} icon={BookOpen}>Courses</NavLink>
+            <NavLink href={`/${locale}/announcements`} icon={Megaphone}>Announcements</NavLink>
           </nav>
 
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-4 w-full md:w-auto">
             {isLoading ? (
               <div className="w-24 h-10 bg-slate-200 rounded-full animate-pulse" />
             ) : user ? (
                 <UserDropdown user={user} logout={logout} />
             ) : (
               <div className="hidden md:flex items-center space-x-2">
-                <Link href="/auth/login" className="px-5 py-2.5 rounded-lg text-sm font-semibold text-slate-700 hover:text-blue-600 hover:bg-blue-50/70 transition-colors">Login</Link>
-                <Link href="/auth/register" className="px-5 py-2.5 rounded-lg text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700 shadow-sm hover:shadow-md transition">Get Started</Link>
+                <Link href={`/${locale}/auth/login`} className="px-5 py-2.5 rounded-lg text-sm font-semibold text-slate-700 hover:text-blue-600 hover:bg-blue-50/70 transition-colors">Login</Link>
+                <Link href={`/${locale}/auth/register`} className="px-5 py-2.5 rounded-lg text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700 shadow-sm hover:shadow-md transition">Get Started</Link>
+                {/* LanguageSwitcher sits after register button, at far right */}
+                <div className="ml-4 flex items-center">
+                  <LanguageSwitcher />
+                </div>
               </div>
             )}
+            {/* For logged-in users, show LanguageSwitcher at far right */}
+            {!user && <div className="md:hidden ml-2"><LanguageSwitcher /></div>}
             <div className="md:hidden">
               <button
                 ref={triggerRef}
@@ -237,21 +262,25 @@ export function Navbar() {
           </div>
           {/* Navigation Links */}
           <nav className="flex-grow p-4 space-y-2">
-            <NavLink href="/" icon={House} onClick={closeMenu}>Home</NavLink>
-            <NavLink href="/courses" icon={BookOpen} onClick={closeMenu}>Courses</NavLink>
-            <NavLink href="/announcements" icon={Megaphone} onClick={closeMenu}>Announcements</NavLink>
+            <NavLink href={`/${locale}`} icon={House} onClick={closeMenu}>Home</NavLink>
+            <NavLink href={`/${locale}/courses`} icon={BookOpen} onClick={closeMenu}>Courses</NavLink>
+            <NavLink href={`/${locale}/announcements`} icon={Megaphone} onClick={closeMenu}>Announcements</NavLink>
           </nav>
           {/* Bottom Action Area */}
           <div className="p-4 border-t border-slate-200/80 bg-slate-50/70 pb-[env(safe-area-inset-bottom)]">
             {user ? (
-              <Link href={user.role === 'ADMIN' ? '/dashboard/admin' : user.role === 'INSTRUCTOR' ? '/dashboard/instructor' : '/dashboard/student/courses'} className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 shadow-sm hover:shadow-md transition" onClick={closeMenu}>
+              <Link href={user?.role === 'ADMIN'
+                ? `/${locale}/dashboard/admin`
+                : user?.role === 'INSTRUCTOR'
+                  ? `/${locale}/dashboard/instructor`
+                  : `/${locale}/dashboard/student/courses`} className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 shadow-sm hover:shadow-md transition" onClick={closeMenu}>
                 <LayoutDashboard className="w-5 h-5" />
                 Dashboard
               </Link>
             ) : (
               <div className="grid grid-cols-2 gap-3">
-                <Link href="/auth/login" className="w-full flex justify-center px-4 py-3 rounded-lg font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 transition" onClick={closeMenu}>Login</Link>
-                <Link href="/auth/register" className="w-full flex justify-center px-4 py-3 rounded-lg font-semibold bg-blue-600 text-white hover:bg-blue-700 shadow-sm hover:shadow-md transition" onClick={closeMenu}>Get Started</Link>
+                <Link href={`/${locale}/auth/login`} className="w-full flex justify-center px-4 py-3 rounded-lg font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 transition" onClick={closeMenu}>Login</Link>
+                <Link href={`/${locale}/auth/register`} className="w-full flex justify-center px-4 py-3 rounded-lg font-semibold bg-blue-600 text-white hover:bg-blue-700 shadow-sm hover:shadow-md transition" onClick={closeMenu}>Get Started</Link>
               </div>
             )}
           </div>

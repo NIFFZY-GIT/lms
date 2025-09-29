@@ -9,8 +9,11 @@ interface CourseCardProps {
 }
 
 export function CourseCard({ course }: CourseCardProps) {
+  const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
+  const match = pathname.match(/^\/([a-zA-Z-]+)(\/|$)/);
+  const locale = match ? match[1] : 'en';
   return (
-    <Link href={`/dashboard/student/course/${course.id}`} className="block group">
+    <Link href={`/${locale}/dashboard/student/course/${course.id}`} className="block group">
       <div className="bg-white rounded-2xl shadow-lg overflow-hidden flex flex-col h-full transition-all duration-300 ease-in-out hover:shadow-2xl hover:-translate-y-2">
         
         {/* --- THIS IS THE UPDATED IMAGE SECTION --- */}

@@ -7,7 +7,7 @@ import { LayoutDashboard, BookOpen, Users, Menu, X } from 'lucide-react';
 
 function NavLink({ href, icon: Icon, children, onClick }: { href: string; icon: React.ElementType; children: React.ReactNode; onClick?: () => void }) {
   const pathname = usePathname();
-  const isActive = href === '/dashboard/instructor' ? pathname === href : pathname.startsWith(href);
+  const isActive = href.endsWith('/dashboard/instructor') ? pathname.endsWith('/dashboard/instructor') : pathname.includes(href.replace(/^\/[a-zA-Z-]+/, ''));
   return (
     <Link
       href={href}
@@ -24,6 +24,10 @@ function NavLink({ href, icon: Icon, children, onClick }: { href: string; icon: 
 
 export default function InstructorSidebarLayout({ userName, children }: { userName: string; children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const pathname = usePathname();
+  // Get current locale from pathname (assumes /:locale/...)
+  const localeMatch = /^\/([a-zA-Z-]+)(\/|$)/.exec(pathname);
+  const locale = localeMatch ? localeMatch[1] : 'en';
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
@@ -35,7 +39,7 @@ export default function InstructorSidebarLayout({ userName, children }: { userNa
         aria-label="Instructor sidebar"
       >
         <div className="flex items-center justify-between mb-6 px-2">
-          <Link href="/" className="text-xl font-bold text-white">Online Thakshilawa</Link>
+          <Link href={`/${locale}`} className="text-xl font-bold text-white">Online Thakshilawa</Link>
           <button
             className="lg:hidden p-1 text-indigo-200 hover:text-white"
             onClick={() => setSidebarOpen(false)}
@@ -50,9 +54,9 @@ export default function InstructorSidebarLayout({ userName, children }: { userNa
         </div>
         <nav className="flex flex-col flex-grow h-full">
           <div className="space-y-2">
-            <NavLink href="/dashboard/instructor" icon={LayoutDashboard} onClick={() => setSidebarOpen(false)}>Dashboard</NavLink>
-            <NavLink href="/dashboard/instructor/courses" icon={BookOpen} onClick={() => setSidebarOpen(false)}>My Courses</NavLink>
-            <NavLink href="/dashboard/instructor/students" icon={Users} onClick={() => setSidebarOpen(false)}>Students</NavLink>
+            <NavLink href={`/${locale}/dashboard/instructor`} icon={LayoutDashboard} onClick={() => setSidebarOpen(false)}>Dashboard</NavLink>
+            <NavLink href={`/${locale}/dashboard/instructor/courses`} icon={BookOpen} onClick={() => setSidebarOpen(false)}>My Courses</NavLink>
+            <NavLink href={`/${locale}/dashboard/instructor/students`} icon={Users} onClick={() => setSidebarOpen(false)}>Students</NavLink>
           </div>
         </nav>
       </aside>

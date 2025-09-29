@@ -10,8 +10,8 @@ import { withAdminAuth } from '@/components/auth/withAdminAuth'; // Import the H
 // --- Improved NavLink with Active State ---
 const NavLink = ({ href, icon: Icon, children, onClick }: { href: string; icon: React.ElementType, children: React.ReactNode; onClick?: () => void }) => {
     const pathname = usePathname();
-    // Exact match for dashboard, startsWith for others
-    const isActive = href === '/dashboard/admin' ? pathname === href : pathname.startsWith(href);
+    // Exact match for dashboard, startsWith for others, accounting for locale prefixes
+    const isActive = href.endsWith('/dashboard/admin') ? pathname.endsWith('/dashboard/admin') : pathname.includes(href.replace('/en/', '/'));
 
     return (
         <Link
@@ -42,7 +42,7 @@ function AdminLayout({ children }: { children: React.ReactNode }) {
             aria-label="Admin sidebar"
         >
             <div className="flex items-center justify-between mb-6 px-2">
-                <Link href="/" className="text-xl font-bold text-white">Online Thakshilawa</Link>
+                <Link href="/en" className="text-xl font-bold text-white">Online Thakshilawa</Link>
                 <button
                     className="lg:hidden p-1 text-gray-300 hover:text-white"
                     onClick={() => setSidebarOpen(false)}
@@ -53,12 +53,12 @@ function AdminLayout({ children }: { children: React.ReactNode }) {
             </div>
             <nav className="flex flex-col flex-grow h-full">
                 <div className="space-y-2">
-                    <NavLink href="/dashboard/admin" icon={LayoutDashboard} onClick={() => setSidebarOpen(false)}>Dashboard</NavLink>
-                    <NavLink href="/dashboard/admin/courses" icon={BookOpen} onClick={() => setSidebarOpen(false)}>Courses</NavLink>
-                    <NavLink href="/dashboard/admin/payments" icon={Banknote} onClick={() => setSidebarOpen(false)}>Payments</NavLink>
-                    <NavLink href="/dashboard/admin/announcements" icon={Megaphone} onClick={() => setSidebarOpen(false)}>Announcements</NavLink>
-                    <NavLink href="/dashboard/admin/users" icon={Users} onClick={() => setSidebarOpen(false)}>Students</NavLink>
-                    <NavLink href="/dashboard/admin/admins" icon={Shield} onClick={() => setSidebarOpen(false)}>Admins</NavLink>
+                    <NavLink href="/en/dashboard/admin" icon={LayoutDashboard} onClick={() => setSidebarOpen(false)}>Dashboard</NavLink>
+                    <NavLink href="/en/dashboard/admin/courses" icon={BookOpen} onClick={() => setSidebarOpen(false)}>Courses</NavLink>
+                    <NavLink href="/en/dashboard/admin/payments" icon={Banknote} onClick={() => setSidebarOpen(false)}>Payments</NavLink>
+                    <NavLink href="/en/dashboard/admin/announcements" icon={Megaphone} onClick={() => setSidebarOpen(false)}>Announcements</NavLink>
+                    <NavLink href="/en/dashboard/admin/users" icon={Users} onClick={() => setSidebarOpen(false)}>Students</NavLink>
+                    <NavLink href="/en/dashboard/admin/admins" icon={Shield} onClick={() => setSidebarOpen(false)}>Admins</NavLink>
                 </div>
             
             </nav>

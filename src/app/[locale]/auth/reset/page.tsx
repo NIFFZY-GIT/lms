@@ -6,6 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import axios, { AxiosError } from 'axios';
 import Link from 'next/link';
+import { useParams } from 'next/navigation';
 import { AuthCard } from '@/components/auth/AuthCard';
 import { InputWithIcon } from '@/components/ui/InputWithIcon';
 import { Mail, Hash, KeyRound, AlertCircle, CheckCircle2 } from 'lucide-react';
@@ -20,6 +21,8 @@ type RequestData = z.infer<typeof RequestSchema>;
 type ResetData = z.infer<typeof ResetSchema>;
 
 export default function ResetPasswordPage() {
+  const params = useParams();
+  const locale = params.locale as string;
   const [step, setStep] = useState<1 | 2>(1);
   const [email, setEmail] = useState<string>('');
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
@@ -59,7 +62,7 @@ export default function ResetPasswordPage() {
         footerContent={
           <p>
             Remembered your password?{' '}
-            <Link href="/auth/login" className="font-medium text-indigo-600 hover:text-indigo-500">
+            <Link href={`/${locale}/auth/login`} className="font-medium text-indigo-600 hover:text-indigo-500">
               Back to sign in
             </Link>
           </p>

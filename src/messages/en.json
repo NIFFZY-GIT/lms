@@ -1,0 +1,63 @@
+{
+	"LandingPage": {
+		"Hero": {
+			"title": "Welcome to Online Thakshilawa.lk",
+			"subtitle": "Your trusted learning partner for Grade 10, O/L, and beyond. Study smarter with lessons, quizzes, and teacher support.",
+			"ctaPrimary": "Start Learning",
+			"ctaSecondary": "Explore Subjects"
+		},
+		"FeatureGrid": {
+			"title": "Why choose Online Thakshilawa.lk?",
+			"subtitle": "A complete learning space designed for school success.",
+			"features": [
+				{
+					"title": "All-in-one subjects",
+					"description": "Access Sinhala, English, Mathematics, Science, ICT, History, and more – all in one platform."
+				},
+				{
+					"title": "Interactive learning",
+					"description": "Learn with videos, notes, practice quizzes, and past paper questions."
+				},
+				{
+					"title": "Track your progress",
+					"description": "View reports, achievements, and badges to measure your improvement."
+				},
+				{
+					"title": "Guidance from teachers",
+					"description": "Get study tips, additional resources, and support from qualified teachers."
+				}
+			]
+		},
+		"HowItWorks": {
+			"title": "How Online Thakshilawa.lk works",
+			"subtitle": "Learning made simple in just 3 steps.",
+			"steps": [
+				{
+					"title": "1. Select your subject",
+					"description": "Choose from your Grade 10 or O/L subjects and lesson topics.",
+					"points": ["Browse subjects", "Check lesson lists", "View recommended topics"]
+				},
+				{
+					"title": "2. Learn & practice",
+					"description": "Go through lessons, attempt quizzes, and answer past paper questions.",
+					"points": ["Interactive notes & videos", "Practice by topic", "Past papers with answers"]
+				},
+				{
+					"title": "3. Track & improve",
+					"description": "See your progress reports, identify weak areas, and get exam-ready.",
+					"points": ["Performance reports", "Earn badges & rewards", "Stay confident for O/Ls"]
+				}
+			]
+		},
+		"Stats": {
+			"title": "Trusted by students across Sri Lanka",
+			"subtitle": "Join the growing Online Thakshila.lk community.",
+			"stats": [
+				{ "value": "10,000+", "label": "Active learners" },
+				{ "value": "500+", "label": "Lessons & quizzes" },
+				{ "value": "4.8/5", "label": "Average student rating" },
+				{ "value": "90%", "label": "Improved exam results" }
+			]
+		}
+	}
+}

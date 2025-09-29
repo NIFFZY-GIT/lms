@@ -39,6 +39,13 @@ export function LoginForm() {
   const searchParams = useSearchParams();
   const { login } = useAuth();
   const callbackUrl = searchParams.get('callbackUrl');
+  
+  // Get current locale from URL
+  let locale = 'en';
+  if (typeof window !== 'undefined') {
+    const match = window.location.pathname.match(/^\/([a-zA-Z-]+)(\/|$)/);
+    if (match) locale = match[1];
+  }
 
   const [mode, setMode] = useState<'email' | 'phone'>('email');
   const [formError, setFormError] = useState<string | null>(null);
@@ -63,20 +70,27 @@ export function LoginForm() {
     mutationFn: (credentials) => axios.post('/api/auth/login', credentials).then(res => res.data),
     onSuccess: (data) => {
       login(data);
+      // Get current locale from URL or default to 'en'
+      let locale = 'en';
+      if (typeof window !== 'undefined') {
+        const match = window.location.pathname.match(/^\/([a-zA-Z-]+)(\/|$)/);
+        if (match) locale = match[1];
+      }
       const roleDefault = data.role === 'ADMIN'
-        ? '/dashboard/admin'
+        ? `/${locale}/dashboard/admin`
         : data.role === 'INSTRUCTOR'
-          ? '/dashboard/instructor'
-          : '/dashboard/student/courses';
+          ? `/${locale}/dashboard/instructor`
+          : `/${locale}/dashboard/student/courses`;
 
       let target = roleDefault;
       if (callbackUrl) {
+        // Accept both /en/dashboard/... and /dashboard/... (will redirect via middleware if needed)
         const allowed = (
-          (data.role === 'ADMIN' && callbackUrl.startsWith('/dashboard/admin')) ||
-          (data.role === 'INSTRUCTOR' && callbackUrl.startsWith('/dashboard/instructor')) ||
-          (data.role === 'STUDENT' && callbackUrl.startsWith('/dashboard/student'))
+          (data.role === 'ADMIN' && /([a-zA-Z-]+\/)?dashboard\/admin/.test(callbackUrl)) ||
+          (data.role === 'INSTRUCTOR' && /([a-zA-Z-]+\/)?dashboard\/instructor/.test(callbackUrl)) ||
+          (data.role === 'STUDENT' && /([a-zA-Z-]+\/)?dashboard\/student/.test(callbackUrl))
         );
-        if (allowed) target = callbackUrl;
+        if (allowed) target = callbackUrl.startsWith('/') ? callbackUrl : `/${callbackUrl}`;
       }
       router.push(target);
     },
@@ -114,7 +128,7 @@ export function LoginForm() {
         footerContent={
           <p>
             Don&apos;t have an account?{' '}
-            <Link href="/auth/register" className="font-medium text-blue-600 hover:text-blue-500">
+            <Link href={`/${locale}/auth/register`} className="font-medium text-blue-600 hover:text-blue-500">
               Sign up
             </Link>
           </p>
@@ -193,7 +207,7 @@ export function LoginForm() {
 
           <div className="flex justify-between text-sm">
             <div />
-            <Link href="/auth/reset" className="text-blue-600 hover:text-blue-500">Forgot password?</Link>
+            <Link href={`/${locale}/auth/reset`} className="text-blue-600 hover:text-blue-500">Forgot password?</Link>
           </div>
 
           {formError && (

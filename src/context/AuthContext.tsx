@@ -53,7 +53,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await axios.post('/api/auth/logout');
       setUser(null);
-      router.push('/auth/login');
+      // Get current locale from pathname for redirect
+      const currentPath = window.location.pathname;
+      const localeMatch = currentPath.match(/^\/([a-zA-Z-]+)\//); 
+      const locale = localeMatch ? localeMatch[1] : 'en';
+      router.push(`/${locale}/auth/login`);
       router.refresh();
     } catch (error) {
       console.error('Logout failed:', error);

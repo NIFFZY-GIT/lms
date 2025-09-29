@@ -16,9 +16,16 @@ export function withAdminAuth<P extends object>(WrappedComponent: ComponentType<
       // Don't redirect while the initial user check is happening
       if (isLoading) return;
       if (!user) {
-        router.replace('/auth/login?next=/dashboard/admin'); // Redirect to login
+        // Get current locale from pathname for redirect
+        const currentPath = window.location.pathname;
+        const localeMatch = currentPath.match(/^\/([a-zA-Z-]+)\//); 
+        const locale = localeMatch ? localeMatch[1] : 'en';
+        router.replace(`/${locale}/auth/login?next=%2F${encodeURIComponent(locale)}%2Fdashboard%2Fadmin`); // Redirect to locale-aware login
       } else if (user.role !== 'ADMIN') {
-        router.replace('/'); // Redirect non-admins to the home page
+        const currentPath = window.location.pathname;
+        const localeMatch = currentPath.match(/^\/([a-zA-Z-]+)\//); 
+        const locale = localeMatch ? localeMatch[1] : 'en';
+        router.replace(`/${locale}`); // Redirect non-admins to the locale-aware home page
       }
     }, [user, isLoading, router]);
 

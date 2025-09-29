@@ -91,20 +91,20 @@ export default async function AdminDashboardPage() {
       <div className="sm:hidden">
         <div className="-mx-4 px-4 overflow-x-auto pb-2">
             <div className="flex w-max gap-2">
-                <Link href="/dashboard/admin/students" className="btn-tab-mobile">Students</Link>
-                <Link href="/dashboard/admin/instructors" className="btn-tab-mobile">Instructors</Link>
-                <Link href="/dashboard/admin/courses" className="btn-tab-mobile">Courses</Link>
-                <Link href="/dashboard/admin/payments" className="btn-tab-mobile">Payments</Link>
+                <Link href="/en/dashboard/admin/students" className="btn-tab-mobile">Students</Link>
+                <Link href="/en/dashboard/admin/instructors" className="btn-tab-mobile">Instructors</Link>
+                <Link href="/en/dashboard/admin/courses" className="btn-tab-mobile">Courses</Link>
+                <Link href="/en/dashboard/admin/payments" className="btn-tab-mobile">Payments</Link>
             </div>
         </div>
       </div>
 
       {/* --- Stat Cards Grid --- */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-        <StatCard title="Students" value={stats.totalStudents} icon={<Users className="w-7 h-7" />} href="/dashboard/admin/users" />
-        <StatCard title="Instructors" value={stats.totalInstructors} icon={<UserCheck className="w-7 h-7" />} href="/dashboard/admin/instructors" />
-        <StatCard title="Courses" value={stats.totalCourses} icon={<BookOpen className="w-7 h-7" />} href="/dashboard/admin/courses" />
-        <StatCard title="Pending Payments" value={stats.pendingPayments} icon={<Banknote className="w-7 h-7" />} href="/dashboard/admin/payments" />
+        <StatCard title="Students" value={stats.totalStudents} icon={<Users className="w-7 h-7" />} href="/en/dashboard/admin/users" />
+        <StatCard title="Instructors" value={stats.totalInstructors} icon={<UserCheck className="w-7 h-7" />} href="/en/dashboard/admin/instructors" />
+        <StatCard title="Courses" value={stats.totalCourses} icon={<BookOpen className="w-7 h-7" />} href="/en/dashboard/admin/courses" />
+        <StatCard title="Pending Payments" value={stats.pendingPayments} icon={<Banknote className="w-7 h-7" />} href="/en/dashboard/admin/payments" />
       </div>
 
       {/* --- Main Dashboard Grid (Stacks on mobile) --- */}
@@ -167,11 +167,11 @@ export default async function AdminDashboardPage() {
                 </ul>
             </div>
             <div className="space-y-3">
-                <Link href="/dashboard/admin/announcements" className="btn-dashboard-action">
+                <Link href="/en/dashboard/admin/announcements" className="btn-dashboard-action">
                     <div className="flex items-center"><Megaphone className="w-5 h-5 mr-3 text-blue-600"/><span className="font-medium">Manage Announcements</span></div>
                     <ArrowRight className="w-5 h-5 text-gray-400"/>
                 </Link>
-                <Link href="/dashboard/admin/admins" className="btn-dashboard-action">
+                <Link href="/en/dashboard/admin/admins" className="btn-dashboard-action">
                     <div className="flex items-center"><Shield className="w-5 h-5 mr-3 text-blue-600"/><span className="font-medium">Manage Admins</span></div>
                     <ArrowRight className="w-5 h-5 text-gray-400"/>
                 </Link>

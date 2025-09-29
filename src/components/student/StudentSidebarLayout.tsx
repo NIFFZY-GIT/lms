@@ -24,6 +24,10 @@ function NavLink({ href, icon: Icon, children, onClick }: { href: string; icon: 
 
 export function StudentSidebarLayout({ userName, children }: { userName: string; children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const pathname = usePathname();
+  // Get current locale from pathname (assumes /:locale/...)
+  const localeMatch = /^\/([a-zA-Z-]+)(\/|$)/.exec(pathname);
+  const locale = localeMatch ? localeMatch[1] : 'en';
 
   return (
     <div className="min-h-screen bg-gray-100 flex">
@@ -35,7 +39,7 @@ export function StudentSidebarLayout({ userName, children }: { userName: string;
         aria-label="Student sidebar"
       >
         <div className="flex items-center justify-between mb-6 px-2">
-          <Link href="/" className="text-xl font-bold text-white">Online Thakshilawa</Link>
+          <Link href={`/${locale}`} className="text-xl font-bold text-white">Online Thakshilawa</Link>
           <button
             className="lg:hidden p-1 text-gray-300 hover:text-white"
             onClick={() => setSidebarOpen(false)}
@@ -50,8 +54,8 @@ export function StudentSidebarLayout({ userName, children }: { userName: string;
         </div>
         <nav className="flex flex-col flex-grow h-full">
           <div className="space-y-2">
-            <NavLink href="/dashboard/student/courses" icon={BookOpen} onClick={() => setSidebarOpen(false)}>My Courses</NavLink>
-            <NavLink href="/dashboard/student/results" icon={BarChart3} onClick={() => setSidebarOpen(false)}>My Results</NavLink>
+            <NavLink href={`/${locale}/dashboard/student/courses`} icon={BookOpen} onClick={() => setSidebarOpen(false)}>My Courses</NavLink>
+            <NavLink href={`/${locale}/dashboard/student/results`} icon={BarChart3} onClick={() => setSidebarOpen(false)}>My Results</NavLink>
           </div>
         </nav>
       </aside>

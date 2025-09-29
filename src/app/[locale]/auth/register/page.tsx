@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import axios, { AxiosError } from 'axios';
 import { useMutation } from '@tanstack/react-query';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { AuthCard } from '@/components/auth/AuthCard';
@@ -53,6 +53,8 @@ const Spinner = () => (
 
 export default function RegisterPage() {
   const router = useRouter();
+  const params = useParams();
+  const locale = params.locale as string;
   const [serverError, setServerError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
 
@@ -92,7 +94,7 @@ export default function RegisterPage() {
       footerContent={
         <p className="text-center">
           Already have an account?{' '}
-          <Link href="/auth/login" className="font-medium text-indigo-600 hover:text-indigo-500">
+          <Link href={`/${locale}/auth/login`} className="font-medium text-indigo-600 hover:text-indigo-500">
             Sign in
           </Link>
         </p>

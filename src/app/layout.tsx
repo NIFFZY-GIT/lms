@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
 import { Inter, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
-import { Navbar } from "@/components/layout/Navbar";
-import { Footer } from "@/components/layout/Footer";
+// Navbar and Footer are provided by localized layout
 import { Providers } from "@/components/providers"; // We will create this next
 import { AuthProvider } from '@/context/AuthContext'; // Import the provider
-import { AutoLogoutIndicator } from '@/components/ui/AutoLogoutIndicator';
+// AutoLogoutIndicator is provided in localized layout when needed
 
 const inter = Inter({ subsets: ["latin"], variable: '--font-inter' });
 const jakarta = Plus_Jakarta_Sans({ subsets: ["latin"], variable: '--font-jakarta' });
@@ -21,10 +20,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={`font-sans flex flex-col min-h-screen`}>
         <Providers>
           <AuthProvider>
-            <Navbar />
-            <AutoLogoutIndicator />
+            {/* Leave chrome to localized layout which will provide IntlProvider */}
             <main id="main-content" className="flex-grow focus:outline-none">{children}</main>
-            <Footer />
           </AuthProvider>
         </Providers>
       </body>
