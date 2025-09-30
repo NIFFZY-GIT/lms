@@ -82,8 +82,8 @@ export function Footer() {
             </p>
             <p className="text-sm text-slate-500">
               Designed & Developed by{' '}
-              <a href="https://zevarone.com" target="_blank" rel="noopener noreferrer" className="text-sky-400 hover:text-white font-medium underline underline-offset-4 transition-colors">
-                zevarone.com
+              <a href="https://zevarone.com" target="_blank" rel="noopener noreferrer" className="text-sky-400 hover:text-white font-medium  transition-colors">
+                ZEVARONE
               </a>
             </p>
           </div>
