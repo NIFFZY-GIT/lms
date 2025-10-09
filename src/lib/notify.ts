@@ -134,3 +134,27 @@ export async function sendReceiptUploadedEmailToAdmins(adminEmails: string[], pa
   `);
   await sendEmail({ to: adminEmails, subject, text, html });
 }
+
+export async function sendAnnouncementPublishedEmail(recipients: string[], payload: { title: string; summary: string; imageUrl?: string | null; announcementId: string }) {
+  if (!recipients.length) return;
+
+  const subject = `${appName}: New announcement — ${payload.title}`;
+  const text = `A new announcement "${payload.title}" has been posted. Log in to ${appName} to read the full update.`;
+
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? '#';
+  const announcementLink = `${baseUrl}/announcements/${payload.announcementId}`;
+
+  const imageMarkup = payload.imageUrl
+    ? `<div style="margin: 24px 0;"><img src="${payload.imageUrl}" alt="${payload.title}" style="max-width:100%;border-radius:12px" /></div>`
+    : '';
+
+  const html = wrapHtmlContent('A new announcement awaits', `
+    <p>Hello,</p>
+    <p>We’ve just published a new announcement titled <strong>${payload.title}</strong>.</p>
+    <p>${payload.summary}</p>
+    ${imageMarkup}
+    <a class="btn" href="${announcementLink}">Read the full announcement</a>
+  `);
+
+  await sendEmail({ to: recipients, subject, text, html });
+}

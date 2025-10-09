@@ -5,6 +5,7 @@ import { Role } from '../../../types';
 import { v4 as uuidv4 } from 'uuid';
 import { IMAGE_10MB, assertFile } from '@/lib/security';
 import { saveUploadFile, removeUploadByUrl } from '@/lib/uploads';
+import { sendAnnouncementPublishedEmail } from '@/lib/notify';
 
 // GET: Fetch all announcements (public)
 export async function GET() {
@@ -44,8 +45,31 @@ export async function POST(req: Request) {
     // --- UPDATED SQL QUERY ---
     const sql = 'INSERT INTO "Announcement" (id, title, description, "imageUrl", "createdById") VALUES ($1, $2, $3, $4, $5) RETURNING *;';
     const result = await db.query(sql, [announcementId, title, description, imageUrl, user.id]);
+    const announcement = result.rows[0];
 
-    return NextResponse.json(result.rows[0], { status: 201 });
+    try {
+      const recipientResult = await db.query<{ email: string | null }>(
+        'SELECT email FROM "User" WHERE role = ANY($1) AND email IS NOT NULL',
+        [[Role.STUDENT, Role.INSTRUCTOR]]
+      );
+      const recipients = recipientResult.rows
+        .map((row) => row.email)
+        .filter((email): email is string => Boolean(email));
+
+      if (recipients.length) {
+        const summary = description.length > 240 ? `${description.slice(0, 237)}...` : description;
+        await sendAnnouncementPublishedEmail(recipients, {
+          title,
+          summary,
+          imageUrl,
+          announcementId,
+        });
+      }
+    } catch (emailError) {
+      console.error('Announcement email failed:', emailError);
+    }
+
+    return NextResponse.json(announcement, { status: 201 });
   } catch (error) {
     console.error("Create announcement error:", error);
     return NextResponse.json({ error: 'Failed to create announcement.' }, { status: 500 });
