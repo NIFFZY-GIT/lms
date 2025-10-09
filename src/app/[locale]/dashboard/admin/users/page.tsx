@@ -9,7 +9,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Plus, Edit, Trash2, Search } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
-import { Course } from '@/types';
+import { Course, Role } from '@/types';
 import { toast } from '@/components/ui/toast';
 
 // --- Type Definitions ---
@@ -24,6 +24,7 @@ interface Student {
   email: string;
   phone: string | null;
   address: string | null;
+    role: Role;
   courses: StudentCourseInfo[];
 }
 
@@ -34,6 +35,7 @@ const studentSchema = z.object({
   phone: z.string().optional(),
   address: z.string().optional(),
   password: z.string().min(6, 'Password must be at least 6 characters').optional(),
+    role: z.nativeEnum(Role).optional(),
 });
 type StudentFormData = z.infer<typeof studentSchema>;
 
@@ -87,7 +89,7 @@ export default function AdminStudentsPage() {
 
     const openModalForCreate = () => {
         setEditingStudent(null);
-        reset({ name: '', email: '', phone: '', address: '', password: '' });
+        reset({ name: '', email: '', phone: '', address: '', password: '', role: Role.STUDENT });
         setIsModalOpen(true);
     };
 
@@ -97,6 +99,7 @@ export default function AdminStudentsPage() {
         setValue('email', student.email);
         setValue('phone', student.phone || '');
         setValue('address', student.address || '');
+        setValue('role', student.role);
         setIsModalOpen(true);
     };
     
@@ -106,11 +109,12 @@ export default function AdminStudentsPage() {
     };
 
     const onSubmit = (data: StudentFormData) => {
+        const payload: StudentFormData = { ...data, role: data.role ?? Role.STUDENT };
         if (editingStudent) {
-            updateMutation.mutate({ id: editingStudent.id, data });
+            updateMutation.mutate({ id: editingStudent.id, data: payload });
         } else {
-            if (!data.password) { toast.warning('Password is required for new students.'); return; }
-            createMutation.mutate(data);
+            if (!payload.password) { toast.warning('Password is required for new students.'); return; }
+            createMutation.mutate(payload);
         }
     };
     
@@ -256,6 +260,21 @@ export default function AdminStudentsPage() {
                         <label className="block text-sm">Address</label>
                         <textarea {...register('address')} rows={3} className="mt-1 w-full border-gray-300 rounded-md" />
                     </div>
+                    {editingStudent && (
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                            <select
+                                {...register('role')}
+                                defaultValue={editingStudent.role}
+                                className="w-full rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                            >
+                                <option value={Role.STUDENT}>Student</option>
+                                <option value={Role.INSTRUCTOR}>Instructor</option>
+                                <option value={Role.ADMIN}>Admin</option>
+                            </select>
+                            <p className="mt-1 text-xs text-gray-500">Changing role will immediately update this user&apos;s access. Promoted users will no longer appear in the student list.</p>
+                        </div>
+                    )}
                     {!editingStudent && (<Input label="Password" registration={register('password')} error={errors.password?.message} type="password" />)}
                     <div className="flex flex-col sm:flex-row justify-end pt-4 gap-2">
                         <button type="button" onClick={closeModal} className="btn-secondary w-full sm:w-auto">Cancel</button>

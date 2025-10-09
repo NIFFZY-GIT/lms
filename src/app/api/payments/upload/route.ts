@@ -5,6 +5,7 @@ import { Role } from '../../../../types';
 import { v4 as uuidv4 } from 'uuid';
 import { IMAGE_10MB, assertFile } from '@/lib/security';
 import { saveUploadFile, removeUploadByUrl } from '@/lib/uploads';
+import { sendReceiptUploadedEmailToAdmins } from '@/lib/notify';
 
 export async function POST(req: Request) {
   try {
@@ -58,7 +59,24 @@ export async function POST(req: Request) {
       VALUES ($1, $2, $3, $4, 'PENDING') RETURNING *;
     `;
     const result = await db.query(sql, [paymentId, user.id, courseId, publicUrl]);
-    
+
+    try {
+      const adminResult = await db.query<{ email: string | null }>('SELECT email FROM "User" WHERE role = $1 AND email IS NOT NULL', [Role.ADMIN]);
+      const adminEmails = adminResult.rows.map(row => row.email).filter((email): email is string => Boolean(email));
+
+      if (adminEmails.length) {
+        const courseResult = await db.query<{ title: string | null }>('SELECT title FROM "Course" WHERE id = $1', [courseId]);
+        const courseTitle = courseResult.rows[0]?.title ?? 'a course';
+        await sendReceiptUploadedEmailToAdmins(adminEmails, {
+          studentName: user.name ?? 'A student',
+          studentEmail: user.email,
+          courseTitle,
+        });
+      }
+    } catch (emailError) {
+      console.error('Receipt upload admin email failed:', emailError);
+    }
+
     return NextResponse.json(result.rows[0], { status: 201 });
   } catch (error) {
     console.error("Upload error:", error);

@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
         GROUP BY p."studentId"
       )
       SELECT
-        u.id, u.name, u.email, u.phone, u.address, u."createdAt",
+        u.id, u.name, u.email, u.phone, u.address, u.role, u."createdAt",
         COALESCE(sc.courses, '[]'::json) AS courses
       FROM "User" u
       LEFT JOIN StudentCourses sc ON u.id = sc."studentId"
@@ -62,6 +62,7 @@ export async function GET(req: NextRequest) {
 
       return {
         ...student,
+        role: student.role as Role,
         courses: formattedCourses,
       };
     });

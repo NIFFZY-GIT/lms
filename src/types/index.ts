@@ -74,6 +74,7 @@ export interface Student {
   email: string;
   phone: string | null;
   address: string | null;
+  role: Role;
   courses: StudentCourseInfo[];
 }
 
