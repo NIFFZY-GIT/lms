@@ -24,11 +24,11 @@ export default async function InstructorLayout({
   params,
 }: {
   children: React.ReactNode;
-  params: { locale: string };
+  params: Promise<{ locale: string }>;
 }) {
+  const { locale } = await params;
   const user = await getCurrentInstructor();
   if (!user) {
-    const locale = params?.locale || 'en';
     const callbackUrl = encodeURIComponent(`/${locale}/dashboard/instructor`);
     redirect(`/${locale}/auth/login?callbackUrl=${callbackUrl}`);
   }

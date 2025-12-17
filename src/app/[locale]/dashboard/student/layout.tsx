@@ -37,15 +37,15 @@ export default async function StudentDashboardLayout({
   params,
 }: {
   children: React.ReactNode;
-  params: { locale: string };
+  params: Promise<{ locale: string }>;
 }) {
+  const { locale } = await params;
   // --- The Protection Logic ---
   const user = await getCurrentUser();
 
   // If there's no valid student user, redirect to the login page.
   // We can add a 'callbackUrl' to redirect them back after they log in.
   if (!user) {
-    const locale = params?.locale || 'en';
     const callbackUrl = encodeURIComponent(`/${locale}/dashboard/student/courses`);
     redirect(`/${locale}/auth/login?callbackUrl=${callbackUrl}`);
   }
