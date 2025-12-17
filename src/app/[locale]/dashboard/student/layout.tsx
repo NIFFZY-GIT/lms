@@ -34,8 +34,10 @@ async function getCurrentUser() {
 
 export default async function StudentDashboardLayout({
   children,
+  params,
 }: {
   children: React.ReactNode;
+  params: { locale: string };
 }) {
   // --- The Protection Logic ---
   const user = await getCurrentUser();
@@ -43,8 +45,9 @@ export default async function StudentDashboardLayout({
   // If there's no valid student user, redirect to the login page.
   // We can add a 'callbackUrl' to redirect them back after they log in.
   if (!user) {
-    const callbackUrl = encodeURIComponent('/dashboard/student/courses');
-    redirect(`/auth/login?callbackUrl=${callbackUrl}`);
+    const locale = params?.locale || 'en';
+    const callbackUrl = encodeURIComponent(`/${locale}/dashboard/student/courses`);
+    redirect(`/${locale}/auth/login?callbackUrl=${callbackUrl}`);
   }
 
   // If the user is valid, render the layout within the client sidebar shell.

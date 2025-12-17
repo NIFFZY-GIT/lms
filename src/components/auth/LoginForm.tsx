@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import axios, { AxiosError } from 'axios';
 import { useMutation } from '@tanstack/react-query';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { AuthCard } from '@/components/auth/AuthCard';
 import { useAuth } from '@/context/AuthContext';
@@ -36,16 +36,13 @@ interface UserResponse {
 
 export function LoginForm() {
   const router = useRouter();
+  const params = useParams();
   const searchParams = useSearchParams();
   const { login } = useAuth();
   const callbackUrl = searchParams.get('callbackUrl');
-  
-  // Get current locale from URL
-  let locale = 'en';
-  if (typeof window !== 'undefined') {
-    const match = window.location.pathname.match(/^\/([a-zA-Z-]+)(\/|$)/);
-    if (match) locale = match[1];
-  }
+
+  const localeParam = (params as { locale?: string | string[] } | null)?.locale;
+  const locale = typeof localeParam === 'string' ? localeParam : Array.isArray(localeParam) ? (localeParam[0] ?? 'en') : 'en';
 
   const [mode, setMode] = useState<'email' | 'phone'>('email');
   const [formError, setFormError] = useState<string | null>(null);
@@ -70,12 +67,6 @@ export function LoginForm() {
     mutationFn: (credentials) => axios.post('/api/auth/login', credentials).then(res => res.data),
     onSuccess: (data) => {
       login(data);
-      // Get current locale from URL or default to 'en'
-      let locale = 'en';
-      if (typeof window !== 'undefined') {
-        const match = window.location.pathname.match(/^\/([a-zA-Z-]+)(\/|$)/);
-        if (match) locale = match[1];
-      }
       const roleDefault = data.role === 'ADMIN'
         ? `/${locale}/dashboard/admin`
         : data.role === 'INSTRUCTOR'

@@ -73,8 +73,7 @@ export default function RegisterPage() {
   const registerMutation = useMutation<RegisterResponse, AxiosError<{ message?: string; error?: string }>, RegisterData>({
     mutationFn: (data) => axios.post('/api/auth/register', data).then(res => res.data),
     onSuccess: () => {
-      // Redirect back to explicit localhost login page with registered flag
-      router.push('http://localhost:3000/auth/login?registered=true');
+      router.push(`/${locale}/auth/login?registered=true`);
     },
     onError: (error) => {
       const status = error.response?.status;

@@ -19,11 +19,18 @@ async function getCurrentInstructor() {
   }
 }
 
-export default async function InstructorLayout({ children }: { children: React.ReactNode }) {
+export default async function InstructorLayout({
+  children,
+  params,
+}: {
+  children: React.ReactNode;
+  params: { locale: string };
+}) {
   const user = await getCurrentInstructor();
   if (!user) {
-    const callbackUrl = encodeURIComponent('/dashboard/instructor');
-    redirect(`/auth/login?callbackUrl=${callbackUrl}`);
+    const locale = params?.locale || 'en';
+    const callbackUrl = encodeURIComponent(`/${locale}/dashboard/instructor`);
+    redirect(`/${locale}/auth/login?callbackUrl=${callbackUrl}`);
   }
   return (
     <InstructorSidebarLayout userName={user.name}>
