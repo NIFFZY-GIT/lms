@@ -3,12 +3,12 @@ import { Announcement } from '@/types';
 import { format } from 'date-fns';
 import { Megaphone } from 'lucide-react';
 import Image from 'next/image';
-import { getBaseUrl } from '@/lib/utils';
+import { getBaseUrl } from '@/lib/server-base-url';
 
 // This function runs on the server to fetch the data
 async function getAnnouncements(): Promise<Announcement[]> {
   try {
-    const baseUrl = getBaseUrl();
+    const baseUrl = await getBaseUrl();
     const res = await fetch(`${baseUrl}/api/announcements`, { cache: 'no-store' });
     if (!res.ok) {
       console.error("Failed to fetch announcements:", res.statusText);

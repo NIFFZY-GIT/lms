@@ -1,7 +1,7 @@
 // src/app/dashboard/admin/page.tsx
 
 import Link from 'next/link';
-import { getBaseUrl } from '@/lib/utils';
+import { getBaseUrl } from '@/lib/server-base-url';
 import { cookies } from 'next/headers';
 import { formatDistanceToNow } from 'date-fns';
 import {
@@ -31,7 +31,7 @@ interface DashboardStats {
 // --- Server-Side Data Fetching (No Changes) ---
 async function getDashboardStats(): Promise<DashboardStats | null> {
   try {
-    const baseUrl = getBaseUrl();
+    const baseUrl = await getBaseUrl();
   const token = (await cookies()).get('token')?.value;
     if (!token) return null;
 

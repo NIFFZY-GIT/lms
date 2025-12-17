@@ -1,13 +1,13 @@
 import { Container } from '@/components/ui/Container';
 import { Course } from '@/types';
-import { getBaseUrl } from '@/lib/utils';
+import { getBaseUrl } from '@/lib/server-base-url';
 import { CourseCard } from '@/components/ui/CourseCard';
 import { BookOpen } from 'lucide-react';
 
 // This function runs on the server to fetch the data
 async function getCourses(): Promise<Course[]> {
   try {
-    const baseUrl = getBaseUrl();
+    const baseUrl = await getBaseUrl();
     const res = await fetch(`${baseUrl}/api/courses`, { 
       cache: 'no-store' // Always fetch the latest list of courses
     });

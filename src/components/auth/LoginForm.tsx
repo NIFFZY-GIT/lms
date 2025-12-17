@@ -39,7 +39,7 @@ export function LoginForm() {
   const params = useParams();
   const searchParams = useSearchParams();
   const { login } = useAuth();
-  const callbackUrl = searchParams.get('callbackUrl');
+  const callbackUrl = searchParams.get('callbackUrl') ?? searchParams.get('next');
 
   const localeParam = (params as { locale?: string | string[] } | null)?.locale;
   const locale = typeof localeParam === 'string' ? localeParam : Array.isArray(localeParam) ? (localeParam[0] ?? 'en') : 'en';
