@@ -142,6 +142,7 @@ CREATE TABLE IF NOT EXISTS "Payment" (
     "studentId" VARCHAR(36) NOT NULL REFERENCES "User"(id) ON DELETE CASCADE,
     "courseId" VARCHAR(36) NOT NULL REFERENCES "Course"(id) ON DELETE CASCADE,
     "receiptUrl" TEXT,
+    "referenceNumber" VARCHAR(100) UNIQUE,  -- Reference number for approved payments
     status payment_status NOT NULL DEFAULT 'PENDING',
     "createdAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
