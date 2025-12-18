@@ -249,6 +249,7 @@ CREATE TABLE IF NOT EXISTS "PastPaper" (
     id VARCHAR(36) PRIMARY KEY DEFAULT uuid_generate_v4()::text,
     title VARCHAR(500) NOT NULL,
     medium VARCHAR(100) NOT NULL,
+    term VARCHAR(50) NOT NULL DEFAULT '1st Term',
     year INT NOT NULL,
     "fileUrl" TEXT NOT NULL,
     "subjectId" VARCHAR(36) NOT NULL REFERENCES "PastPaperSubject"(id) ON DELETE CASCADE,
@@ -260,6 +261,7 @@ CREATE TABLE IF NOT EXISTS "PastPaper" (
 CREATE INDEX IF NOT EXISTS idx_pastpaper_subject ON "PastPaper"("subjectId");
 CREATE INDEX IF NOT EXISTS idx_pastpaper_year ON "PastPaper"(year DESC);
 CREATE INDEX IF NOT EXISTS idx_pastpaper_medium ON "PastPaper"(medium);
+CREATE INDEX IF NOT EXISTS idx_pastpaper_term ON "PastPaper"(term);
 
 -- ============================================
 -- Updated At Trigger Function

@@ -10,6 +10,7 @@ type PastPaperRow = {
   paper_id: string | null;
   paper_title: string | null;
   paper_medium: string | null;
+  paper_term: string | null;
   paper_year: number | null;
   paper_file_url: string | null;
   paper_created_at: string | null;
@@ -26,6 +27,7 @@ export type PastPapersTree = {
         id: string;
         title: string;
         medium: string;
+        term: string;
         year: number;
         fileUrl: string;
         createdAt: string;
@@ -44,6 +46,7 @@ export async function fetchPastPapersTree(): Promise<PastPapersTree> {
       p.id AS paper_id,
       p.title AS paper_title,
       p.medium AS paper_medium,
+      p.term AS paper_term,
       p.year AS paper_year,
       p."fileUrl" AS paper_file_url,
       p."createdAt"::text AS paper_created_at
@@ -72,12 +75,13 @@ export async function fetchPastPapersTree(): Promise<PastPapersTree> {
     }
 
     if (!row.paper_id) continue;
-    if (!row.paper_title || !row.paper_medium || row.paper_year == null || !row.paper_file_url || !row.paper_created_at) continue;
+    if (!row.paper_title || !row.paper_medium || !row.paper_term || row.paper_year == null || !row.paper_file_url || !row.paper_created_at) continue;
 
     subject.papers.push({
       id: row.paper_id,
       title: row.paper_title,
       medium: row.paper_medium,
+      term: row.paper_term,
       year: row.paper_year,
       fileUrl: row.paper_file_url,
       createdAt: row.paper_created_at,

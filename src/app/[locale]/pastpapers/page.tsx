@@ -1,8 +1,8 @@
 import { Container } from '@/components/ui/Container';
 import { fetchPastPapersTree } from '@/lib/pastpapers';
-import { FileDown, Eye, ChevronRight, GraduationCap, BookOpen, FileText, Sparkles, Filter, X, Calendar, Globe } from 'lucide-react';
+import { FileDown, Eye, ChevronRight, GraduationCap, BookOpen, FileText, Sparkles, Filter, X, Calendar, Globe, Layers } from 'lucide-react';
 
-type SearchParams = { grade?: string; subject?: string; year?: string; medium?: string };
+type SearchParams = { grade?: string; subject?: string; term?: string; year?: string; medium?: string };
 
 const paperColors = ['bg-cyan-500', 'bg-green-500', 'bg-amber-500', 'bg-rose-500', 'bg-purple-500', 'bg-teal-500'];
 
@@ -59,11 +59,13 @@ export default async function PastPapersPage({
   const allPapers = getAllPapers();
 
   // Get unique values for filters
+  const uniqueTerms = [...new Set(allPapers.map(p => p.term).filter(Boolean))].sort();
   const uniqueYears = [...new Set(allPapers.map(p => p.year).filter(Boolean))].sort((a, b) => (b ?? 0) - (a ?? 0));
   const uniqueMediums = [...new Set(allPapers.map(p => p.medium).filter(Boolean))].sort();
 
-  // Apply year/medium filters
+  // Apply filters
   const filteredPapers = allPapers
+    .filter(p => !sp.term || p.term === sp.term)
     .filter(p => !sp.year || String(p.year) === sp.year)
     .filter(p => !sp.medium || p.medium === sp.medium)
     .sort((a, b) => (b.year ?? 0) - (a.year ?? 0));
@@ -87,7 +89,7 @@ export default async function PastPapersPage({
     return query ? `?${query}` : '?';
   };
 
-  const hasAnyFilter = sp.grade || sp.subject || sp.year || sp.medium;
+  const hasAnyFilter = sp.grade || sp.subject || sp.term || sp.year || sp.medium;
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -183,6 +185,35 @@ export default async function PastPapersPage({
                         <span className={`text-xs ${sp.subject === subject.id ? 'text-blue-200' : 'text-blue-500'}`}>
                           {subject.papers.length}
                         </span>
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Term Filter */}
+              {uniqueTerms.length > 0 && (
+                <div className="mt-6">
+                  <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-700 uppercase tracking-wide">
+                    <Layers className="h-4 w-4" />
+                    Term
+                  </h3>
+                  <div className="mt-3 flex flex-col gap-2">
+                    {uniqueTerms.map(t => (
+                      <a
+                        key={t}
+                        href={sp.term === t
+                          ? clearFilterUrl('term')
+                          : buildUrl({ term: t })
+                        }
+                        className={`inline-flex items-center justify-between gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition ${
+                          sp.term === t
+                            ? 'bg-pink-600 text-white'
+                            : 'bg-pink-50 text-pink-700 hover:bg-pink-100'
+                        }`}
+                      >
+                        {t}
+                        {sp.term === t && <X className="h-3.5 w-3.5" />}
                       </a>
                     ))}
                   </div>
@@ -290,6 +321,9 @@ export default async function PastPapersPage({
                           </span>
                           <span className="inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700">
                             {paper.subjectName}
+                          </span>
+                          <span className="inline-flex items-center rounded-full bg-pink-100 px-3 py-1 text-xs font-semibold text-pink-700">
+                            {paper.term}
                           </span>
                           <span className="inline-flex items-center rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
                             {paper.year}

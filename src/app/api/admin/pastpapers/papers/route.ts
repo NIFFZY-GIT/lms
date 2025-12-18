@@ -20,11 +20,13 @@ export async function POST(req: Request) {
 
     const subjectId = String(formData.get('subjectId') || '').trim();
     const medium = String(formData.get('medium') || '').trim();
+    const term = String(formData.get('term') || '').trim();
     const yearRaw = String(formData.get('year') || '').trim();
     const year = Number(yearRaw);
 
     if (!subjectId) return NextResponse.json({ error: 'subjectId is required' }, { status: 400 });
     if (!medium) return NextResponse.json({ error: 'medium is required' }, { status: 400 });
+    if (!term) return NextResponse.json({ error: 'term is required' }, { status: 400 });
     if (!Number.isFinite(year) || year < 1900 || year > 2100) {
       return NextResponse.json({ error: 'year must be a valid year' }, { status: 400 });
     }
@@ -37,7 +39,7 @@ export async function POST(req: Request) {
     client = await db.connect();
     await client.query('BEGIN');
 
-    const created: Array<{ id: string; title: string; medium: string; year: number; fileUrl: string }> = [];
+    const created: Array<{ id: string; title: string; medium: string; term: string; year: number; fileUrl: string }> = [];
 
     for (const f of files) {
       const file = f as File;
@@ -53,14 +55,14 @@ export async function POST(req: Request) {
       const title = toTitleFromFileName(file.name || 'past-paper.pdf');
 
       const insertSql = `
-        INSERT INTO "PastPaper" (title, medium, year, "fileUrl", "subjectId", "createdById")
-        VALUES ($1, $2, $3, $4, $5, $6)
-        RETURNING id, title, medium, year, "fileUrl";
+        INSERT INTO "PastPaper" (title, medium, term, year, "fileUrl", "subjectId", "createdById")
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        RETURNING id, title, medium, term, year, "fileUrl";
       `;
 
-      const result = await client.query(insertSql, [title, medium, year, publicPath, subjectId, user.id]);
+      const result = await client.query(insertSql, [title, medium, term, year, publicPath, subjectId, user.id]);
       const row = result.rows[0];
-      created.push({ id: row.id, title: row.title, medium: row.medium, year: row.year, fileUrl: row.fileUrl });
+      created.push({ id: row.id, title: row.title, medium: row.medium, term: row.term, year: row.year, fileUrl: row.fileUrl });
     }
 
     await client.query('COMMIT');
