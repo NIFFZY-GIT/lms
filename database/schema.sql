@@ -224,6 +224,44 @@ CREATE TABLE IF NOT EXISTS "CourseMaterial" (
 );
 
 -- ============================================
+-- Past Papers (Grades -> Subjects -> Papers)
+-- ============================================
+
+CREATE TABLE IF NOT EXISTS "PastPaperGrade" (
+    id VARCHAR(36) PRIMARY KEY DEFAULT uuid_generate_v4()::text,
+    name VARCHAR(255) NOT NULL UNIQUE,
+    "createdAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS "PastPaperSubject" (
+    id VARCHAR(36) PRIMARY KEY DEFAULT uuid_generate_v4()::text,
+    name VARCHAR(255) NOT NULL,
+    "gradeId" VARCHAR(36) NOT NULL REFERENCES "PastPaperGrade"(id) ON DELETE CASCADE,
+    "createdAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE("gradeId", name)
+);
+
+CREATE INDEX IF NOT EXISTS idx_pastpapersubject_grade ON "PastPaperSubject"("gradeId");
+
+CREATE TABLE IF NOT EXISTS "PastPaper" (
+    id VARCHAR(36) PRIMARY KEY DEFAULT uuid_generate_v4()::text,
+    title VARCHAR(500) NOT NULL,
+    medium VARCHAR(100) NOT NULL,
+    year INT NOT NULL,
+    "fileUrl" TEXT NOT NULL,
+    "subjectId" VARCHAR(36) NOT NULL REFERENCES "PastPaperSubject"(id) ON DELETE CASCADE,
+    "createdById" VARCHAR(36) REFERENCES "User"(id) ON DELETE SET NULL,
+    "createdAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_pastpaper_subject ON "PastPaper"("subjectId");
+CREATE INDEX IF NOT EXISTS idx_pastpaper_year ON "PastPaper"(year DESC);
+CREATE INDEX IF NOT EXISTS idx_pastpaper_medium ON "PastPaper"(medium);
+
+-- ============================================
 -- Updated At Trigger Function
 -- ============================================
 -- Automatically updates the "updatedAt" column on row updates
@@ -289,6 +327,24 @@ CREATE TRIGGER update_announcement_updated_at
 DROP TRIGGER IF EXISTS update_coursematerial_updated_at ON "CourseMaterial";
 CREATE TRIGGER update_coursematerial_updated_at
     BEFORE UPDATE ON "CourseMaterial"
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_pastpapergrade_updated_at ON "PastPaperGrade";
+CREATE TRIGGER update_pastpapergrade_updated_at
+    BEFORE UPDATE ON "PastPaperGrade"
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_pastpapersubject_updated_at ON "PastPaperSubject";
+CREATE TRIGGER update_pastpapersubject_updated_at
+    BEFORE UPDATE ON "PastPaperSubject"
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_pastpaper_updated_at ON "PastPaper";
+CREATE TRIGGER update_pastpaper_updated_at
+    BEFORE UPDATE ON "PastPaper"
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 

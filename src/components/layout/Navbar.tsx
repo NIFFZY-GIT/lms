@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Container } from '@/components/ui/Container';
-import { Menu, X, LogOut, LayoutDashboard, House, BookOpen, Megaphone } from 'lucide-react';
+import { Menu, X, LogOut, GraduationCap, LayoutDashboard, House, BookOpen, Megaphone } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import { LanguageSwitcher } from '@/components/ui/LanguageSwitcher';
 import { Portal } from '@/components/ui/Portal';
@@ -204,6 +204,7 @@ export function Navbar() {
           <nav className="hidden md:flex items-center space-x-2 text-base" aria-label="Primary">
             <NavLink href={`/${locale}`} icon={House}>Home</NavLink>
             <NavLink href={`/${locale}/courses`} icon={BookOpen}>Courses</NavLink>
+            <NavLink href={`/${locale}/pastpapers`} icon={GraduationCap}>Past papers</NavLink>
             <NavLink href={`/${locale}/announcements`} icon={Megaphone}>Announcements</NavLink>
           </nav>
 
@@ -347,6 +348,7 @@ export function Navbar() {
               <div className="space-y-2">
                 <NavLink href={`/${locale}`} icon={House} onClick={closeMenu}>Home</NavLink>
                 <NavLink href={`/${locale}/courses`} icon={BookOpen} onClick={closeMenu}>Courses</NavLink>
+                <NavLink href={`/${locale}/pastpapers`} icon={BookOpen} onClick={closeMenu}>Past papers</NavLink>
                 <NavLink href={`/${locale}/announcements`} icon={Megaphone} onClick={closeMenu}>Announcements</NavLink>
               </div>
             </div>

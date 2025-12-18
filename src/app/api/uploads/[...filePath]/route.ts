@@ -22,6 +22,8 @@ type ParamsShape = { filePath?: string[] } | undefined;
 
 export async function GET(request: Request, { params }: { params: Promise<ParamsShape> }) {
   try {
+    const url = new URL(request.url);
+    const download = url.searchParams.get('download') === '1';
   // `params` may be an async object in Next.js runtime; await it before using its properties
   const resolvedParams = (await params) as { filePath?: string[] } | undefined | null;
   const segments: string[] = Array.isArray(resolvedParams?.filePath) ? resolvedParams.filePath! : [];
@@ -57,10 +59,13 @@ export async function GET(request: Request, { params }: { params: Promise<Params
     const buffer = fs.readFileSync(fullPath);
     const contentType = getMime(fullPath);
 
+    const fileName = safeSegments[safeSegments.length - 1] || 'file';
+
     return new Response(buffer, {
       status: 200,
       headers: {
         'Content-Type': contentType,
+        ...(download ? { 'Content-Disposition': `attachment; filename="${encodeURIComponent(fileName)}"` } : {}),
         'Cache-Control': 'public, max-age=31536000, immutable',
       },
     });

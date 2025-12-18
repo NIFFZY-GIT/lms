@@ -39,3 +39,5 @@ export function assertFile(file: File | null | undefined, constraints: FileConst
 export const IMAGE_5MB: FileConstraints = { maxBytes: 5 * 1024 * 1024, allowedTypes: IMAGE_MIME_TYPES };
 export const IMAGE_10MB: FileConstraints = { maxBytes: 10 * 1024 * 1024, allowedTypes: IMAGE_MIME_TYPES };
 export const VIDEO_500MB: FileConstraints = { maxBytes: 500 * 1024 * 1024, allowedTypes: VIDEO_MIME_TYPES };
+
+export const PDF_25MB: FileConstraints = { maxBytes: 25 * 1024 * 1024, allowedTypes: ['application/pdf'] };
