@@ -16,6 +16,8 @@ export async function POST(req: Request) {
 
     const result = await db.query(`SELECT id, email FROM "User" WHERE email = $1`, [email]);
 
+    let devCode: string | undefined;
+
     if (result.rows.length > 0) {
       const user = result.rows[0] as { id: string; email: string };
       const code = generateCode();
@@ -24,17 +26,31 @@ export async function POST(req: Request) {
 
       try {
         await sendResetEmail(user.email, code);
-      } catch {
+        console.log(`Reset email sent successfully to ${user.email}`);
+      } catch (emailError) {
+        const errorMsg = emailError instanceof Error ? emailError.message : 'Unknown error';
+        console.error('Reset email delivery failed:', errorMsg);
+        
         if (process.env.NODE_ENV !== 'production') {
-          console.warn('Reset email delivery failed');
           console.info('DEV ONLY: reset code =', code);
+          devCode = code; // Include in response for development
         }
       }
     }
 
+    // In development, include the code in response if email failed
+    if (process.env.NODE_ENV !== 'production' && devCode) {
+      return NextResponse.json({ 
+        message: 'If an account exists, a reset code was sent.',
+        devNote: 'Email delivery failed. Use this code for testing.',
+        devCode 
+      });
+    }
+
     // Always respond the same for privacy
     return NextResponse.json({ message: 'If an account exists, a reset code was sent.' });
-  } catch {
+  } catch (error) {
+    console.error('Password reset request error:', error);
     return NextResponse.json({ error: 'Failed to request password reset' }, { status: 500 });
   }
 }

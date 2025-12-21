@@ -29,12 +29,18 @@ export default function ResetPasswordPage() {
 
   const { register: registerReq, handleSubmit: handleSubmitReq, formState: { errors: reqErrors }, reset: resetReq } = useForm<RequestData>({ resolver: zodResolver(RequestSchema) });
   const { register: registerReset, handleSubmit: handleResetSubmit, formState: { errors: resetErrors }, reset: resetReset } = useForm<ResetData>({ resolver: zodResolver(ResetSchema) });
+  const [devCode, setDevCode] = useState<string | null>(null);
 
   const onRequest = async (data: RequestData) => {
     try {
       setStatusMsg(null);
-      await axios.post('/api/auth/request-reset', data);
+      setDevCode(null);
+      const response = await axios.post('/api/auth/request-reset', data);
       setEmail(data.email);
+      // Check if dev code is returned (email delivery failed in development)
+      if (response.data.devCode) {
+        setDevCode(response.data.devCode);
+      }
       setStep(2);
     } catch (e) {
       const err = e as AxiosError<{ error: string }>;
@@ -100,6 +106,17 @@ export default function ResetPasswordPage() {
 
         {step === 2 && (
           <form onSubmit={handleResetSubmit(onReset)} className="space-y-6">
+            {/* Dev mode: show code if email delivery failed */}
+            {devCode && (
+              <div className="flex items-center text-sm p-3 rounded-md bg-yellow-100 text-yellow-800 border border-yellow-300">
+                <AlertCircle className="w-5 h-5 mr-2 flex-shrink-0" />
+                <div>
+                  <p className="font-medium">DEV MODE: Email delivery failed</p>
+                  <p>Your reset code is: <strong className="font-mono text-lg">{devCode}</strong></p>
+                </div>
+              </div>
+            )}
+            
             <div className="grid grid-cols-1 gap-4">
               <InputWithIcon
                 icon={(props) => <Hash {...props} />}
