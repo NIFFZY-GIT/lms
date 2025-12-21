@@ -1,6 +1,6 @@
 import { Container } from '@/components/ui/Container';
 import { fetchPastPapersTree } from '@/lib/pastpapers';
-import { FileDown, Eye, ChevronRight, GraduationCap, BookOpen, FileText, Sparkles, Filter, X, Calendar, Globe, Layers } from 'lucide-react';
+import { FileDown, Eye, GraduationCap, BookOpen, FileText, Sparkles, Filter, X, Calendar, Globe, Layers } from 'lucide-react';
 
 type SearchParams = { grade?: string; subject?: string; term?: string; year?: string; medium?: string };
 

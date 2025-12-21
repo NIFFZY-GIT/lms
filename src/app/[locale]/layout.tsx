@@ -1,15 +1,11 @@
 import { IntlProvider } from '../../components/IntlProvider';
 import type { Metadata } from "next";
-import { Inter, Plus_Jakarta_Sans } from "next/font/google";
 import '@/app/globals.css';
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { Providers } from "@/components/providers";
 import { AuthProvider } from '@/context/AuthContext';
 import { AutoLogoutIndicator } from '@/components/ui/AutoLogoutIndicator';
-
-const inter = Inter({ subsets: ["latin"], variable: '--font-inter' });
-const jakarta = Plus_Jakarta_Sans({ subsets: ["latin"], variable: '--font-jakarta' });
 
 export const metadata: Metadata = {
   title: "Online Thakshilawa",

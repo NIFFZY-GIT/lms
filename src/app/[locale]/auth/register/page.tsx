@@ -45,7 +45,15 @@ const AnimatedBackground = () => {
 };
 
 // Reusable Input Component
-const FormField = ({ label, icon: Icon, error, isValid, endAdornment, ...props }: any) => (
+interface FormFieldProps extends React.InputHTMLAttributes<HTMLInputElement> {
+  label: string;
+  icon: React.ComponentType<{ size: number }>;
+  error?: string;
+  isValid?: boolean;
+  endAdornment?: React.ReactNode;
+}
+
+const FormField = ({ label, icon: Icon, error, isValid, endAdornment, ...props }: FormFieldProps) => (
   <div className="space-y-1.5 w-full">
     <div className="relative group">
       <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-blue-400 transition-colors duration-200">

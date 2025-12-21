@@ -91,7 +91,14 @@ const AnimatedBackground = () => {
 };
 
 // Custom Input Component
-const FloatingInput = ({ label, icon: Icon, error, endAdornment, ...props }: any) => (
+interface FloatingInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+  label: string;
+  icon: React.ComponentType<{ size: number }>;
+  error?: string;
+  endAdornment?: React.ReactNode;
+}
+
+const FloatingInput = ({ label, icon: Icon, error, endAdornment, ...props }: FloatingInputProps) => (
   <div className="space-y-1.5">
     <div className="relative group">
       <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-blue-500 transition-colors duration-200">
@@ -509,7 +516,7 @@ export function LoginForm() {
 
             {/* Register Link */}
             <p className="mt-8 text-center text-gray-400">
-              Don't have an account?{' '}
+              Don&apos;t have an account?{' '}
               <Link 
                 href={`/${locale}/auth/register`} 
                 className="text-blue-400 font-semibold hover:text-blue-300 transition-colors"

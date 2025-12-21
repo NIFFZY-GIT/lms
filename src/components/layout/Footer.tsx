@@ -2,7 +2,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { Container } from '@/components/ui/Container';
-import { Facebook, Youtube, Mail, MapPin, Phone, ChevronRight, Sparkles } from 'lucide-react';
+import { Facebook, Youtube, Mail, MapPin, Phone, ChevronRight } from 'lucide-react';
 
 export function Footer() {
   const socialLinks = [

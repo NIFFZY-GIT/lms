@@ -55,7 +55,13 @@ const AnimatedBackground = () => {
 };
 
 // Custom Input Component
-const FloatingInput = ({ label, icon: Icon, error, ...props }: any) => (
+interface FloatingInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+  label: string;
+  icon: React.ComponentType<{ size: number }>;
+  error?: string;
+}
+
+const FloatingInput = ({ label, icon: Icon, error, ...props }: FloatingInputProps) => (
   <div className="space-y-1.5">
     <div className="relative group">
       <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-blue-500 transition-colors duration-200">
@@ -171,7 +177,7 @@ export default function ResetPasswordPage() {
             </motion.h1>
             <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.3 }}
               className="text-gray-300 text-lg">
-              Don't worry, it happens to everyone. We'll send you a secure code to reset your password.
+              Don&apos;t worry, it happens to everyone. We&apos;ll send you a secure code to reset your password.
             </motion.p>
           </div>
 
