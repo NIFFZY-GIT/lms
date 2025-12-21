@@ -1,4 +1,4 @@
-import nodemailer, { Transporter } from 'nodemailer';
+﻿import nodemailer, { Transporter } from 'nodemailer';
 import { Role } from '@/types';
 
 const smtpHost = process.env.SMTP_HOST;
@@ -19,14 +19,80 @@ function assertSmtpConfig() {
 function getTransporter(): Transporter {
   assertSmtpConfig();
   if (!cachedTransporter) {
+    const isSecure = smtpPort === 465;
     cachedTransporter = nodemailer.createTransport({
       host: smtpHost,
       port: smtpPort,
-      secure: smtpPort === 465,
-      auth: { user: smtpUser, pass: smtpPass },
+      secure: isSecure,
+      auth: { 
+        user: smtpUser, 
+        pass: smtpPass 
+      },
+      // Zoho Mail specific settings
+      tls: {
+        // Do not fail on invalid certs (useful for self-signed certs in dev)
+        rejectUnauthorized: process.env.NODE_ENV === 'production',
+        // Minimum TLS version
+        minVersion: 'TLSv1.2'
+      },
+      // Connection timeout (30 seconds)
+      connectionTimeout: 30000,
+      // Greeting timeout (30 seconds)
+      greetingTimeout: 30000,
+      // Socket timeout (60 seconds)
+      socketTimeout: 60000,
     });
   }
   return cachedTransporter;
+}
+
+/**
+ * Verify the SMTP connection is working.
+ * Call this on server startup or when debugging email issues.
+ */
+export async function verifyEmailConnection(): Promise<{ success: boolean; error?: string }> {
+  try {
+    assertSmtpConfig();
+    const transporter = getTransporter();
+    await transporter.verify();
+    console.log('SMTP connection verified successfully');
+    return { success: true };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('SMTP connection verification failed:', errorMessage);
+    return { success: false, error: errorMessage };
+  }
+}
+
+/**
+ * Get the base URL for the application with proper protocol.
+ */
+function getBaseUrl(): string {
+  const url = process.env.NEXT_PUBLIC_APP_URL;
+  if (!url || url === '#') return '#';
+  // Ensure URL has protocol
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url;
+  }
+  // Default to https for production
+  return `https://${url}`;
+}
+
+/**
+ * Get full URL for images, ensuring they have absolute paths.
+ */
+function getAbsoluteImageUrl(imageUrl: string | null | undefined): string | null {
+  if (!imageUrl) return null;
+  // If already absolute URL, return as-is
+  if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+    return imageUrl;
+  }
+  // Otherwise, prepend base URL
+  const baseUrl = getBaseUrl();
+  if (baseUrl === '#') return null;
+  // Ensure no double slashes
+  const cleanPath = imageUrl.startsWith('/') ? imageUrl : `/${imageUrl}`;
+  return `${baseUrl}${cleanPath}`;
 }
 
 interface EmailPayload {
@@ -78,9 +144,26 @@ function wrapHtmlContent(title: string, content: string) {
   `;
 }
 
-export async function sendEmail({ to, subject, html, text }: EmailPayload) {
-  const transporter = getTransporter();
-  await transporter.sendMail({ from: smtpFrom, to, subject, html, text });
+export async function sendEmail({ to, subject, html, text }: EmailPayload): Promise<{ success: boolean; messageId?: string; error?: string }> {
+  try {
+    const transporter = getTransporter();
+    const recipients = Array.isArray(to) ? to.join(', ') : to;
+    
+    const info = await transporter.sendMail({ 
+      from: `"${appName}" <${smtpFrom}>`, 
+      to: recipients, 
+      subject, 
+      html, 
+      text 
+    });
+    
+    console.log(`Email sent successfully to ${recipients}. Message ID: ${info.messageId}`);
+    return { success: true, messageId: info.messageId };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown email error';
+    console.error(`Failed to send email to ${Array.isArray(to) ? to.join(', ') : to}:`, errorMessage);
+    throw error; // Re-throw to let callers handle it
+  }
 }
 
 export async function sendResetEmail(to: string, code: string) {
@@ -110,6 +193,7 @@ export async function sendRoleChangeEmail(to: string, name: string, oldRole: Rol
 }
 
 export async function sendPaymentApprovedEmail(to: string, name: string, courseTitle: string, referenceNumber: string) {
+  const baseUrl = getBaseUrl();
   const subject = `${appName}: Enrollment confirmed for ${courseTitle}`;
   const text = `Hi ${name}, your payment has been approved and you are now enrolled in ${courseTitle}. Reference number: ${referenceNumber}.`;
   const html = wrapHtmlContent('Your enrollment is confirmed', `
@@ -117,20 +201,21 @@ export async function sendPaymentApprovedEmail(to: string, name: string, courseT
     <p>Great news! Your payment has been approved and your enrollment in <strong>${courseTitle}</strong> is now active.</p>
     <p><strong>Reference number:</strong> ${referenceNumber}</p>
     <p>You can now access all course materials and begin learning right away.</p>
-  <a class="btn" href="${(process.env.NEXT_PUBLIC_APP_URL ?? '#')}">Go to dashboard</a>
+    <a class="btn" href="${baseUrl}/dashboard/student">Go to dashboard</a>
   `);
   await sendEmail({ to, subject, text, html });
 }
 
 export async function sendReceiptUploadedEmailToAdmins(adminEmails: string[], payload: { studentName: string; studentEmail: string; courseTitle: string; }) {
   if (!adminEmails.length) return;
+  const baseUrl = getBaseUrl();
   const subject = `${appName}: New receipt uploaded by ${payload.studentName}`;
   const text = `${payload.studentName} (${payload.studentEmail}) uploaded a payment receipt for ${payload.courseTitle}. Please review and approve it.`;
   const html = wrapHtmlContent('New payment receipt awaiting review', `
     <p>Hello team,</p>
     <p><strong>${payload.studentName}</strong> (<a href="mailto:${payload.studentEmail}">${payload.studentEmail}</a>) uploaded a new payment receipt for the course <strong>${payload.courseTitle}</strong>.</p>
     <p>Please review and process the payment approval at your earliest convenience.</p>
-  <a class="btn" href="${(process.env.NEXT_PUBLIC_APP_URL ?? '#') + '/dashboard/admin/payments'}">Review payments</a>
+    <a class="btn" href="${baseUrl}/dashboard/admin/payments">Review payments</a>
   `);
   await sendEmail({ to: adminEmails, subject, text, html });
 }
@@ -138,19 +223,20 @@ export async function sendReceiptUploadedEmailToAdmins(adminEmails: string[], pa
 export async function sendAnnouncementPublishedEmail(recipients: string[], payload: { title: string; summary: string; imageUrl?: string | null; announcementId: string }) {
   if (!recipients.length) return;
 
-  const subject = `${appName}: New announcement — ${payload.title}`;
+  const baseUrl = getBaseUrl();
+  const subject = `${appName}: New announcement - ${payload.title}`;
   const text = `A new announcement "${payload.title}" has been posted. Log in to ${appName} to read the full update.`;
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? '#';
   const announcementLink = `${baseUrl}/announcements/${payload.announcementId}`;
+  const absoluteImageUrl = getAbsoluteImageUrl(payload.imageUrl);
 
-  const imageMarkup = payload.imageUrl
-    ? `<div style="margin: 24px 0;"><img src="${payload.imageUrl}" alt="${payload.title}" style="max-width:100%;border-radius:12px" /></div>`
+  const imageMarkup = absoluteImageUrl
+    ? `<div style="margin: 24px 0;"><img src="${absoluteImageUrl}" alt="${payload.title}" style="max-width:100%;border-radius:12px" /></div>`
     : '';
 
   const html = wrapHtmlContent('A new announcement awaits', `
     <p>Hello,</p>
-    <p>We’ve just published a new announcement titled <strong>${payload.title}</strong>.</p>
+    <p>We have just published a new announcement titled <strong>${payload.title}</strong>.</p>
     <p>${payload.summary}</p>
     ${imageMarkup}
     <a class="btn" href="${announcementLink}">Read the full announcement</a>
@@ -158,3 +244,28 @@ export async function sendAnnouncementPublishedEmail(recipients: string[], paylo
 
   await sendEmail({ to: recipients, subject, text, html });
 }
+
+/**
+ * Send a test email to verify the email configuration is working.
+ */
+export async function sendTestEmail(to: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const subject = `${appName} - Email Test`;
+    const text = `This is a test email from ${appName}. If you received this, your email configuration is working correctly.`;
+    const html = wrapHtmlContent('Email Test Successful', `
+      <p>Hello,</p>
+      <p>This is a test email from <strong>${appName}</strong>.</p>
+      <p>If you received this message, your email configuration is working correctly!</p>
+      <p><strong>Sent at:</strong> ${new Date().toISOString()}</p>
+    `);
+
+    await sendEmail({ to, subject, text, html });
+    return { success: true };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return { success: false, error: errorMessage };
+  }
+}
+
+
+
