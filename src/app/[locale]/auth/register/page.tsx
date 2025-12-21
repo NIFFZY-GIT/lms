@@ -8,48 +8,101 @@ import { useMutation } from '@tanstack/react-query';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
-import { AuthCard } from '@/components/auth/AuthCard';
-import { InputWithIcon } from '@/components/ui/InputWithIcon';
-import { User, Phone as PhoneIcon, Mail, KeyRound, MapPin, Eye, EyeOff, ShieldCheck, AlertCircle } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  User, Phone, Mail, Lock, MapPin, Eye, EyeOff, 
+  AlertCircle, ArrowRight, BookOpen, Sparkles, 
+  Shield, GraduationCap, CheckCircle2 
+} from 'lucide-react';
 
-// --- UPDATED ZOD SCHEMA (NO OPTIONALS) ---
+// Animated Background Component
+const AnimatedBackground = () => {
+  const particles = Array.from({ length: 15 }).map((_, i) => ({
+    id: i,
+    x: Math.random() * 100,
+    y: Math.random() * 100,
+    scale: 0.5 + Math.random() * 0.5,
+    yEnd: Math.random() * 100,
+    duration: 10 + Math.random() * 10,
+  }));
+
+  return (
+    <div className="absolute inset-0 overflow-hidden -z-10">
+      <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-blue-950 to-slate-950" />
+      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-600/20 rounded-full blur-[120px] animate-pulse" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-indigo-600/20 rounded-full blur-[120px] animate-pulse" />
+      {particles.map((p) => (
+        <motion.div
+          key={p.id}
+          className="absolute w-1 h-1 bg-white/20 rounded-full"
+          initial={{ x: `${p.x}%`, y: `${p.y}%`, scale: p.scale }}
+          animate={{ y: [`${p.y}%`, `${p.yEnd}%`], opacity: [0, 1, 0] }}
+          transition={{ duration: p.duration, repeat: Infinity, ease: "linear" }}
+        />
+      ))}
+    </div>
+  );
+};
+
+// Reusable Input Component
+const FormField = ({ label, icon: Icon, error, isValid, endAdornment, ...props }: any) => (
+  <div className="space-y-1.5 w-full">
+    <div className="relative group">
+      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-blue-400 transition-colors duration-200">
+        <Icon size={18} />
+      </div>
+      <input
+        {...props}
+        className={`w-full h-12 pl-11 pr-12 bg-white/5 backdrop-blur-md border-2 rounded-xl outline-none transition-all duration-200
+          placeholder:text-gray-500 text-white font-medium
+          ${error 
+            ? 'border-red-500/50 focus:border-red-500 focus:ring-4 focus:ring-red-500/10 bg-red-500/5' 
+            : isValid 
+              ? 'border-emerald-500/50 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10'
+              : 'border-white/10 hover:border-white/20 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 focus:bg-white/10'
+          }`}
+        placeholder={label}
+      />
+      <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
+        {isValid && !error && <CheckCircle2 size={18} className="text-emerald-500" />}
+        {endAdornment}
+      </div>
+    </div>
+    <AnimatePresence mode="wait">
+      {error && (
+        <motion.p initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+          className="text-xs text-red-400 flex items-center gap-1.5 pl-1">
+          <AlertCircle size={12}/>{error}
+        </motion.p>
+      )}
+    </AnimatePresence>
+  </div>
+);
+
 const RegisterSchema = z.object({
-  name: z.string().min(2, { message: 'Name must be at least 2 characters' }),
-  email: z.string().email({ message: 'A valid email is required' }),
-  address: z.string().min(10, { message: 'A valid address of at least 10 characters is required' }),
-  phone: z.string().min(10, { message: 'A valid phone number of at least 10 digits is required' }),
+  name: z.string().min(2, { message: 'Full name is required' }),
+  email: z.string().email({ message: 'Please enter a valid email address' }),
+  address: z.string().min(10, { message: 'Please enter your full street address' }),
+  phone: z.string()
+    .min(9, { message: 'Enter the 9 digits after +94' })
+    .max(9, { message: 'Enter the 9 digits after +94' })
+    .regex(/^[0-9]+$/, { message: 'Phone must contain only numbers' }),
   password: z.string().min(6, { message: 'Password must be at least 6 characters' }),
 });
 
 type RegisterData = z.infer<typeof RegisterSchema>;
 
-interface RegisterResponse {
-  id: string;
-  email: string;
-  name: string;
-}
-
-// Simple password strength indicator
 function getStrength(pw: string) {
   let score = 0;
   if (pw.length >= 8) score++;
   if (/[A-Z]/.test(pw)) score++;
-  if (/[a-z]/.test(pw)) score++;
-  if (/\d/.test(pw)) score++;
+  if (/[0-9]/.test(pw)) score++;
   if (/[^A-Za-z0-9]/.test(pw)) score++;
-  return Math.min(score, 5);
+  return Math.min(score, 4);
 }
 
-const strengthLabel = ['Very weak', 'Weak', 'Fair', 'Good', 'Strong'];
-const strengthColor = ['bg-red-500', 'bg-orange-500', 'bg-yellow-500', 'bg-lime-500', 'bg-emerald-600'];
-
-// A simple spinner component for the button's loading state
-const Spinner = () => (
-  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-  </svg>
-);
+const strengthLabel = ['Weak', 'Fair', 'Good', 'Strong'];
+const strengthColor = ['bg-red-500', 'bg-yellow-500', 'bg-blue-500', 'bg-emerald-500'];
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -58,156 +111,175 @@ export default function RegisterPage() {
   const [serverError, setServerError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
 
-  const {
-    register,
-    handleSubmit,
-    watch,
-    formState: { errors },
-  } = useForm<RegisterData>({
+  const { register, handleSubmit, watch, formState: { errors, dirtyFields } } = useForm<RegisterData>({
     resolver: zodResolver(RegisterSchema),
+    mode: 'onChange'
   });
 
   const pw = watch('password') || '';
   const pwStrength = useMemo(() => getStrength(pw), [pw]);
 
-  const registerMutation = useMutation<RegisterResponse, AxiosError<{ message?: string; error?: string }>, RegisterData>({
-    mutationFn: (data) => axios.post('/api/auth/register', data).then(res => res.data),
-    onSuccess: () => {
-      router.push(`/${locale}/auth/login?registered=true`);
-    },
-    onError: (error) => {
-      const status = error.response?.status;
-      const server = error.response?.data;
-      const message = server?.message || server?.error || (status === 409 ? 'This email is already registered' : 'An unexpected error occurred. Please try again.');
-      setServerError(message);
+  const registerMutation = useMutation({
+    mutationFn: (data: RegisterData) => axios.post('/api/auth/register', data).then(res => res.data),
+    onSuccess: () => router.push(`/${locale}/auth/login?registered=true`),
+    onError: (error: AxiosError<{ message?: string; error?: string }>) => {
+      setServerError(error.response?.data?.message || 'Email already exists or server error.');
     },
   });
 
   const onSubmit = (data: RegisterData) => {
     setServerError(null);
-    registerMutation.mutate(data);
+    registerMutation.mutate({ ...data, phone: `+94${data.phone}` });
   };
 
   return (
-    <AuthCard
-      title="Create an Account"
-      footerContent={
-        <p className="text-center">
-          Already have an account?{' '}
-          <Link href={`/${locale}/auth/login`} className="font-medium text-indigo-600 hover:text-indigo-500">
-            Sign in
+    <div className="relative min-h-screen flex flex-col lg:flex-row">
+      <AnimatedBackground />
+
+      {/* Hero Section */}
+      <div className="hidden lg:flex lg:w-5/12 flex-col justify-between p-16">
+        <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
+          <Link href="/" className="flex items-center gap-3 text-white">
+            <div className="p-3 bg-blue-600 rounded-2xl shadow-lg shadow-blue-500/20">
+              <BookOpen size={28} />
+            </div>
+            <span className="text-2xl font-bold">Online Thakshilawa</span>
           </Link>
-        </p>
-      }
-    >
-      <div className="flex items-center justify-center mb-2">
-        <div className="h-1 w-16 rounded-full bg-indigo-600/70" />
+        </motion.div>
+
+        <div className="space-y-6">
+          <motion.h1 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-6xl font-bold text-white leading-tight">
+            Start Your <br />
+            <span className="text-blue-400">Future Today.</span>
+          </motion.h1>
+          <div className="space-y-4">
+            {[{ i: GraduationCap, t: "Expert Instructors" }, { i: Shield, t: "Verified Certificates" }, { i: Sparkles, t: "Premium Content" }].map((f, i) => (
+              <div key={i} className="flex items-center gap-3 text-gray-300">
+                <f.i className="text-blue-400" size={20} />
+                <span className="font-medium">{f.t}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <p className="text-gray-500 text-sm">© {new Date().getFullYear()} onlinethakshilawa.lk</p>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        {/* Contact Details */}
-        <fieldset className="space-y-4">
-          <legend className="text-lg font-semibold text-gray-800 border-b border-gray-200 pb-2 mb-4 w-full flex items-center gap-2">
-            <ShieldCheck className="w-5 h-5 text-indigo-600" />
-            Contact Details
-          </legend>
-
-          <InputWithIcon
-            icon={(props) => <User {...props} />}
-            registration={register('name')}
-            error={errors.name?.message}
-            id="name"
-            type="text"
-            placeholder="Full Name"
-            autoComplete="name"
-          />
-
-          <InputWithIcon
-            icon={(props) => <PhoneIcon {...props} />}
-            registration={register('phone')}
-            error={errors.phone?.message}
-            id="phone"
-            type="tel"
-            placeholder="Phone Number"
-            autoComplete="tel"
-          />
-
-          <div>
-            <label htmlFor="address" className="flex items-center gap-2 text-sm font-medium text-gray-700"><MapPin className="w-4 h-4 text-gray-400" /> Full Address</label>
-            <textarea
-              id="address"
-              rows={3}
-              placeholder="123 Main St, Anytown, USA 12345"
-              {...register('address')}
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 transition"
-            />
-            {errors.address && <p className="mt-2 text-sm text-red-600">{errors.address.message}</p>}
+      {/* Form Section */}
+      <div className="flex-1 flex items-center justify-center p-4 sm:p-8 lg:p-12">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }} 
+          animate={{ opacity: 1, scale: 1 }}
+          className="w-full max-w-[550px] bg-slate-900/40 backdrop-blur-3xl p-8 sm:p-10 rounded-[2.5rem] border border-white/10 shadow-2xl"
+        >
+          <div className="mb-8 text-center sm:text-left">
+            <h2 className="text-3xl font-bold text-white mb-2">Create Account</h2>
+            <p className="text-gray-400 font-medium">Please fill in your details to get started.</p>
           </div>
-        </fieldset>
 
-        {/* Account Credentials */}
-        <fieldset className="space-y-4 pt-4">
-          <legend className="text-lg font-semibold text-gray-800 border-b border-gray-200 pb-2 mb-4 w-full">Account Credentials</legend>
+          <AnimatePresence>
+            {serverError && (
+              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}
+                className="mb-6 p-4 bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl text-sm flex items-center gap-3">
+                <AlertCircle size={18} /> {serverError}
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-          <InputWithIcon
-            icon={(props) => <Mail {...props} />}
-            registration={register('email')}
-            error={errors.email?.message}
-            id="email"
-            type="email"
-            autoComplete="email"
-            placeholder="you@example.com"
-          />
-
-          <div>
-            <InputWithIcon
-              icon={(props) => <KeyRound {...props} />}
-              registration={register('password')}
-              error={errors.password?.message}
-              id="password"
-              type={showPassword ? 'text' : 'password'}
-              autoComplete="new-password"
-              placeholder="Create a strong password"
-              endAdornment={
-                <button
-                  type="button"
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
-                  onClick={() => setShowPassword((v) => !v)}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  {showPassword ? <Eye className="w-5 h-5" /> : <EyeOff className="w-5 h-5" />}
-                </button>
-              }
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+            {/* Full Name */}
+            <FormField 
+              label="Full Name" 
+              icon={User} 
+              isValid={dirtyFields.name && !errors.name}
+              error={errors.name?.message} 
+              {...register('name')} 
             />
-            <div className="mt-2">
-              <div className="flex items-center gap-2">
-                {[0,1,2,3,4].map((i) => (
-                  <div key={i} className={`h-1.5 flex-1 rounded ${i < pwStrength ? strengthColor[pwStrength-1] : 'bg-gray-200'}`} />
-                ))}
+
+            {/* Email - Full Width */}
+            <FormField 
+              label="Email Address" 
+              icon={Mail} 
+              type="email"
+              isValid={dirtyFields.email && !errors.email}
+              error={errors.email?.message} 
+              {...register('email')} 
+            />
+
+            {/* Phone - Compact */}
+            <div className="space-y-1.5">
+              <div className="relative group">
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-blue-500 transition-colors">
+                  <Phone size={18} />
+                </div>
+                <span className="absolute left-11 top-1/2 -translate-y-1/2 text-white font-bold border-r border-white/10 pr-3">+94</span>
+                <input
+                  type="tel"
+                  placeholder="7XXXXXXXX"
+                  {...register('phone')}
+                  className={`w-full h-12 pl-24 pr-4 bg-white/5 border-2 rounded-xl outline-none transition-all
+                    placeholder:text-gray-500 text-white font-medium
+                    ${errors.phone ? 'border-red-500/50' : dirtyFields.phone ? 'border-emerald-500/50' : 'border-white/10 focus:border-blue-500'}`}
+                />
               </div>
-              <p className="mt-1 text-xs text-gray-500">Strength: {pw ? strengthLabel[pwStrength-1] || 'Very weak' : '—'}</p>
+              {errors.phone && <p className="text-xs text-red-400 pl-1">{errors.phone.message}</p>}
             </div>
-          </div>
-        </fieldset>
 
-        {serverError && (
-          <div className="flex items-center text-sm text-red-700 bg-red-100 p-3 rounded-md border border-red-200">
-            <AlertCircle className="w-5 h-5 mr-2" />
-            {serverError}
-          </div>
-        )}
+            {/* Address - Full Width & Lengthier */}
+            <FormField 
+              label="Full Home Address" 
+              icon={MapPin} 
+              isValid={dirtyFields.address && !errors.address}
+              error={errors.address?.message} 
+              {...register('address')} 
+            />
 
-        <div>
-          <button
-            type="submit"
-            disabled={registerMutation.isPending}
-            className="w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-indigo-400 disabled:cursor-not-allowed transition"
-          >
-            {registerMutation.isPending && <Spinner />}
-            {registerMutation.isPending ? 'Creating Account...' : 'Create Account'}
-          </button>
-        </div>
-      </form>
-    </AuthCard>
+            {/* Password */}
+            <div className="space-y-3">
+              <FormField
+                label="Create Password"
+                icon={Lock}
+                type={showPassword ? 'text' : 'password'}
+                error={errors.password?.message}
+                {...register('password')}
+                endAdornment={
+                  <button type="button" onClick={() => setShowPassword(!showPassword)} className="text-gray-500 hover:text-white">
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                }
+              />
+              {pw.length > 0 && (
+                <div className="px-1">
+                  <div className="flex gap-1.5 mb-1.5">
+                    {[0, 1, 2, 3].map((i) => (
+                      <div key={i} className={`h-1.5 flex-1 rounded-full transition-all duration-500 ${i < pwStrength ? strengthColor[pwStrength - 1] : 'bg-white/10'}`} />
+                    ))}
+                  </div>
+                  <p className="text-[10px] text-gray-400 uppercase font-bold tracking-widest">Security: {strengthLabel[pwStrength - 1] || 'Too Short'}</p>
+                </div>
+              )}
+            </div>
+
+            <button
+              type="submit"
+              disabled={registerMutation.isPending}
+              className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-2xl transition-all disabled:opacity-50 flex items-center justify-center gap-3 shadow-xl shadow-blue-600/20 active:scale-[0.98]"
+            >
+              {registerMutation.isPending ? (
+                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : (
+                <>Create Account <ArrowRight size={20} /></>
+              )}
+            </button>
+          </form>
+
+          <p className="mt-8 text-center text-gray-400 text-sm">
+            Already have an account?{' '}
+            <Link href={`/${locale}/auth/login`} className="text-blue-400 font-bold hover:text-blue-300 transition-colors">
+              Sign in
+            </Link>
+          </p>
+        </motion.div>
+      </div>
+    </div>
   );
 }
