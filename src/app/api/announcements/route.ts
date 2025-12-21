@@ -4,7 +4,7 @@ import { getServerUser } from '../../../lib/auth';
 import { Role } from '../../../types';
 import { v4 as uuidv4 } from 'uuid';
 import { IMAGE_10MB, assertFile } from '@/lib/security';
-import { saveUploadFile, removeUploadByUrl } from '@/lib/uploads';
+import { saveUploadFile } from '@/lib/uploads';
 import { sendAnnouncementPublishedEmail } from '@/lib/notify';
 
 // GET: Fetch all announcements (public)
@@ -74,66 +74,4 @@ export async function POST(req: Request) {
     console.error("Create announcement error:", error);
     return NextResponse.json({ error: 'Failed to create announcement.' }, { status: 500 });
   }
-}
-
-
-
-// --- NEW: PATCH function for updates ---
-export async function PATCH(req: Request, { params }: { params: Promise<{ announcementId: string }> }) {
-    try {
-        await getServerUser(Role.ADMIN);
-        const { announcementId } = await params;
-        const formData = await req.formData();
-
-        const title = formData.get('title') as string;
-        const description = formData.get('description') as string;
-        const imageFile = formData.get('image') as File | null;
-
-        if (!title || !description) {
-            return NextResponse.json({ error: 'Title and description are required.' }, { status: 400 });
-        }
-
-        const fieldsToUpdate: string[] = [];
-        const values: (string | number)[] = [];
-        let queryIndex = 1;
-
-        fieldsToUpdate.push(`title = $${queryIndex++}`);
-        values.push(title);
-        fieldsToUpdate.push(`description = $${queryIndex++}`);
-        values.push(description);
-
-        // If a new image is uploaded, handle file replacement
-        if (imageFile) {
-            // Find the old image URL to delete it
-            const oldImageResult = await db.query('SELECT "imageUrl" FROM "Announcement" WHERE id = $1', [announcementId]);
-      if (oldImageResult.rows.length > 0) {
-        const oldImageUrl = oldImageResult.rows[0].imageUrl;
-        try {
-          await removeUploadByUrl(oldImageUrl);
-        } catch (e) {
-          console.error("Failed to delete old image, but proceeding:", e);
-        }
-      }
-
-      // Save the new image via helper
-      const { publicPath: newImageUrl } = await saveUploadFile(imageFile, 'announcements');
-            fieldsToUpdate.push(`"imageUrl" = $${queryIndex++}`);
-            values.push(newImageUrl);
-        }
-
-        const sql = `
-            UPDATE "Announcement"
-            SET ${fieldsToUpdate.join(', ')}
-            WHERE id = $${queryIndex}
-            RETURNING *;
-        `;
-        values.push(announcementId);
-
-        const result = await db.query(sql, values);
-        return NextResponse.json(result.rows[0]);
-
-    } catch (error) {
-        console.error("Update announcement error:", error);
-        return NextResponse.json({ error: 'Failed to update announcement.' }, { status: 500 });
-    }
 }
