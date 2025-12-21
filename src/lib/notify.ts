@@ -167,15 +167,70 @@ export async function sendEmail({ to, subject, html, text }: EmailPayload): Prom
 }
 
 export async function sendResetEmail(to: string, code: string) {
-  const subject = `${appName} password reset code`;
-  const text = `Your ${appName} password reset code is ${code}. It expires in 10 minutes.`;
+  const brandName = 'Online Thakshilawa';
+  const brandUrl = 'https://onlinethakshilawa.lk';
+  const subject = `${brandName} - Password Reset Code`;
+  const text = `Your ${brandName} password reset code is ${code}. It expires in 10 minutes.`;
   const html = `
-    <div style="font-family:Arial,Helvetica,sans-serif;line-height:1.6;color:#111">
-      <h2>${appName} password reset</h2>
-      <p>Use the following verification code to reset your password:</p>
-      <p style="font-size:24px;font-weight:bold;letter-spacing:3px">${code}</p>
-      <p>This code expires in 10 minutes. If you did not request this, you can ignore this message.</p>
-    </div>
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body style="margin:0;padding:0;background-color:#f0f4f8;font-family:'Segoe UI',Roboto,Arial,sans-serif;">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#f0f4f8;padding:40px 20px;">
+        <tr>
+          <td align="center">
+            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:480px;background-color:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+              <!-- Header -->
+              <tr>
+                <td style="background:linear-gradient(135deg,#2563eb 0%,#1d4ed8 50%,#1e40af 100%);padding:32px 24px;text-align:center;">
+                  <h1 style="margin:0;font-size:24px;font-weight:700;color:#ffffff;letter-spacing:-0.5px;">${brandName}</h1>
+                  <p style="margin:8px 0 0;font-size:13px;color:rgba(255,255,255,0.85);">onlinethakshilawa.lk</p>
+                </td>
+              </tr>
+              
+              <!-- Content -->
+              <tr>
+                <td style="padding:40px 32px;">
+                  <h2 style="margin:0 0 8px;font-size:20px;font-weight:600;color:#1e293b;">Password Reset Request</h2>
+                  <p style="margin:0 0 24px;font-size:14px;color:#64748b;line-height:1.5;">Use the verification code below to reset your password. This code is valid for 10 minutes.</p>
+                  
+                  <!-- Code Box -->
+                  <div style="background:linear-gradient(135deg,#eff6ff 0%,#dbeafe 100%);border:2px solid #bfdbfe;border-radius:12px;padding:24px;text-align:center;margin:0 0 24px;">
+                    <p style="margin:0 0 8px;font-size:12px;font-weight:600;color:#3b82f6;text-transform:uppercase;letter-spacing:1px;">Your Verification Code</p>
+                    <p style="margin:0;font-size:36px;font-weight:700;color:#1d4ed8;letter-spacing:8px;font-family:'Courier New',monospace;">${code}</p>
+                  </div>
+                  
+                  <!-- Warning -->
+                  <div style="background:#fef3c7;border-left:4px solid #f59e0b;border-radius:0 8px 8px 0;padding:12px 16px;margin:0 0 24px;">
+                    <p style="margin:0;font-size:13px;color:#92400e;line-height:1.5;">
+                      <strong>⚠️ Security Notice:</strong> If you didn't request this password reset, please ignore this email. Your account is safe.
+                    </p>
+                  </div>
+                  
+                  <p style="margin:0;font-size:14px;color:#64748b;line-height:1.6;">
+                    Need help? Contact us at <a href="mailto:contactus@zevarone.com" style="color:#2563eb;text-decoration:none;font-weight:500;">contactus@zevarone.com</a>
+                  </p>
+                </td>
+              </tr>
+              
+              <!-- Footer -->
+              <tr>
+                <td style="background:#f8fafc;padding:24px 32px;border-top:1px solid #e2e8f0;text-align:center;">
+                  <p style="margin:0 0 8px;font-size:13px;color:#64748b;">
+                    © ${new Date().getFullYear()} ${brandName}. All rights reserved.
+                  </p>
+                  <a href="${brandUrl}" style="font-size:12px;color:#2563eb;text-decoration:none;">onlinethakshilawa.lk</a>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+    </body>
+    </html>
   `;
 
   await sendEmail({ to, subject, text, html });

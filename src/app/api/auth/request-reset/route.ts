@@ -15,6 +15,8 @@ export async function POST(req: Request) {
     }
 
     const result = await db.query(`SELECT id, email FROM "User" WHERE email = $1`, [email]);
+    console.log(`🔍 Looking up user with email: ${email}`);
+    console.log(`   Found ${result.rows.length} user(s)`);
 
     let devCode: string | undefined;
 
@@ -25,11 +27,15 @@ export async function POST(req: Request) {
       setResetCode(user.id, { code, expiresAt });
 
       try {
+        console.log(`Attempting to send reset email to ${user.email} with code ${code}...`);
+        console.log(`SMTP Config: host=${process.env.SMTP_HOST}, port=${process.env.SMTP_PORT}, user=${process.env.SMTP_USER}, from=${process.env.SMTP_FROM}`);
         await sendResetEmail(user.email, code);
-        console.log(`Reset email sent successfully to ${user.email}`);
+        console.log(`✅ Reset email sent successfully to ${user.email}`);
       } catch (emailError) {
         const errorMsg = emailError instanceof Error ? emailError.message : 'Unknown error';
-        console.error('Reset email delivery failed:', errorMsg);
+        const errorStack = emailError instanceof Error ? emailError.stack : '';
+        console.error('❌ Reset email delivery failed:', errorMsg);
+        console.error('Stack trace:', errorStack);
         
         if (process.env.NODE_ENV !== 'production') {
           console.info('DEV ONLY: reset code =', code);

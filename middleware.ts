@@ -15,8 +15,13 @@ export default function middleware(request: NextRequest) {
     url.pathname = `/en${pathname}`;
     return NextResponse.redirect(url);
   }
-  // Fallback to next-intl middleware
-  return intlMiddleware(request);
+  // Run intl middleware
+  const response = intlMiddleware(request);
+  
+  // Add pathname header for layout to detect auth pages
+  response.headers.set('x-pathname', pathname);
+  
+  return response;
 }
 
 export const config = {
