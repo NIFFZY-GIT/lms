@@ -5,6 +5,9 @@ import { Megaphone } from 'lucide-react';
 import Image from 'next/image';
 import { getBaseUrl } from '@/lib/server-base-url';
 
+// Mark this page as dynamically rendered
+export const dynamic = 'force-dynamic';
+
 // This function runs on the server to fetch the data
 async function getAnnouncements(): Promise<Announcement[]> {
   try {
