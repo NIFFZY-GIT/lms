@@ -3,11 +3,11 @@ import { db } from '@/lib/db';
 import { getServerUser } from '@/lib/auth';
 
 // Submit a quiz answer
-export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(req: Request, { params }: { params: Promise<{ quizId: string }> }) {
   try {
     // Ensure user is authenticated
     await getServerUser();
-    const { id: quizId } = await params;
+    const { quizId } = await params;
     const body = await req.json();
     const { selectedAnswerId } = body;
 
