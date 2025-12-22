@@ -12,9 +12,10 @@ export const metadata: Metadata = {
   description: "Sri Lanka’s First and Best Online Classes",
 };
 
-export default async function RootLayout({ children, params }: { children: React.ReactNode, params: { locale: string } }) {
-  // `params` may be a promise in some Next.js runtimes; await defensively
-  const locale = (await params)?.locale || 'en';
+export default async function RootLayout({ children, params }: { children: React.ReactNode, params: Promise<{ locale: string }> }) {
+  // `params` is a promise in Next.js 15; await it
+  const { locale: localeParam } = await params;
+  const locale = localeParam || 'en';
   // Load messages directly from the JSON files in src/messages to avoid requiring next-intl config at runtime.
   let messages = {};
   try {
