@@ -6,7 +6,7 @@ import { IMAGE_5MB, assertFile } from '@/lib/security';
 import { saveUploadFile, removeUploadByUrl } from '@/lib/uploads';
 
 // PATCH (update) a question and its answers
-export async function PATCH(req: Request, { params }: { params: Promise<{ questionId: string }> }) {
+export async function PATCH(req: Request, { params }: { params: Promise<{ quizId: string; questionId: string }> }) {
     try {
         const user = await getServerUser([Role.ADMIN, Role.INSTRUCTOR]);
         const { questionId } = await params;
@@ -89,7 +89,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ questi
 }
 
 // DELETE a question (and its answers via CASCADE)
-export async function DELETE(req: Request, { params }: { params: Promise<{ questionId: string }> }) {
+export async function DELETE(req: Request, { params }: { params: Promise<{ quizId: string; questionId: string }> }) {
   try {
     const user = await getServerUser([Role.ADMIN, Role.INSTRUCTOR]);
     const { questionId } = await params;
