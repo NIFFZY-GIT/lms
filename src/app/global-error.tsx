@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import Link from 'next/link';
 
 export default function GlobalError({
   error,
@@ -37,13 +38,13 @@ export default function GlobalError({
               gap: 16,
             }}
           >
-            <a href="/si" style={{ color: '#0f172a', fontWeight: 700, textDecoration: 'none', fontSize: 18 }}>
+            <Link href="/si" style={{ color: '#0f172a', fontWeight: 700, textDecoration: 'none', fontSize: 18 }}>
               Online Thakshilawa
-            </a>
+            </Link>
             <nav style={{ display: 'flex', alignItems: 'center', gap: 20, fontSize: 14, fontWeight: 600 }}>
-              <a href="/si" style={{ color: '#475569', textDecoration: 'none' }}>Home</a>
-              <a href="/si/courses" style={{ color: '#475569', textDecoration: 'none' }}>Courses</a>
-              <a href="/si/pastpapers" style={{ color: '#475569', textDecoration: 'none' }}>Past Papers</a>
+              <Link href="/si" style={{ color: '#475569', textDecoration: 'none' }}>Home</Link>
+              <Link href="/si/courses" style={{ color: '#475569', textDecoration: 'none' }}>Courses</Link>
+              <Link href="/si/pastpapers" style={{ color: '#475569', textDecoration: 'none' }}>Past Papers</Link>
             </nav>
           </div>
         </header>
@@ -99,7 +100,7 @@ export default function GlobalError({
               >
                 Try Again
               </button>
-              <a
+              <Link
                 href="/si"
                 style={{
                   padding: '12px 24px',
@@ -114,7 +115,7 @@ export default function GlobalError({
                 }}
               >
                 Back to Home
-              </a>
+              </Link>
             </div>
           </div>
         </div>

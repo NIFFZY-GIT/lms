@@ -1,33 +1,12 @@
 import { Container } from '@/components/ui/Container';
 import { Course } from '@/types';
-import { getBaseUrl } from '@/lib/server-base-url';
 import { CourseCard } from '@/components/ui/CourseCard';
 import { BookOpen } from 'lucide-react';
-
-// This function runs on the server to fetch the data
-async function getCourses(): Promise<Course[]> {
-  try {
-    const baseUrl = await getBaseUrl();
-    const res = await fetch(`${baseUrl}/api/courses`, { 
-      cache: 'force-cache', // Cache courses for better performance
-      next: { revalidate: 300 } // Revalidate every 5 minutes
-    });
-    
-    if (!res.ok) {
-      console.error("Failed to fetch courses:", res.statusText);
-      return [];
-    }
-    
-    return res.json();
-  } catch (error) {
-    console.error("Error in getCourses:", error);
-    return [];
-  }
-}
+import { getPublicCourses } from '@/lib/courses';
 
 // The main page is an async Server Component
 export default async function CoursesPage() {
-  const courses = await getCourses();
+  const courses: Course[] = await getPublicCourses();
 
   return (
     <div className="bg-gray-50 min-h-screen">

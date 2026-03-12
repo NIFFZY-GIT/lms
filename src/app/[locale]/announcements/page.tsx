@@ -3,28 +3,10 @@ import { Announcement } from '@/types';
 import { format } from 'date-fns';
 import { Megaphone } from 'lucide-react';
 import Image from 'next/image';
-import { getBaseUrl } from '@/lib/server-base-url';
+import { getPublicAnnouncements } from '@/lib/announcements';
 
 // Cache and refresh periodically for smoother navigations.
 export const revalidate = 300;
-
-// This function runs on the server to fetch the data
-async function getAnnouncements(): Promise<Announcement[]> {
-  try {
-    const baseUrl = await getBaseUrl();
-    const res = await fetch(`${baseUrl}/api/announcements`, {
-      next: { revalidate: 300 },
-    });
-    if (!res.ok) {
-      console.error("Failed to fetch announcements:", res.statusText);
-      return [];
-    }
-    return res.json();
-  } catch (error) {
-    console.error("Error in getAnnouncements:", error);
-    return [];
-  }
-}
 
 // --- Helper Component for a single announcement post ---
 function AnnouncementPost({ announcement }: { announcement: Announcement }) {
@@ -52,7 +34,7 @@ function AnnouncementPost({ announcement }: { announcement: Announcement }) {
 }
 
 export default async function AnnouncementsPage() {
-  const announcements = await getAnnouncements();
+  const announcements = await getPublicAnnouncements();
 
   return (
     <div className="bg-gray-50 min-h-screen">
