@@ -3,14 +3,24 @@ import { db } from '../../../../../lib/db';
 import { getServerUser } from '../../../../../lib/auth';
 import { Role } from '../../../../../types';
 import { sendPaymentApprovedEmail } from '../../../../../lib/notify';
+import { lastDayOfMonth } from 'date-fns';
 
 interface PostgresError { code?: string; }
 
-export async function PATCH(req: Request, { params }: { params: Promise<{ paymentId: string }> }) {
+// Helper: Get the last day of the current month (end of day)
+function getSubscriptionExpiryDate(): Date {
+  const now = new Date();
+  const endOfMonth = lastDayOfMonth(now);
+  endOfMonth.setHours(23, 59, 59, 999);
+  return endOfMonth;
+}
+
+export async function PATCH(req: Request, props: { params: Promise<{ paymentId: string }> }) {
   let referenceNumber: string | undefined;
   try {
     await getServerUser(Role.ADMIN);
-    const { paymentId } = await params;
+    const resolvedParams = await props.params;
+    const paymentId: string = resolvedParams.paymentId;
     const body = await req.json();
     referenceNumber = body.referenceNumber;
 
@@ -19,17 +29,44 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ paymen
     }
 
     const sanitizedRef = referenceNumber.trim();
-    const sql = `
-      UPDATE "Payment"
-      SET 
-        status = 'APPROVED', 
-        "referenceNumber" = $1, 
-        "updatedAt" = CURRENT_TIMESTAMP
-      WHERE 
-        id = $2 AND status = 'PENDING'
-      RETURNING *;
+
+    // First, get the course type for this payment
+    const courseCheckSql = `
+      SELECT p."courseId", c."courseType"
+      FROM "Payment" p
+      JOIN "Course" c ON p."courseId" = c.id
+      WHERE p.id = $1;
     `;
-    const result = await db.query(sql, [sanitizedRef, paymentId]);
+    const courseCheckResult = await db.query<{ courseId: string; courseType: string }>(courseCheckSql, [paymentId]);
+    
+    if (courseCheckResult.rows.length === 0) {
+      return NextResponse.json({ error: 'Payment not found' }, { status: 404 });
+    }
+
+    const isSubscription = courseCheckResult.rows[0].courseType === 'SUBSCRIPTION';
+    const subscriptionExpiryDate = isSubscription ? getSubscriptionExpiryDate() : null;
+
+    const sql = isSubscription
+      ? `UPDATE "Payment"
+         SET 
+           status = 'APPROVED', 
+           "referenceNumber" = $1,
+           "subscriptionExpiryDate" = $3,
+           "updatedAt" = CURRENT_TIMESTAMP
+         WHERE 
+           id = $2 AND status = 'PENDING'
+         RETURNING *;`
+      : `UPDATE "Payment"
+         SET 
+           status = 'APPROVED', 
+           "referenceNumber" = $1,
+           "updatedAt" = CURRENT_TIMESTAMP
+         WHERE 
+           id = $2 AND status = 'PENDING'
+         RETURNING *;`;
+
+    const params = isSubscription ? [sanitizedRef, paymentId, subscriptionExpiryDate] : [sanitizedRef, paymentId];
+    const result = await db.query(sql, params);
 
     if (result.rows.length === 0) {
       return NextResponse.json({ error: 'Payment not found or already processed' }, { status: 404 });

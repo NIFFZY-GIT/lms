@@ -9,6 +9,9 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const searchTerm = searchParams.get('search')?.toLowerCase() || '';
     const courseIdFilter = searchParams.get('courseId') || null;
+    const monthParam = searchParams.get('month') || '';
+    const parsedMonth = Number(monthParam);
+    const monthFilter = Number.isInteger(parsedMonth) && parsedMonth >= 1 && parsedMonth <= 12 ? parsedMonth : null;
 
     const sql = `
       WITH StudentCourses AS (
@@ -42,13 +45,21 @@ export async function GET(req: NextRequest) {
           u.phone LIKE $1 OR
           LOWER(u.address) LIKE $1
         ) AND
-        ($2::varchar IS NULL OR u.id IN (
-            SELECT "studentId" FROM "Payment" WHERE "courseId" = $2::varchar
-        ))
+        (
+          ($2::varchar IS NULL AND $3::int IS NULL) OR
+          EXISTS (
+            SELECT 1
+            FROM "Payment" fp
+            WHERE fp."studentId" = u.id
+              AND fp.status = 'APPROVED'
+              AND ($2::varchar IS NULL OR fp."courseId" = $2::varchar)
+              AND ($3::int IS NULL OR EXTRACT(MONTH FROM fp."createdAt") = $3::int)
+          )
+        )
       ORDER BY u."createdAt" DESC;
     `;
     
-    const result = await db.query(sql, [`%${searchTerm}%`, courseIdFilter]);
+    const result = await db.query(sql, [`%${searchTerm}%`, courseIdFilter, monthFilter]);
 
     // --- THIS IS THE CORRECTED DATA TRANSFORMATION ---
     const students = result.rows.map(student => {

@@ -1,9 +1,24 @@
 -- ============================================
 -- LMS Database Schema for PostgreSQL
 -- ============================================
--- Run this script to create all required tables
--- Make sure you have created the database first:
---   CREATE DATABASE lms_db;
+-- This is the SINGLE CANONICAL schema file.
+-- It is fully idempotent — safe to run on:
+--   • A brand-new (empty) database
+--   • An existing production database to apply any missing changes
+--
+-- How to use:
+--   1. Make sure the target database exists:
+--        CREATE DATABASE lms_db;
+--   2. Run this file:
+--        psql -U postgres -d lms_db -f schema.sql
+--
+-- The file is structured in sections:
+--   1. Extensions & ENUMs
+--   2. CREATE TABLE IF NOT EXISTS  (full current schema)
+--   3. Indexes
+--   4. Migration Cleanup          (ALTER TABLE for servers on older schema)
+--   5. Triggers
+--   6. Seed data
 -- ============================================
 
 -- Enable UUID extension (if not already enabled)
@@ -23,6 +38,13 @@ END $$;
 -- Payment Status Enum
 DO $$ BEGIN
     CREATE TYPE payment_status AS ENUM ('PENDING', 'APPROVED', 'REJECTED');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+-- Course Type Enum
+DO $$ BEGIN
+    CREATE TYPE course_type AS ENUM ('ONE_TIME_PURCHASE', 'SUBSCRIPTION');
 EXCEPTION
     WHEN duplicate_object THEN null;
 END $$;
@@ -61,6 +83,7 @@ CREATE TABLE IF NOT EXISTS "Course" (
     "imageUrl" TEXT,
     "whatsappGroupLink" TEXT,
     "zoomLink" TEXT,
+    "courseType" course_type NOT NULL DEFAULT 'ONE_TIME_PURCHASE',
     "createdById" VARCHAR(36) NOT NULL REFERENCES "User"(id) ON DELETE CASCADE,
     "createdAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -144,11 +167,9 @@ CREATE TABLE IF NOT EXISTS "Payment" (
     "receiptUrl" TEXT,
     "referenceNumber" VARCHAR(100) UNIQUE,  -- Reference number for approved payments
     status payment_status NOT NULL DEFAULT 'PENDING',
+    "subscriptionExpiryDate" TIMESTAMP WITH TIME ZONE,  -- For subscription courses: when the monthly access expires
     "createdAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    
-    -- Ensure a student can only have one payment record per course
-    UNIQUE("studentId", "courseId")
+    "updatedAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Indexes for Payment table
@@ -262,6 +283,28 @@ CREATE INDEX IF NOT EXISTS idx_pastpaper_subject ON "PastPaper"("subjectId");
 CREATE INDEX IF NOT EXISTS idx_pastpaper_year ON "PastPaper"(year DESC);
 CREATE INDEX IF NOT EXISTS idx_pastpaper_medium ON "PastPaper"(medium);
 CREATE INDEX IF NOT EXISTS idx_pastpaper_term ON "PastPaper"(term);
+
+-- ============================================
+-- Migration Cleanup
+-- ============================================
+-- These statements are safe to run on any server version.
+-- On a fresh install the IF NOT EXISTS / IF EXISTS guards are no-ops.
+-- On an older deployment they apply the changes that have been made
+-- since the original schema was first deployed.
+
+-- v1.1 — Subscription support
+-- Add courseType if missing (old servers may not have it)
+ALTER TABLE "Course"
+    ADD COLUMN IF NOT EXISTS "courseType" course_type NOT NULL DEFAULT 'ONE_TIME_PURCHASE';
+
+-- Add subscriptionExpiryDate if missing
+ALTER TABLE "Payment"
+    ADD COLUMN IF NOT EXISTS "subscriptionExpiryDate" TIMESTAMP WITH TIME ZONE;
+
+-- Drop old unique constraint that blocked multiple subscription payments
+-- per student per course (was present before subscription support was added)
+ALTER TABLE "Payment"
+    DROP CONSTRAINT IF EXISTS "Payment_studentId_courseId_key";
 
 -- ============================================
 -- Updated At Trigger Function

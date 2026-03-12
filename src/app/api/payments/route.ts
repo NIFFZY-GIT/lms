@@ -11,10 +11,13 @@ export async function GET() {
         p.id, 
         p.status, 
         p."receiptUrl", 
-        p."createdAt", 
+        p."createdAt",
+        p."subscriptionExpiryDate",
+        p."studentId",
         u.name as "studentName", 
         c.title as "courseTitle",
-        c.id as "courseId" -- Important for query invalidation
+        c.id as "courseId",
+        c."courseType"
       FROM "Payment" p
       JOIN "User" u ON p."studentId" = u.id
       JOIN "Course" c ON p."courseId" = c.id

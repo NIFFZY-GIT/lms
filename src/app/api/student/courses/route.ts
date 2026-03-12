@@ -7,11 +7,17 @@ export async function GET() {
   try {
     const user = await getServerUser(Role.STUDENT);
 
+    // For ONE_TIME_PURCHASE courses: join where status = 'APPROVED'
+    // For SUBSCRIPTION courses: join where status = 'APPROVED' AND subscriptionExpiryDate > NOW
     const sql = `
       SELECT c.*
       FROM "Payment" p
       JOIN "Course" c ON p."courseId" = c.id
       WHERE p."studentId" = $1 AND p.status = 'APPROVED'
+      AND (
+        c."courseType" = 'ONE_TIME_PURCHASE' 
+        OR (c."courseType" = 'SUBSCRIPTION' AND p."subscriptionExpiryDate" > CURRENT_TIMESTAMP)
+      )
       ORDER BY p."createdAt" DESC;
     `;
 

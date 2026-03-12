@@ -41,3 +41,4 @@ export const IMAGE_10MB: FileConstraints = { maxBytes: 10 * 1024 * 1024, allowed
 export const VIDEO_500MB: FileConstraints = { maxBytes: 500 * 1024 * 1024, allowedTypes: VIDEO_MIME_TYPES };
 
 export const PDF_25MB: FileConstraints = { maxBytes: 25 * 1024 * 1024, allowedTypes: ['application/pdf'] };
+export const IMAGE_OR_PDF_10MB: FileConstraints = { maxBytes: 10 * 1024 * 1024, allowedTypes: [...IMAGE_MIME_TYPES, 'image/jpg', 'application/pdf'] };

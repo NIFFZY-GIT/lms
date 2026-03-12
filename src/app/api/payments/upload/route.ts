@@ -3,9 +3,18 @@ import { db } from '../../../../lib/db';
 import { getServerUser } from '../../../../lib/auth';
 import { Role } from '../../../../types';
 import { v4 as uuidv4 } from 'uuid';
-import { IMAGE_10MB, assertFile } from '@/lib/security';
+import { IMAGE_OR_PDF_10MB, assertFile } from '@/lib/security';
 import { saveUploadFile, removeUploadByUrl } from '@/lib/uploads';
 import { sendReceiptUploadedEmailToAdmins } from '@/lib/notify';
+import { lastDayOfMonth } from 'date-fns';
+
+// Helper: Get the last day of the current month (end of day)
+function getSubscriptionExpiryDate(): Date {
+  const now = new Date();
+  const endOfMonth = lastDayOfMonth(now);
+  endOfMonth.setHours(23, 59, 59, 999);
+  return endOfMonth;
+}
 
 export async function POST(req: Request) {
   try {
@@ -18,8 +27,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Course ID is required.' }, { status: 400 });
     }
 
-    const courseResult = await db.query<{ id: string; title: string; price: string }>(
-      'SELECT id, title, price FROM "Course" WHERE id = $1',
+    const courseResult = await db.query<{ id: string; title: string; price: string; courseType: string }>(
+      'SELECT id, title, price, "courseType" FROM "Course" WHERE id = $1',
       [courseId]
     );
 
@@ -29,41 +38,87 @@ export async function POST(req: Request) {
 
     const course = courseResult.rows[0];
     const coursePrice = parseFloat(course.price);
+    const courseType = course.courseType || 'ONE_TIME_PURCHASE';
+    const isSubscription = courseType === 'SUBSCRIPTION';
 
-    // --- THIS IS THE NEW LOGIC ---
-    // Check if a payment record already exists for this user and course.
-    const existingPaymentResult = await db.query('SELECT id, status, "receiptUrl" FROM "Payment" WHERE "studentId" = $1 AND "courseId" = $2', [user.id, courseId]);
-    
-    if (existingPaymentResult.rows.length > 0) {
-      const existingPayment = existingPaymentResult.rows[0];
+    // --- UPDATED LOGIC FOR ONE-TIME AND SUBSCRIPTION ---
+    // For ONE_TIME_PURCHASE courses, check if a payment already exists
+    if (!isSubscription) {
+      const existingPaymentResult = await db.query(
+        'SELECT id, status, "receiptUrl" FROM "Payment" WHERE "studentId" = $1 AND "courseId" = $2',
+        [user.id, courseId]
+      );
       
-      // If payment is PENDING or APPROVED, they cannot re-apply.
-      if (existingPayment.status === 'PENDING' || existingPayment.status === 'APPROVED') {
-        return NextResponse.json({ error: 'A payment for this course is already pending or has been approved.' }, { status: 409 });
+      if (existingPaymentResult.rows.length > 0) {
+        const existingPayment = existingPaymentResult.rows[0];
+        
+        // If payment is PENDING or APPROVED, they cannot re-apply.
+        if (existingPayment.status === 'PENDING' || existingPayment.status === 'APPROVED') {
+          return NextResponse.json({ 
+            error: 'A payment for this course is already pending or has been approved.' 
+          }, { status: 409 });
+        }
+
+        // If payment was REJECTED, allow re-submission
+        if (existingPayment.status === 'REJECTED') {
+          try {
+            await removeUploadByUrl(existingPayment.receiptUrl);
+          } catch (fileError) {
+            console.error("Failed to delete old rejected receipt file, but proceeding:", fileError);
+          }
+          await db.query('DELETE FROM "Payment" WHERE id = $1', [existingPayment.id]);
+        }
+      }
+    } else {
+      // For SUBSCRIPTION courses, check if there's an active (APPROVED) payment for the current month
+      const now = new Date();
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const endOfMonth = lastDayOfMonth(now);
+      endOfMonth.setHours(23, 59, 59, 999);
+
+      const activePaymentResult = await db.query(
+        `SELECT id, status FROM "Payment" 
+         WHERE "studentId" = $1 AND "courseId" = $2 AND status = 'APPROVED' 
+         AND "subscriptionExpiryDate" > CURRENT_TIMESTAMP`,
+        [user.id, courseId]
+      );
+
+      if (activePaymentResult.rows.length > 0) {
+        return NextResponse.json({ 
+          error: 'You already have an active subscription for this month.' 
+        }, { status: 409 });
       }
 
-      // If payment was REJECTED, we will delete the old record to allow re-submission.
-      if (existingPayment.status === 'REJECTED') {
-        // Delete the old receipt file from the server
-        try {
-          await removeUploadByUrl(existingPayment.receiptUrl);
-        } catch (fileError) {
-          console.error("Failed to delete old rejected receipt file, but proceeding:", fileError);
-        }
-        // Delete the old payment record from the database
-        await db.query('DELETE FROM "Payment" WHERE id = $1', [existingPayment.id]);
+      // Check for pending payments for the current month
+      const pendingPaymentResult = await db.query(
+        `SELECT id FROM "Payment" 
+         WHERE "studentId" = $1 AND "courseId" = $2 AND status = 'PENDING' 
+         AND "createdAt" > $3`,
+        [user.id, courseId, startOfMonth]
+      );
+
+      if (pendingPaymentResult.rows.length > 0) {
+        return NextResponse.json({ 
+          error: 'You already have a pending subscription payment for this month.' 
+        }, { status: 409 });
       }
     }
-    // --- END OF NEW LOGIC ---
-
+    // --- END OF UPDATED LOGIC ---
 
     if (coursePrice === 0) {
       const paymentId = uuidv4();
-      const freeEnrollmentSql = `
-        INSERT INTO "Payment" (id, "studentId", "courseId", "receiptUrl", status)
-        VALUES ($1, $2, $3, NULL, 'APPROVED') RETURNING *;
-      `;
-      const freeEnrollmentResult = await db.query(freeEnrollmentSql, [paymentId, user.id, courseId]);
+      const subscriptionExpiryDate = isSubscription ? getSubscriptionExpiryDate() : null;
+      const freeEnrollmentSql = isSubscription
+        ? `INSERT INTO "Payment" (id, "studentId", "courseId", "receiptUrl", status, "subscriptionExpiryDate")
+           VALUES ($1, $2, $3, NULL, 'APPROVED', $4) RETURNING *;`
+        : `INSERT INTO "Payment" (id, "studentId", "courseId", "receiptUrl", status)
+           VALUES ($1, $2, $3, NULL, 'APPROVED') RETURNING *;`;
+      
+      const params = isSubscription 
+        ? [paymentId, user.id, courseId, subscriptionExpiryDate]
+        : [paymentId, user.id, courseId];
+      
+      const freeEnrollmentResult = await db.query(freeEnrollmentSql, params);
       return NextResponse.json(freeEnrollmentResult.rows[0], { status: 201 });
     }
 
@@ -71,31 +126,40 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Receipt file is required for paid courses.' }, { status: 400 });
     }
 
-    // Validate and proceed with the new file upload and record creation
+    // Validate and proceed with the file upload
     try {
-      assertFile(receiptFile, IMAGE_10MB, 'receipt');
+      assertFile(receiptFile, IMAGE_OR_PDF_10MB, 'receipt');
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Invalid file';
       return NextResponse.json({ error: message }, { status: 400 });
     }
-  const { publicPath: publicUrl } = await saveUploadFile(receiptFile, 'receipts');
+
+    const { publicPath: publicUrl } = await saveUploadFile(receiptFile, 'receipts');
     const paymentId = uuidv4();
-    const sql = `
-      INSERT INTO "Payment" (id, "studentId", "courseId", "receiptUrl", status)
-      VALUES ($1, $2, $3, $4, 'PENDING') RETURNING *;
-    `;
+    
+    // Note: subscriptionExpiryDate will be set to the end of current month when the payment is APPROVED by admin
+    const sql = isSubscription
+      ? `INSERT INTO "Payment" (id, "studentId", "courseId", "receiptUrl", status, "subscriptionExpiryDate")
+         VALUES ($1, $2, $3, $4, 'PENDING', NULL) RETURNING *;`
+      : `INSERT INTO "Payment" (id, "studentId", "courseId", "receiptUrl", status)
+         VALUES ($1, $2, $3, $4, 'PENDING') RETURNING *;`;
+    
     const result = await db.query(sql, [paymentId, user.id, courseId, publicUrl]);
 
     try {
-      const adminResult = await db.query<{ email: string | null }>('SELECT email FROM "User" WHERE role = $1 AND email IS NOT NULL', [Role.ADMIN]);
+      const adminResult = await db.query<{ email: string | null }>(
+        'SELECT email FROM "User" WHERE role = $1 AND email IS NOT NULL',
+        [Role.ADMIN]
+      );
       const adminEmails = adminResult.rows.map(row => row.email).filter((email): email is string => Boolean(email));
 
       if (adminEmails.length) {
         const courseTitle = course.title ?? 'a course';
+        const paymentType = isSubscription ? 'subscription' : 'one-time purchase';
         await sendReceiptUploadedEmailToAdmins(adminEmails, {
           studentName: user.name ?? 'A student',
           studentEmail: user.email,
-          courseTitle,
+          courseTitle: `${courseTitle} (${paymentType})`,
         });
       }
     } catch (emailError) {

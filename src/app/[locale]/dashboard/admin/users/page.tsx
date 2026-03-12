@@ -28,6 +28,16 @@ interface Student {
   courses: StudentCourseInfo[];
 }
 
+const formatStudentDisplayId = (id: string): string => {
+    let hash = 0;
+
+    for (const char of id) {
+        hash = (hash * 31 + char.charCodeAt(0)) % 90000;
+    }
+
+    return String(hash + 10000);
+};
+
 // --- Zod Schema for the Form ---
 const studentSchema = z.object({
   name: z.string().min(2, 'Name is required'),
@@ -39,8 +49,26 @@ const studentSchema = z.object({
 });
 type StudentFormData = z.infer<typeof studentSchema>;
 
+const MONTH_OPTIONS = [
+    { value: 'all', label: 'All Months' },
+    { value: '1', label: 'January' },
+    { value: '2', label: 'February' },
+    { value: '3', label: 'March' },
+    { value: '4', label: 'April' },
+    { value: '5', label: 'May' },
+    { value: '6', label: 'June' },
+    { value: '7', label: 'July' },
+    { value: '8', label: 'August' },
+    { value: '9', label: 'September' },
+    { value: '10', label: 'October' },
+    { value: '11', label: 'November' },
+    { value: '12', label: 'December' },
+] as const;
+
 // --- API Functions ---
-const fetchStudents = async (searchTerm: string, courseId: string): Promise<Student[]> => (await axios.get(`/api/admin/students?search=${searchTerm}&courseId=${courseId}`)).data;
+const fetchStudents = async (searchTerm: string, courseId: string, month: string): Promise<Student[]> => (
+    await axios.get(`/api/admin/students?search=${searchTerm}&courseId=${courseId}&month=${month}`)
+).data;
 const fetchCourses = async (): Promise<Course[]> => (await axios.get('/api/courses')).data;
 const createStudent = async (data: StudentFormData) => (await axios.post('/api/auth/register', data)).data;
 const updateStudent = async ({ id, data }: { id: string, data: StudentFormData }) => (await axios.patch(`/api/users/${id}`, data)).data;
@@ -53,6 +81,7 @@ export default function AdminStudentsPage() {
     const [editingStudent, setEditingStudent] = useState<Student | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [courseFilter, setCourseFilter] = useState('all');
+    const [monthFilter, setMonthFilter] = useState('all');
     const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
     const queryClient = useQueryClient();
 
@@ -71,8 +100,12 @@ export default function AdminStudentsPage() {
     });
 
     const { data: students, isLoading } = useQuery<Student[]>({
-        queryKey: ['adminStudents', debouncedSearchTerm, courseFilter],
-        queryFn: () => fetchStudents(debouncedSearchTerm, courseFilter === 'all' ? '' : courseFilter),
+        queryKey: ['adminStudents', debouncedSearchTerm, courseFilter, monthFilter],
+        queryFn: () => fetchStudents(
+            debouncedSearchTerm,
+            courseFilter === 'all' ? '' : courseFilter,
+            monthFilter === 'all' ? '' : monthFilter
+        ),
     });
 
     const mutationOptions = {
@@ -134,6 +167,9 @@ export default function AdminStudentsPage() {
                         <option value="all">All Courses</option>
                         {courses?.map(course => (<option key={course.id} value={course.id}>{course.title}</option>))}
                     </select>
+                    <select value={monthFilter} onChange={(e) => setMonthFilter(e.target.value)} className="border rounded-lg px-3 py-2 bg-white min-w-[160px]">
+                        {MONTH_OPTIONS.map(month => (<option key={month.value} value={month.value}>{month.label}</option>))}
+                    </select>
                     <div className="relative w-full sm:w-auto">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                         <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search by name, email..." className="pl-10 pr-4 py-2 border rounded-lg w-full sm:w-64"/>
@@ -185,6 +221,7 @@ export default function AdminStudentsPage() {
                             <tr key={student.id}>
                                 <td className="px-4 sm:px-6 py-4 whitespace-normal break-words">
                                     <div className="font-bold">{student.name}</div>
+                                    <div className="text-sm font-bold text-gray-700" title={student.id}>Student ID: {formatStudentDisplayId(student.id)}</div>
                                     <div className="text-sm text-gray-500">{student.email}</div>
                                 </td>
                                 <td className="px-4 sm:px-6 py-4 text-sm">
@@ -222,6 +259,7 @@ export default function AdminStudentsPage() {
                         {students?.map((student) => (
                             <li key={student.id} className="p-4">
                                 <div className="font-semibold text-gray-900">{student.name}</div>
+                                <div className="text-sm font-bold text-gray-700" title={student.id}>Student ID: {formatStudentDisplayId(student.id)}</div>
                                 <div className="text-sm text-gray-500 break-words">{student.email}</div>
                                 <div className="mt-3 grid grid-cols-1 gap-2 text-sm">
                                     <div><span className="text-gray-500">Phone: </span><span className="text-gray-900">{student.phone || 'N/A'}</span></div>

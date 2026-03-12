@@ -14,8 +14,6 @@ export async function GET(req: Request, { params }: { params: Promise<{ referenc
 
     const sanitizedRef = referenceNumber.trim();
 
-    // --- THIS IS THE UPDATED SQL QUERY ---
-    // It now selects u.phone and u.address from the User table.
     const sql = `
       SELECT 
         p.id as "paymentId", 
@@ -24,13 +22,14 @@ export async function GET(req: Request, { params }: { params: Promise<{ referenc
         u.id as "studentId",
         u.name as "studentName",
         u.email as "studentEmail",
-        u.phone as "studentPhone",      -- <-- ADDED
-        u.address as "studentAddress",  -- <-- ADDED
+        u.phone as "studentPhone",
+        u.address as "studentAddress",
         c.title as "courseTitle"
       FROM "Payment" p
       JOIN "User" u ON p."studentId" = u.id
       JOIN "Course" c ON p."courseId" = c.id
-      WHERE p."referenceNumber" = $1;
+      WHERE p."referenceNumber" = $1
+        AND p.status = 'APPROVED';
     `;
     
     const result = await db.query(sql, [sanitizedRef]);

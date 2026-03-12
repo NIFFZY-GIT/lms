@@ -5,6 +5,19 @@ export enum Role {
   STUDENT = 'STUDENT',
 }
 
+// Course Type Enum
+export enum CourseType {
+  ONE_TIME_PURCHASE = 'ONE_TIME_PURCHASE',
+  SUBSCRIPTION = 'SUBSCRIPTION',
+}
+
+// Payment Status Enum
+export enum PaymentStatus {
+  PENDING = 'PENDING',
+  APPROVED = 'APPROVED',
+  REJECTED = 'REJECTED',
+}
+
 // Represents a single course. This is the central model.
 export interface Course {
   id: string;
@@ -15,6 +28,7 @@ export interface Course {
   imageUrl?: string;
   whatsappGroupLink?: string;
   zoomLink?: string;
+  courseType: CourseType;
   recordings?: Recording[];
   quizzes?: Quiz[];
 }

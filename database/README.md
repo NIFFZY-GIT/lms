@@ -2,6 +2,10 @@
 
 This folder contains the PostgreSQL database schema for the LMS application.
 
+> **`schema.sql` is the single canonical file.** It is fully idempotent — safe to
+> run on a fresh database *and* safe to re-run on an existing production server to
+> pick up any schema changes. `update_schema.sql` is superseded and no longer needed.
+
 ## Prerequisites
 
 - PostgreSQL 14+ installed and running
@@ -25,13 +29,13 @@ CREATE DATABASE lms_db;
 ### 2. Run the Schema
 
 ```bash
-# Run the schema file
+# Fresh install OR applying updates to an existing server — same command:
 psql -U postgres -d lms_db -f schema.sql
 ```
 
 Or using pgAdmin:
 1. Connect to your PostgreSQL server
-2. Create a new database called `lms_db`
+2. Create a new database called `lms_db` (or use the existing one)
 3. Open Query Tool
 4. Open and run `schema.sql`
 

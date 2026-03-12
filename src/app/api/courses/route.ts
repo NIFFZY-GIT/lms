@@ -36,7 +36,7 @@ export async function GET(req: Request) {
   }
 }
 
-// POST handler (UPDATED to handle file uploads)
+// POST handler (UPDATED to handle file uploads and course types)
 export async function POST(req: Request) {
   try {
   const user = await getServerUser([Role.ADMIN, Role.INSTRUCTOR]);
@@ -48,6 +48,7 @@ export async function POST(req: Request) {
     const price = parseFloat(formData.get('price') as string);
     const tutor = formData.get('tutor') as string | null;
     const whatsappGroupLink = formData.get('whatsappGroupLink') as string | null;
+    const courseType = (formData.get('courseType') as string) || 'ONE_TIME_PURCHASE';
     
     // Get the optional image file
   const imageFile = formData.get('image') as File | null;
@@ -71,9 +72,9 @@ export async function POST(req: Request) {
 
     const courseId = uuidv4();
     const sql = `
-      INSERT INTO "Course" (id, title, description, "createdById", price, tutor, "whatsappGroupLink", "imageUrl")
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *;`;
-    const result = await db.query(sql, [courseId, title, description, user.id, price, tutor, whatsappGroupLink, imageUrl]);
+      INSERT INTO "Course" (id, title, description, "createdById", price, tutor, "whatsappGroupLink", "imageUrl", "courseType")
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *;`;
+    const result = await db.query(sql, [courseId, title, description, user.id, price, tutor, whatsappGroupLink, imageUrl, courseType]);
     
     const newCourse = result.rows[0];
     newCourse.price = parseFloat(newCourse.price);
