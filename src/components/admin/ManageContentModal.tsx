@@ -288,11 +288,9 @@ export function ManageContentModal({ isOpen, onClose, course }: { isOpen: boolea
                 </div>
             )}
 
-            {activeTab === 'quizzes' && (
-                  <div>
-                    {managingQuestionsOf ? (
-                  <div>
-                    {managingQuestionsOf ? (
+                        {activeTab === 'quizzes' && (
+                                    <div>
+                                        {managingQuestionsOf ? (
                         <div>
                             <button onClick={() => setManagingQuestionsOf(null)} className="text-sm text-gray-600 mb-4">&larr; Back to all quizzes</button>
                             <h3 className="text-xl font-bold mb-4">Manage Questions for: {managingQuestionsOf.title}</h3>
