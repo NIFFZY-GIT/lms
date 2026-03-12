@@ -248,6 +248,25 @@ CREATE TABLE IF NOT EXISTS "CourseMaterial" (
 -- Past Papers (Grades -> Subjects -> Papers)
 -- ============================================
 
+-- ============================================
+-- CourseTutorial Table
+-- ============================================
+-- Stores PDF/image tutorial documents uploaded per course
+CREATE TABLE IF NOT EXISTS "CourseTutorial" (
+    id VARCHAR(36) PRIMARY KEY DEFAULT uuid_generate_v4()::text,
+    title VARCHAR(500) NOT NULL,
+    "fileUrl" TEXT NOT NULL,
+    "courseId" VARCHAR(36) NOT NULL REFERENCES "Course"(id) ON DELETE CASCADE,
+    "createdAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_coursetutorial_course ON "CourseTutorial"("courseId");
+CREATE INDEX IF NOT EXISTS idx_coursetutorial_created_at ON "CourseTutorial"("createdAt" DESC);
+
+-- ============================================
+-- Past Papers (Grades -> Subjects -> Papers)
+-- ============================================
 CREATE TABLE IF NOT EXISTS "PastPaperGrade" (
     id VARCHAR(36) PRIMARY KEY DEFAULT uuid_generate_v4()::text,
     name VARCHAR(255) NOT NULL UNIQUE,
@@ -291,6 +310,12 @@ CREATE INDEX IF NOT EXISTS idx_pastpaper_term ON "PastPaper"(term);
 -- On a fresh install the IF NOT EXISTS / IF EXISTS guards are no-ops.
 -- On an older deployment they apply the changes that have been made
 -- since the original schema was first deployed.
+
+-- v1.2 — Tutorial documents
+-- CourseTutorial is created above via CREATE TABLE IF NOT EXISTS, so no
+-- ALTER TABLE is needed here for a fresh install.  On an older server that
+-- pre-dates this table entirely, the CREATE TABLE IF NOT EXISTS above will
+-- create it on the first run of this file.
 
 -- v1.1 — Subscription support
 -- Add courseType if missing (old servers may not have it)
@@ -375,6 +400,12 @@ CREATE TRIGGER update_coursematerial_updated_at
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_coursetutorial_updated_at ON "CourseTutorial";
+CREATE TRIGGER update_coursetutorial_updated_at
+    BEFORE UPDATE ON "CourseTutorial"
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
 DROP TRIGGER IF EXISTS update_pastpapergrade_updated_at ON "PastPaperGrade";
 CREATE TRIGGER update_pastpapergrade_updated_at
     BEFORE UPDATE ON "PastPaperGrade"
@@ -434,6 +465,7 @@ COMMENT ON TABLE "QuizAttempt" IS 'Records when students complete quizzes with t
 COMMENT ON TABLE "QuestionAttempt" IS 'Records individual question responses';
 COMMENT ON TABLE "Announcement" IS 'Public announcements posted by admins';
 COMMENT ON TABLE "CourseMaterial" IS 'Additional course materials like zoom links';
+COMMENT ON TABLE "CourseTutorial" IS 'PDF/image tutorial documents uploaded per course';
 
 -- ============================================
 -- Optional App Role Grants (Production)

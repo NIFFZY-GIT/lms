@@ -4,9 +4,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios, { AxiosError } from 'axios';
 import { useParams, useRouter } from 'next/navigation';
 import { Container } from '@/components/ui/Container';
-import { Video, Mic, HelpCircle, AlertTriangle, ArrowLeft, LogOut, MessageCircle } from 'lucide-react';
+import { Video, Mic, HelpCircle, AlertTriangle, ArrowLeft, LogOut, MessageCircle, ExternalLink, BookOpen, FileText, Download } from 'lucide-react';
 import Link from 'next/link';
-import { Course, Recording } from '@/types';
+import { Course, Recording, CourseTutorial } from '@/types';
 import { EnrollmentForm } from '@/components/student/EnrollmentForm';
 import { toast } from '@/components/ui/toast';
 import { useConfirm } from '@/components/ui/confirm-dialog';
@@ -21,6 +21,7 @@ const isFileVideoUrl = (url?: string) => {
 interface CourseDetails extends Course {
   enrollmentStatus: 'APPROVED' | 'PENDING' | 'REJECTED' | null;
   recordings: Recording[];
+  tutorials: CourseTutorial[];
 }
 
 // --- API Functions ---
@@ -143,7 +144,53 @@ export default function StudentCoursePage() {
                 
                 <section className="bg-white p-6 rounded-lg shadow-md">
                   <h2 className="text-2xl font-bold text-gray-800 flex items-center mb-4"><Mic className="w-6 h-6 mr-3 text-blue-600" />Live Session Link</h2>
-                  {course.zoomLink ? (<a href={course.zoomLink} target="_blank" rel="noopener noreferrer" className="font-medium text-blue-600 hover:underline">Join the next live session on Zoom</a>) : (<p className="text-gray-500">The Zoom link has not been posted yet.</p>)}
+                  {course.zoomLink ? (
+                    <a
+                      href={course.zoomLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 px-5 py-3 rounded-lg bg-blue-600 text-white font-semibold text-sm hover:bg-blue-700 active:bg-blue-800 transition-colors shadow-sm"
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                      Join the next live session on Zoom
+                    </a>
+                  ) : (
+                    <p className="text-gray-500">The Zoom link has not been posted yet.</p>
+                  )}
+                </section>
+
+                <section className="bg-white p-6 rounded-lg shadow-md">
+                  <h2 className="text-2xl font-bold text-gray-800 flex items-center mb-4">
+                    <BookOpen className="w-6 h-6 mr-3 text-indigo-600" />Course Tutorials
+                  </h2>
+                  {course.tutorials && course.tutorials.length > 0 ? (
+                    <ul className="space-y-3">
+                      {course.tutorials.map(tute => (
+                        <li key={tute.id} className="flex items-center justify-between gap-3 p-3 rounded-lg border border-gray-200 bg-gray-50 hover:bg-indigo-50 transition-colors">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <FileText className="w-5 h-5 text-red-500 flex-shrink-0" />
+                            <div className="min-w-0">
+                              <p className="font-semibold text-gray-800 truncate">{tute.title}</p>
+                              <p className="text-xs text-gray-400">
+                                {new Date(tute.createdAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
+                              </p>
+                            </div>
+                          </div>
+                          <a
+                            href={tute.fileUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-indigo-600 text-white text-xs font-semibold hover:bg-indigo-700 transition-colors flex-shrink-0"
+                          >
+                            <Download className="w-3.5 h-3.5" />
+                            Open
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-gray-500">No tutorials have been added yet.</p>
+                  )}
                 </section>
 
                 <section className="bg-white p-6 rounded-lg shadow-md">

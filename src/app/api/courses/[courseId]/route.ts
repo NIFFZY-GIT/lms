@@ -24,12 +24,15 @@ export async function GET(req: Request, { params }: { params: Promise<{ courseId
     if (enrollmentStatus === 'APPROVED') {
       const recordingsResult = await db.query('SELECT * FROM "Recording" WHERE "courseId" = $1 ORDER BY "createdAt" ASC', [courseId]);
       const quizzesResult = await db.query('SELECT id, title FROM "Quiz" WHERE "courseId" = $1 ORDER BY "createdAt" ASC', [courseId]);
-      course.recordings = recordingsResult.rows;
-      course.quizzes = quizzesResult.rows;
-    } else {
-      course.recordings = [];
-      course.quizzes = [];
-    }
+            const tutorialsResult = await db.query('SELECT * FROM "CourseTutorial" WHERE "courseId" = $1 ORDER BY "createdAt" ASC', [courseId]);
+            course.recordings = recordingsResult.rows;
+            course.quizzes = quizzesResult.rows;
+            course.tutorials = tutorialsResult.rows;
+        } else {
+            course.recordings = [];
+            course.quizzes = [];
+            course.tutorials = [];
+        }
     
     return NextResponse.json({ ...course, enrollmentStatus });
   } catch (error) {

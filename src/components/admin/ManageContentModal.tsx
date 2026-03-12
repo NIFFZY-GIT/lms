@@ -6,12 +6,12 @@ import axios, { AxiosError } from 'axios';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Course, Quiz, Recording, Question } from '@/types';
+import { Course, Quiz, Recording, Question, CourseTutorial } from '@/types';
 import { Modal } from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
 import { QuestionForm, QuestionFormData } from './QuestionForm';
 import RecordingForm from './RecordingForm';
-import { Trash2, Edit, Plus, Film, Link as LinkIcon } from 'lucide-react';
+import { Trash2, Edit, Plus, Film, Link as LinkIcon, FileText, Download, BookOpen, Upload } from 'lucide-react';
 import { toast } from '@/components/ui/toast';
 
 // --- Schemas ---
@@ -47,16 +47,23 @@ const updateQuestion = async ({ quizId, questionId, data }: { quizId: string; qu
 };
 const deleteQuestion = async ({ quizId, questionId }: { quizId: string; questionId: string }) => (await axios.delete(`/api/quizzes/${quizId}/questions/${questionId}`)).data;
 
+const fetchTutorials = async (courseId: string): Promise<CourseTutorial[]> => (await axios.get(`/api/courses/${courseId}/tutorials`)).data;
+const addTutorial = async ({ courseId, data }: { courseId: string; data: FormData }) => (await axios.post(`/api/courses/${courseId}/tutorials`, data, { headers: { 'Content-Type': 'multipart/form-data' } })).data;
+const deleteTutorial = async (tutorialId: string) => (await axios.delete(`/api/tutorials/${tutorialId}`)).data;
+
 // --- Main Component ---
 export function ManageContentModal({ isOpen, onClose, course }: { isOpen: boolean; onClose: () => void; course: Course }) {
-  const [activeTab, setActiveTab] = useState<'materials' | 'quizzes'>('materials');
+    const [activeTab, setActiveTab] = useState<'materials' | 'tutorials' | 'quizzes'>('materials');
   const [managingQuestionsOf, setManagingQuestionsOf] = useState<Quiz | null>(null);
   const [showQuestionForm, setShowQuestionForm] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
   const [showRecordingForm, setShowRecordingForm] = useState(false);
-  const [newQuizTitle, setNewQuizTitle] = useState('');
-  
-  const queryClient = useQueryClient();
+    const [newQuizTitle, setNewQuizTitle] = useState('');
+    const [showTutorialForm, setShowTutorialForm] = useState(false);
+    const [tutorialTitle, setTutorialTitle] = useState('');
+    const [tutorialFile, setTutorialFile] = useState<File | null>(null);
+
+    const queryClient = useQueryClient();
 
   // --- Materials Management Hooks ---
   const { register: registerMaterial, handleSubmit: handleMaterialSubmit } = useForm<MaterialFormData>({
@@ -104,13 +111,45 @@ export function ManageContentModal({ isOpen, onClose, course }: { isOpen: boolea
             createQuestionMutation.mutate({ quizId, data });
         }
     };
-  const handleDeleteQuestion = (questionId: string) => { if (window.confirm("Delete this question?")) deleteQuestionMutation.mutate({ quizId: managingQuestionsOf!.id, questionId }); };
+        const handleDeleteQuestion = (questionId: string) => { if (window.confirm("Delete this question?")) deleteQuestionMutation.mutate({ quizId: managingQuestionsOf!.id, questionId }); };
+
+    // --- Tutorial Hooks ---
+    const { data: tutorials } = useQuery<CourseTutorial[]>({
+        queryKey: ['tutorials', course.id],
+        queryFn: () => fetchTutorials(course.id),
+        enabled: isOpen && activeTab === 'tutorials',
+    });
+    const addTutorialMutation = useMutation({
+        mutationFn: addTutorial,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['tutorials', course.id] });
+            setShowTutorialForm(false);
+            setTutorialTitle('');
+            setTutorialFile(null);
+            toast.success('Tutorial uploaded');
+        },
+        onError: (error: AxiosError<{ error?: string }>) => toast.error(error.response?.data?.error || error.message),
+    });
+    const deleteTutorialMutation = useMutation({
+        mutationFn: deleteTutorial,
+        onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['tutorials', course.id] }); toast.info('Tutorial deleted'); },
+        onError: (error: AxiosError<{ error?: string }>) => toast.error(error.response?.data?.error || error.message),
+    });
+    const handleAddTutorial = () => {
+        if (!tutorialTitle.trim()) return toast.warning('Please enter a title.');
+        if (!tutorialFile) return toast.warning('Please select a file to upload.');
+        const fd = new FormData();
+        fd.append('title', tutorialTitle.trim());
+        fd.append('file', tutorialFile);
+        addTutorialMutation.mutate({ courseId: course.id, data: fd });
+    };
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={`Manage Content for: ${course.title}`} size="4xl">
         <div className="border-b border-gray-200">
             <nav className="-mb-px flex space-x-8">
                 <button onClick={() => setActiveTab('materials')} className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'materials' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>Materials</button>
+                <button onClick={() => setActiveTab('tutorials')} className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'tutorials' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>Tutorials</button>
                 <button onClick={() => setActiveTab('quizzes')} className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'quizzes' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>Quizzes</button>
             </nav>
         </div>
@@ -151,7 +190,107 @@ export function ManageContentModal({ isOpen, onClose, course }: { isOpen: boolea
                 </div>
             )}
 
+            {activeTab === 'tutorials' && (
+                <div className="space-y-6">
+                    {/* Upload form */}
+                    {showTutorialForm ? (
+                        <div className="bg-gray-50 border rounded-lg p-4 space-y-4">
+                            <h3 className="text-lg font-medium text-gray-900 flex items-center">
+                                <BookOpen className="w-5 h-5 mr-2 text-blue-600" /> Add Tutorial
+                            </h3>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
+                                <input
+                                    type="text"
+                                    value={tutorialTitle}
+                                    onChange={(e) => setTutorialTitle(e.target.value)}
+                                    placeholder="e.g., Chapter 3 — Photosynthesis Notes"
+                                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">File (PDF or image, max 25 MB)</label>
+                                <input
+                                    type="file"
+                                    accept="application/pdf,image/png,image/jpeg,image/webp"
+                                    onChange={(e) => setTutorialFile(e.target.files?.[0] ?? null)}
+                                    className="block w-full text-sm text-gray-600 file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                                />
+                                {tutorialFile && <p className="mt-1 text-xs text-gray-500">Selected: {tutorialFile.name}</p>}
+                            </div>
+                            <div className="flex gap-2 justify-end">
+                                <button
+                                    onClick={() => { setShowTutorialForm(false); setTutorialTitle(''); setTutorialFile(null); }}
+                                    className="btn-secondary"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleAddTutorial}
+                                    disabled={addTutorialMutation.isPending}
+                                    className="btn-primary flex items-center"
+                                >
+                                    <Upload className="w-4 h-4 mr-2" />
+                                    {addTutorialMutation.isPending ? 'Uploading...' : 'Upload'}
+                                </button>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="flex justify-between items-center">
+                            <h3 className="text-lg font-medium text-gray-900 flex items-center">
+                                <BookOpen className="w-5 h-5 mr-2 text-blue-600" /> Course Tutorials
+                            </h3>
+                            <button onClick={() => setShowTutorialForm(true)} className="btn-primary flex items-center">
+                                <Plus className="w-4 h-4 mr-2" /> Add Tutorial
+                            </button>
+                        </div>
+                    )}
+
+                    {/* Tutorial list */}
+                    {!showTutorialForm && (
+                        <div className="space-y-3">
+                            {tutorials?.length === 0 && (
+                                <p className="text-center text-sm text-gray-500 py-6">No tutorials added yet.</p>
+                            )}
+                            {tutorials?.map(tute => (
+                                <div key={tute.id} className="p-3 border rounded-md flex justify-between items-center bg-gray-50 gap-2">
+                                    <div className="flex items-center gap-3 min-w-0">
+                                        <FileText className="w-5 h-5 text-red-500 flex-shrink-0" />
+                                        <div className="min-w-0">
+                                            <p className="font-medium text-gray-700 truncate">{tute.title}</p>
+                                            <p className="text-xs text-gray-400">
+                                                {new Date(tute.createdAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-1 flex-shrink-0">
+                                        <a
+                                            href={tute.fileUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="p-2 text-gray-500 hover:text-blue-600"
+                                            title="Open file"
+                                        >
+                                            <Download className="w-4 h-4" />
+                                        </a>
+                                        <button
+                                            onClick={() => { if (window.confirm('Delete this tutorial?')) deleteTutorialMutation.mutate(tute.id); }}
+                                            className="p-2 text-gray-500 hover:text-red-600"
+                                            title="Delete"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
+
             {activeTab === 'quizzes' && (
+                  <div>
+                    {managingQuestionsOf ? (
                   <div>
                     {managingQuestionsOf ? (
                         <div>

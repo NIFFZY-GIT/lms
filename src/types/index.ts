@@ -31,8 +31,17 @@ export interface Course {
   courseType: CourseType;
   recordings?: Recording[];
   quizzes?: Quiz[];
+  tutorials?: CourseTutorial[];
 }
 
+// Represents a single uploaded tutorial document for a course.
+export interface CourseTutorial {
+  id: string;
+  title: string;
+  fileUrl: string;
+  courseId: string;
+  createdAt: string;
+}
 // Represents a single uploaded video recording for a course.
 export interface Recording {
   id: string;
