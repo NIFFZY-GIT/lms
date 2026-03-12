@@ -9,7 +9,8 @@ async function getCourses(): Promise<Course[]> {
   try {
     const baseUrl = await getBaseUrl();
     const res = await fetch(`${baseUrl}/api/courses`, { 
-      cache: 'no-store' // Always fetch the latest list of courses
+      cache: 'force-cache', // Cache courses for better performance
+      next: { revalidate: 300 } // Revalidate every 5 minutes
     });
     
     if (!res.ok) {

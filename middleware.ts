@@ -15,15 +15,11 @@ export default function middleware(request: NextRequest) {
     url.pathname = `/en${pathname}`;
     return NextResponse.redirect(url);
   }
-  // Run intl middleware
-  const response = intlMiddleware(request);
-  
-  // Add pathname header for layout to detect auth pages
-  response.headers.set('x-pathname', pathname);
-  
-  return response;
+  // Run intl middleware for locale routing
+  return intlMiddleware(request);
 }
 
 export const config = {
-  matcher: ['/', '/(si|en)/:path*', '/((?!api|_next/static|_next/image|favicon.ico|uploads/).*)'],
+  // Skip API, Next internals and file assets to reduce middleware overhead.
+  matcher: ['/((?!api|_next|favicon.ico|uploads/|.*\\..*).*)'],
 };

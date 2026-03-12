@@ -41,7 +41,7 @@ export function CourseCard({ course }: CourseCardProps) {
           <p className="text-gray-600 text-sm leading-relaxed flex-grow mb-4">{course.description}</p>
           <p className="text-sm text-gray-500 mb-4"><strong>Tutor:</strong> {course.tutor || 'N/A'}</p>
           <div className="mt-auto flex justify-between items-center pt-4 border-t border-gray-100">
-            <p className="text-2xl font-bold text-gray-800">{formatCurrency(course.price)}</p>
+            <p className="text-2xl font-bold text-gray-800">{course.price === 0 ? 'Free' : formatCurrency(course.price)}</p>
             <span className="btn-primary text-sm">View Details</span>
           </div>
         </div>

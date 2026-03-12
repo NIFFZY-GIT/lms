@@ -29,13 +29,15 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ recor
         // Delete the record from the database
         await db.query('DELETE FROM "Recording" WHERE id = $1', [recordingId]);
 
-        // Delete the actual file from the public folder
-        try {
-            const filePath = path.join(process.cwd(), 'public', videoUrl);
-            await unlink(filePath);
-        } catch (fileError) {
-            console.error("Failed to delete file from disk, but DB record was removed:", fileError);
-            // Don't throw an error to the user, as the main goal (DB deletion) succeeded.
+        // Delete local uploaded files only. External URLs do not map to the local filesystem.
+        if (typeof videoUrl === 'string' && videoUrl.startsWith('/uploads/')) {
+            try {
+                const filePath = path.join(process.cwd(), 'public', videoUrl);
+                await unlink(filePath);
+            } catch (fileError) {
+                console.error("Failed to delete file from disk, but DB record was removed:", fileError);
+                // Don't throw an error to the user, as the main goal (DB deletion) succeeded.
+            }
         }
 
         return new NextResponse(null, { status: 204 });

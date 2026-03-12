@@ -32,19 +32,43 @@ export async function POST(req: Request, { params }: { params: Promise<{ courseI
         const formData = await req.formData();
 
         const title = formData.get('title') as string;
-    const videoFile = formData.get('video') as File | null;
+        const recordingType = (formData.get('recordingType') as string | null) ?? 'file';
+        const videoFile = formData.get('video') as File | null;
+        const videoLink = (formData.get('videoLink') as string | null)?.trim() || null;
 
-                if (!title || !videoFile) {
-            return NextResponse.json({ error: 'Title and video file are required.' }, { status: 400 });
+        if (!title) {
+            return NextResponse.json({ error: 'Title is required.' }, { status: 400 });
         }
-                try {
-                    assertFile(videoFile, VIDEO_500MB, 'video');
-                } catch (e) {
-                    const message = e instanceof Error ? e.message : 'Invalid file';
-                    return NextResponse.json({ error: message }, { status: 400 });
-                }
 
-    const { publicPath: videoUrl } = await saveUploadFile(videoFile, 'recordings');
+        let videoUrl = '';
+        if (recordingType === 'link') {
+            if (!videoLink) {
+                return NextResponse.json({ error: 'Recording link is required.' }, { status: 400 });
+            }
+            try {
+                const url = new URL(videoLink);
+                if (!['http:', 'https:'].includes(url.protocol)) {
+                    return NextResponse.json({ error: 'Recording link must use http or https.' }, { status: 400 });
+                }
+                videoUrl = videoLink;
+            } catch {
+                return NextResponse.json({ error: 'Recording link is invalid.' }, { status: 400 });
+            }
+        } else {
+            if (!videoFile) {
+                return NextResponse.json({ error: 'Video file is required.' }, { status: 400 });
+            }
+            try {
+                assertFile(videoFile, VIDEO_500MB, 'video');
+            } catch (e) {
+                const message = e instanceof Error ? e.message : 'Invalid file';
+                return NextResponse.json({ error: message }, { status: 400 });
+            }
+
+            const uploadResult = await saveUploadFile(videoFile, 'recordings');
+            videoUrl = uploadResult.publicPath;
+        }
+
         const recordingId = uuidv4();
 
         const sql = 'INSERT INTO "Recording" (id, title, "videoUrl", "courseId") VALUES ($1, $2, $3, $4) RETURNING *;';

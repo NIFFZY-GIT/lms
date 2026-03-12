@@ -37,6 +37,7 @@ export default function AdminCoursesPage() {
   const [isCourseModalOpen, setIsCourseModalOpen] = useState(false);
   const [isContentModalOpen, setIsContentModalOpen] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
+  const [pricingType, setPricingType] = useState<'PAID' | 'FREE'>('PAID');
   const queryClient = useQueryClient();
   
   const { data: courses, isLoading } = useQuery<Course[]>({ queryKey: ['courses'], queryFn: fetchCourses });
@@ -60,15 +61,30 @@ export default function AdminCoursesPage() {
   const updateMutation = useMutation({ mutationFn: updateCourse, ...mutationOptions });
   const deleteMutation = useMutation({ mutationFn: deleteCourse, onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['courses'] }); } });
 
-  const openModalForCreate = () => { setSelectedCourse(null); reset({ title: '', description: '', price: 0, tutor: '', whatsappGroupLink: '' }); setIsCourseModalOpen(true); };
-  const openModalForEdit = (course: Course) => { setSelectedCourse(course); setValue('title', course.title); setValue('description', course.description); setValue('price', course.price); setValue('tutor', course.tutor || ''); setValue('whatsappGroupLink', course.whatsappGroupLink || ''); setIsCourseModalOpen(true); };
+  const openModalForCreate = () => {
+    setSelectedCourse(null);
+    setPricingType('PAID');
+    reset({ title: '', description: '', price: 0, tutor: '', whatsappGroupLink: '' });
+    setIsCourseModalOpen(true);
+  };
+  const openModalForEdit = (course: Course) => {
+    setSelectedCourse(course);
+    setPricingType(course.price === 0 ? 'FREE' : 'PAID');
+    setValue('title', course.title);
+    setValue('description', course.description);
+    setValue('price', course.price);
+    setValue('tutor', course.tutor || '');
+    setValue('whatsappGroupLink', course.whatsappGroupLink || '');
+    setIsCourseModalOpen(true);
+  };
   const openContentManager = (course: Course) => { setSelectedCourse(course); setIsContentModalOpen(true); };
   
   const onSubmit = (data: CourseFormData) => {
     const formData = new FormData();
     formData.append('title', data.title);
     formData.append('description', data.description);
-    formData.append('price', String(data.price));
+    const normalizedPrice = pricingType === 'FREE' ? 0 : data.price;
+    formData.append('price', String(normalizedPrice));
     if (data.tutor) formData.append('tutor', data.tutor);
     if (data.whatsappGroupLink) formData.append('whatsappGroupLink', data.whatsappGroupLink);
     if (data.image && data.image.length > 0) {
@@ -111,7 +127,7 @@ export default function AdminCoursesPage() {
                     </div>
                     <div className="min-w-0">
                       <h3 className="font-bold text-lg text-gray-800 truncate">{course.title}</h3>
-                      <p className="text-sm font-semibold text-green-600 whitespace-nowrap">{formatCurrency(course.price)}</p>
+                      <p className="text-sm font-semibold text-green-600 whitespace-nowrap">{course.price === 0 ? 'Free' : formatCurrency(course.price)}</p>
                     </div>
                   </div>
                   <div className="w-full sm:w-auto grid grid-cols-3 gap-2">
@@ -138,7 +154,24 @@ export default function AdminCoursesPage() {
             {errors.description && <p className="text-sm text-red-600 mt-1">{errors.description.message}</p>}
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input label="Price (LKR)" registration={register('price')} error={errors.price?.message} type="number" step="0.01" />
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Pricing</label>
+              <select
+                value={pricingType}
+                onChange={(e) => {
+                  const value = e.target.value as 'PAID' | 'FREE';
+                  setPricingType(value);
+                  if (value === 'FREE') {
+                    setValue('price', 0, { shouldValidate: true });
+                  }
+                }}
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="PAID">Paid</option>
+                <option value="FREE">Free</option>
+              </select>
+            </div>
+            <Input label="Price (LKR)" registration={register('price')} error={errors.price?.message} type="number" step="0.01" disabled={pricingType === 'FREE'} />
             <Input label="WhatsApp Group Link" registration={register('whatsappGroupLink')} error={errors.whatsappGroupLink?.message} />
           </div>
           <div>

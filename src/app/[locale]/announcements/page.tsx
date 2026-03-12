@@ -5,14 +5,16 @@ import { Megaphone } from 'lucide-react';
 import Image from 'next/image';
 import { getBaseUrl } from '@/lib/server-base-url';
 
-// Mark this page as dynamically rendered
-export const dynamic = 'force-dynamic';
+// Cache and refresh periodically for smoother navigations.
+export const revalidate = 300;
 
 // This function runs on the server to fetch the data
 async function getAnnouncements(): Promise<Announcement[]> {
   try {
     const baseUrl = await getBaseUrl();
-    const res = await fetch(`${baseUrl}/api/announcements`, { cache: 'no-store' });
+    const res = await fetch(`${baseUrl}/api/announcements`, {
+      next: { revalidate: 300 },
+    });
     if (!res.ok) {
       console.error("Failed to fetch announcements:", res.statusText);
       return [];

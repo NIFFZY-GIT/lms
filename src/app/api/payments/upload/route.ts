@@ -14,9 +14,21 @@ export async function POST(req: Request) {
     const courseId = formData.get('courseId') as string;
     const receiptFile = formData.get('receipt') as File | null;
 
-    if (!courseId || !receiptFile) {
-      return NextResponse.json({ error: 'Course ID and receipt file are required.' }, { status: 400 });
+    if (!courseId) {
+      return NextResponse.json({ error: 'Course ID is required.' }, { status: 400 });
     }
+
+    const courseResult = await db.query<{ id: string; title: string; price: string }>(
+      'SELECT id, title, price FROM "Course" WHERE id = $1',
+      [courseId]
+    );
+
+    if (courseResult.rows.length === 0) {
+      return NextResponse.json({ error: 'Course not found.' }, { status: 404 });
+    }
+
+    const course = courseResult.rows[0];
+    const coursePrice = parseFloat(course.price);
 
     // --- THIS IS THE NEW LOGIC ---
     // Check if a payment record already exists for this user and course.
@@ -45,6 +57,20 @@ export async function POST(req: Request) {
     // --- END OF NEW LOGIC ---
 
 
+    if (coursePrice === 0) {
+      const paymentId = uuidv4();
+      const freeEnrollmentSql = `
+        INSERT INTO "Payment" (id, "studentId", "courseId", "receiptUrl", status)
+        VALUES ($1, $2, $3, NULL, 'APPROVED') RETURNING *;
+      `;
+      const freeEnrollmentResult = await db.query(freeEnrollmentSql, [paymentId, user.id, courseId]);
+      return NextResponse.json(freeEnrollmentResult.rows[0], { status: 201 });
+    }
+
+    if (!receiptFile) {
+      return NextResponse.json({ error: 'Receipt file is required for paid courses.' }, { status: 400 });
+    }
+
     // Validate and proceed with the new file upload and record creation
     try {
       assertFile(receiptFile, IMAGE_10MB, 'receipt');
@@ -65,8 +91,7 @@ export async function POST(req: Request) {
       const adminEmails = adminResult.rows.map(row => row.email).filter((email): email is string => Boolean(email));
 
       if (adminEmails.length) {
-        const courseResult = await db.query<{ title: string | null }>('SELECT title FROM "Course" WHERE id = $1', [courseId]);
-        const courseTitle = courseResult.rows[0]?.title ?? 'a course';
+        const courseTitle = course.title ?? 'a course';
         await sendReceiptUploadedEmailToAdmins(adminEmails, {
           studentName: user.name ?? 'A student',
           studentEmail: user.email,

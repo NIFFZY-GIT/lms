@@ -4,13 +4,18 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios, { AxiosError } from 'axios';
 import { useParams, useRouter } from 'next/navigation';
 import { Container } from '@/components/ui/Container';
-import { Video, Mic, HelpCircle, AlertTriangle, ArrowLeft, LogOut } from 'lucide-react';
+import { Video, Mic, HelpCircle, AlertTriangle, ArrowLeft, LogOut, MessageCircle } from 'lucide-react';
 import Link from 'next/link';
 import { Course, Recording } from '@/types';
 import { EnrollmentForm } from '@/components/student/EnrollmentForm';
 import { toast } from '@/components/ui/toast';
 import { useConfirm } from '@/components/ui/confirm-dialog';
 import { formatCurrency } from '@/lib/utils';
+
+const isFileVideoUrl = (url?: string) => {
+  if (!url) return false;
+  return url.startsWith('/uploads/') || /\.(mp4|webm|ogg)(\?.*)?$/i.test(url);
+};
 
 // --- Type Definition for this page's data ---
 interface CourseDetails extends Course {
@@ -117,10 +122,19 @@ export default function StudentCoursePage() {
                         {course.recordings.map(rec => (
                             <div key={rec.id}>
                                 <h3 className="font-semibold text-gray-700 mb-2">{rec.title}</h3>
-                                <video controls controlsList="nodownload" onContextMenu={(e) => e.preventDefault()} className="w-full rounded-lg aspect-video bg-black">
-                                    <source src={rec.videoUrl} type="video/mp4" />
-                                    Your browser does not support the video tag.
-                                </video>
+                                {isFileVideoUrl(rec.videoUrl) ? (
+                                  <video controls controlsList="nodownload" onContextMenu={(e) => e.preventDefault()} className="w-full rounded-lg aspect-video bg-black">
+                                      <source src={rec.videoUrl} type="video/mp4" />
+                                      Your browser does not support the video tag.
+                                  </video>
+                                ) : (
+                                  <div className="p-4 rounded-lg border border-blue-100 bg-blue-50">
+                                    <p className="text-sm text-blue-900 mb-2">This recording is provided as an external link.</p>
+                                    <a href={rec.videoUrl} target="_blank" rel="noopener noreferrer" className="text-sm font-semibold text-blue-700 hover:underline">
+                                      Open recording link
+                                    </a>
+                                  </div>
+                                )}
                             </div>
                         ))}
                     </div>
@@ -130,6 +144,17 @@ export default function StudentCoursePage() {
                 <section className="bg-white p-6 rounded-lg shadow-md">
                   <h2 className="text-2xl font-bold text-gray-800 flex items-center mb-4"><Mic className="w-6 h-6 mr-3 text-blue-600" />Live Session Link</h2>
                   {course.zoomLink ? (<a href={course.zoomLink} target="_blank" rel="noopener noreferrer" className="font-medium text-blue-600 hover:underline">Join the next live session on Zoom</a>) : (<p className="text-gray-500">The Zoom link has not been posted yet.</p>)}
+                </section>
+
+                <section className="bg-white p-6 rounded-lg shadow-md">
+                  <h2 className="text-2xl font-bold text-gray-800 flex items-center mb-4"><MessageCircle className="w-6 h-6 mr-3 text-green-600" />WhatsApp Group</h2>
+                  {course.whatsappGroupLink ? (
+                    <a href={course.whatsappGroupLink} target="_blank" rel="noopener noreferrer" className="font-medium text-green-700 hover:underline">
+                      Join course WhatsApp group
+                    </a>
+                  ) : (
+                    <p className="text-gray-500">WhatsApp group link has not been added yet.</p>
+                  )}
                 </section>
               </div>
               
@@ -174,8 +199,18 @@ export default function StudentCoursePage() {
           </button>
           <div className="bg-white p-8 rounded-lg shadow-xl">
             <h1 className="text-3xl font-bold mb-2">{course?.title}</h1>
-            {course && <p className="text-2xl font-semibold text-indigo-600 mb-6">{formatCurrency(course.price)}</p>}
+            {course && <p className="text-2xl font-semibold text-indigo-600 mb-6">{course.price === 0 ? 'Free' : formatCurrency(course.price)}</p>}
             <p className="text-gray-600 mb-2"><strong>Tutor:</strong> {course?.tutor || 'N/A'}</p>
+            <p className="text-gray-600 mb-2">
+              <strong>WhatsApp Group:</strong>{' '}
+              {course?.whatsappGroupLink ? (
+                <a href={course.whatsappGroupLink} target="_blank" rel="noopener noreferrer" className="text-green-700 hover:underline font-medium">
+                  Join group
+                </a>
+              ) : (
+                'Not available'
+              )}
+            </p>
             <p className="text-gray-600 mb-8">{course?.description}</p>
             
             <hr className="my-8" />
@@ -192,12 +227,12 @@ export default function StudentCoursePage() {
                     <p>An administrator has reviewed your submission and it could not be approved. Please upload a new, correct receipt below to try again.</p>
                 </div>
                 <h2 className="text-xl font-bold mb-4">Re-submit for Enrollment</h2>
-                {course && <EnrollmentForm courseId={course.id} />}
+                {course && <EnrollmentForm courseId={course.id} isFree={course.price === 0} />}
               </div>
             ) : (
               <div>
                 <h2 className="text-xl font-bold mb-4">Enroll in this Course</h2>
-                {course && <EnrollmentForm courseId={course.id} />}
+                {course && <EnrollmentForm courseId={course.id} isFree={course.price === 0} />}
               </div>
             )}
           </div>
