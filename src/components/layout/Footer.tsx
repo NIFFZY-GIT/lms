@@ -3,8 +3,13 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Container } from '@/components/ui/Container';
 import { Facebook, Youtube, Mail, MapPin, Phone, ChevronRight } from 'lucide-react';
+import { usePathname } from 'next/navigation';
 
 export function Footer() {
+  const pathname = usePathname();
+  const localeMatch = /^\/(en|si)(\/|$)/.exec(pathname || '');
+  const locale = localeMatch?.[1] ?? 'en';
+
   const socialLinks = [
     { name: 'E-mail', href: 'mailto:info@thakshilawa.lk', icon: Mail, color: 'hover:bg-red-500 hover:border-red-500' },
     { name: 'Facebook', href: 'https://www.facebook.com/profile.php?id=61581116852674', icon: Facebook, color: 'hover:bg-blue-600 hover:border-blue-600' },
@@ -12,16 +17,16 @@ export function Footer() {
   ];
 
   const quickLinks = [
-    { name: 'Home', href: '/en' },
-    { name: 'Courses', href: '/en/courses' },
-    { name: 'Announcements', href: '/en/announcements' },
-    { name: 'Past Papers', href: '/en/pastpapers' },
+    { name: 'Home', href: `/${locale}` },
+    { name: 'Courses', href: `/${locale}/courses` },
+    { name: 'Announcements', href: `/${locale}/announcements` },
+    { name: 'Past Papers', href: `/${locale}/pastpapers` },
   ];
 
   const legalLinks = [
-    { name: 'Privacy Policy', href: '/en/privacy-policy' },
-    { name: 'Terms of Service', href: '/en/terms-of-service' },
-    { name: 'Refund Policy', href: '/en/refund-policy' },
+    { name: 'Privacy Policy', href: `/${locale}/privacy-policy` },
+    { name: 'Terms of Service', href: `/${locale}/terms-of-service` },
+    { name: 'Refund Policy', href: `/${locale}/refund-policy` },
   ];
 
   return (
@@ -89,7 +94,7 @@ export function Footer() {
           <div className="grid grid-cols-1 gap-10 py-16 md:grid-cols-2 lg:grid-cols-12 lg:py-20">
             {/* Brand & Mission Column */}
             <div className="lg:col-span-4">
-              <Link href="/en" className="inline-block mb-6 group">
+              <Link href={`/${locale}`} className="inline-block mb-6 group">
                 <Image 
                   src="/logo.png" 
                   alt="Online Thakshilawa Logo" 

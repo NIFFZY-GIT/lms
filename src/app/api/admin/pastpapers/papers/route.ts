@@ -11,6 +11,35 @@ function toTitleFromFileName(name: string) {
   return base.replace(/[_-]+/g, ' ').trim() || 'Past Paper';
 }
 
+export async function GET(req: Request) {
+  try {
+    await getServerUser([Role.ADMIN]);
+    const { searchParams } = new URL(req.url);
+    const subjectId = (searchParams.get('subjectId') || '').trim();
+
+    if (subjectId) {
+      const bySubject = await db.query(
+        `SELECT id, title, medium, term, year, "fileUrl", "createdAt"::text as "createdAt"
+         FROM "PastPaper"
+         WHERE "subjectId" = $1
+         ORDER BY year DESC, "createdAt" DESC`,
+        [subjectId]
+      );
+      return NextResponse.json(bySubject.rows);
+    }
+
+    const result = await db.query(
+      `SELECT id, title, medium, term, year, "fileUrl", "subjectId", "createdAt"::text as "createdAt"
+       FROM "PastPaper"
+       ORDER BY year DESC, "createdAt" DESC`
+    );
+    return NextResponse.json(result.rows);
+  } catch (error) {
+    console.error('Failed to fetch past papers:', error);
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+}
+
 export async function POST(req: Request) {
   let client: PoolClient | undefined;
 

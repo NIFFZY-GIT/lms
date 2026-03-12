@@ -95,22 +95,38 @@ export default function AdminPastPapersPage() {
 
   const uploadMutation = useMutation({
     mutationFn: async () => {
-      const fd = new FormData();
-      fd.append('subjectId', selectedSubjectId);
-      fd.append('medium', medium);
-      fd.append('term', term);
-      fd.append('year', year);
-      if (files) {
-        Array.from(files).forEach(f => fd.append('files', f));
+      const selectedFiles = files ? Array.from(files) : [];
+      if (!selectedFiles.length) {
+        throw new Error('Please select at least one PDF file.');
       }
-      return (await axios.post('/api/admin/pastpapers/papers', fd)).data as { created: unknown[] };
+
+      let uploadedCount = 0;
+      for (const file of selectedFiles) {
+        const fd = new FormData();
+        fd.append('subjectId', selectedSubjectId);
+        fd.append('medium', medium);
+        fd.append('term', term);
+        fd.append('year', year);
+        fd.append('files', file);
+
+        const response = await axios.post('/api/admin/pastpapers/papers', fd);
+        uploadedCount += Array.isArray(response.data?.created) ? response.data.created.length : 0;
+      }
+
+      return { uploadedCount };
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       setFiles(null);
       queryClient.invalidateQueries({ queryKey: ['pp-tree'] });
-      toast.success('Past papers uploaded');
+      toast.success(`${result.uploadedCount} past paper(s) uploaded`);
     },
-    onError: (e: AxiosError<{ error?: string }>) => toast.error(e.response?.data?.error || e.message),
+    onError: (e: AxiosError<{ error?: string }>) => {
+      if (e.response?.status === 413) {
+        toast.error('Upload is too large for the server/proxy limit. Try smaller files or ask hosting admin to increase upload limit.');
+        return;
+      }
+      toast.error(e.response?.data?.error || e.message);
+    },
   });
 
   // Update mutations
@@ -533,7 +549,7 @@ export default function AdminPastPapersPage() {
             <Upload className="w-4 h-4 mr-2" /> {uploadMutation.isPending ? 'Uploading…' : 'Upload'}
           </button>
 
-          <p className="text-xs text-gray-500">Only PDF files are accepted.</p>
+          <p className="text-xs text-gray-500">Only PDF files are accepted. Files are uploaded one-by-one to avoid large request payloads.</p>
         </div>
       </div>
 
