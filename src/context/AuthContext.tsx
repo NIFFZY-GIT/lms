@@ -64,8 +64,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [router]);
 
-  // Inactivity auto-logout: 5 minutes
-  const INACTIVITY_MS = 5 * 60 * 1000;
+  // Inactivity auto-logout: 30 minutes
+  const INACTIVITY_MS = 30 * 60 * 1000;
   const timerRef = useRef<number | null>(null);
 
   const clearInactivityTimer = useCallback(() => {

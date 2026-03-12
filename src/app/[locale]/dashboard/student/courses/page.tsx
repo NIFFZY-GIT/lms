@@ -8,15 +8,15 @@ import axios from 'axios';
 import { Course } from '@/types'; // Import the type
 
 // API fetching function
-const fetchCourses = async (): Promise<Course[]> => {
-  const { data } = await axios.get('/api/courses'); 
+const fetchEnrolledCourses = async (): Promise<Course[]> => {
+  const { data } = await axios.get('/api/student/courses');
   return data;
 };
 
 export default function StudentCoursesPage() {
   const { data: courses, isLoading, isError, error } = useQuery<Course[], Error>({
-    queryKey: ['courses'],
-    queryFn: fetchCourses,
+    queryKey: ['student-enrolled-courses'],
+    queryFn: fetchEnrolledCourses,
   });
 
   if (isLoading) {
@@ -44,7 +44,7 @@ export default function StudentCoursesPage() {
     <main className="bg-gray-50 min-h-screen py-12">
       <Container>
         <h1 className="text-3xl font-bold text-gray-800 mb-8">
-          Available Courses
+          My Enrolled Courses
         </h1>
         {courses && courses.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -54,7 +54,7 @@ export default function StudentCoursesPage() {
           </div>
         ) : (
           <div className="text-center py-16 bg-white rounded-lg shadow-md">
-            <p className="text-gray-600">No courses are available at the moment. Please check back later!</p>
+            <p className="text-gray-600">You are not enrolled in any courses yet.</p>
           </div>
         )}
       </Container>

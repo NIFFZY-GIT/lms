@@ -1,6 +1,6 @@
 import { Container } from '@/components/ui/Container';
 import { fetchPastPapersTree } from '@/lib/pastpapers';
-import { FileDown, Eye, GraduationCap, BookOpen, FileText, Sparkles, Filter, X, Calendar, Globe, Layers } from 'lucide-react';
+import { FileDown, Eye, GraduationCap, BookOpen, FileText, Sparkles, Filter, X, Calendar, Globe, Layers, AlertTriangle } from 'lucide-react';
 
 type SearchParams = { grade?: string; subject?: string; term?: string; year?: string; medium?: string };
 
@@ -12,7 +12,26 @@ export default async function PastPapersPage({
   searchParams?: Promise<SearchParams>;
 }) {
   const sp = (await searchParams) ?? {};
-  const data = await fetchPastPapersTree();
+
+  let data;
+  try {
+    data = await fetchPastPapersTree();
+  } catch (err) {
+    console.error('[PastPapersPage] Failed to load past papers from DB:', err);
+    return (
+      <main className="min-h-[70vh] flex items-center bg-white">
+        <Container className="w-full py-20">
+          <div className="mx-auto max-w-lg rounded-3xl bg-white p-16 text-center shadow-xl">
+            <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-red-100">
+              <AlertTriangle className="h-10 w-10 text-red-500" />
+            </div>
+            <p className="text-xl font-semibold text-slate-900">Could not load past papers</p>
+            <p className="mt-2 text-slate-500">There was a problem fetching the data. Please try again shortly.</p>
+          </div>
+        </Container>
+      </main>
+    );
+  }
 
   const grades = data.grades
     .map(g => ({
