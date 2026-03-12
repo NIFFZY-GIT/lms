@@ -400,16 +400,16 @@ COMMENT ON TABLE "CourseMaterial" IS 'Additional course materials like zoom link
 -- This block is safe to keep in all environments; it only runs if the role exists.
 DO $$
 BEGIN
-    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'lms_app_user') THEN
-        GRANT USAGE ON SCHEMA public TO lms_app_user;
-        GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO lms_app_user;
-        GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA public TO lms_app_user;
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'dbuser') THEN
+        GRANT USAGE ON SCHEMA public TO dbuser;
+        GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO dbuser;
+        GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA public TO dbuser;
 
         ALTER DEFAULT PRIVILEGES IN SCHEMA public
-            GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO lms_app_user;
+            GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO dbuser;
 
         ALTER DEFAULT PRIVILEGES IN SCHEMA public
-            GRANT USAGE, SELECT, UPDATE ON SEQUENCES TO lms_app_user;
+            GRANT USAGE, SELECT, UPDATE ON SEQUENCES TO dbuser;
     END IF;
 END $$;
 

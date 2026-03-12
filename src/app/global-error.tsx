@@ -15,16 +15,44 @@ export default function GlobalError({
 
   return (
     <html lang="en">
-      <body>
+      <body style={{ margin: 0, background: '#f8fafc', color: '#1e293b', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+        <header
+          style={{
+            position: 'sticky',
+            top: 0,
+            zIndex: 40,
+            borderBottom: '1px solid #e2e8f0',
+            background: 'rgba(255,255,255,0.92)',
+            backdropFilter: 'blur(8px)',
+          }}
+        >
+          <div
+            style={{
+              maxWidth: 1100,
+              margin: '0 auto',
+              padding: '16px 24px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 16,
+            }}
+          >
+            <a href="/si" style={{ color: '#0f172a', fontWeight: 700, textDecoration: 'none', fontSize: 18 }}>
+              Online Thakshilawa
+            </a>
+            <nav style={{ display: 'flex', alignItems: 'center', gap: 20, fontSize: 14, fontWeight: 600 }}>
+              <a href="/si" style={{ color: '#475569', textDecoration: 'none' }}>Home</a>
+              <a href="/si/courses" style={{ color: '#475569', textDecoration: 'none' }}>Courses</a>
+              <a href="/si/pastpapers" style={{ color: '#475569', textDecoration: 'none' }}>Past Papers</a>
+            </nav>
+          </div>
+        </header>
         <div
           style={{
-            minHeight: '100vh',
+            minHeight: 'calc(100vh - 73px)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontFamily: 'system-ui, -apple-system, sans-serif',
-            background: '#f8fafc',
-            color: '#1e293b',
             padding: '2rem',
           }}
         >
@@ -72,7 +100,7 @@ export default function GlobalError({
                 Try Again
               </button>
               <a
-                href="/"
+                href="/si"
                 style={{
                   padding: '12px 24px',
                   background: '#fff',
