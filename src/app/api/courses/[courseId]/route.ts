@@ -61,6 +61,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ course
         const title = formData.get('title') as string;
         const description = formData.get('description') as string;
         const price = formData.get('price') as string;
+        const courseType = formData.get('courseType') as string;
         const tutor = formData.get('tutor') as string;
         const zoomLink = formData.get('zoomLink') as string;
         const whatsappGroupLink = formData.get('whatsappGroupLink') as string;
@@ -68,6 +69,13 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ course
         if(title) { fields.push(`title = $${queryIndex++}`); values.push(title); }
         if(description) { fields.push(`description = $${queryIndex++}`); values.push(description); }
         if(price) { fields.push(`price = $${queryIndex++}`); values.push(parseFloat(price)); }
+        if (courseType) {
+            if (courseType !== 'ONE_TIME_PURCHASE' && courseType !== 'SUBSCRIPTION') {
+                return NextResponse.json({ error: 'Invalid course type' }, { status: 400 });
+            }
+            fields.push(`"courseType" = $${queryIndex++}`);
+            values.push(courseType);
+        }
         if(tutor) { fields.push(`tutor = $${queryIndex++}`); values.push(tutor); }
         if(zoomLink) { fields.push(`"zoomLink" = $${queryIndex++}`); values.push(zoomLink); }
         if(whatsappGroupLink) { fields.push(`"whatsappGroupLink" = $${queryIndex++}`); values.push(whatsappGroupLink); }
