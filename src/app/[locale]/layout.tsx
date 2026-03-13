@@ -32,14 +32,16 @@ export default async function RootLayout({ children, params }: { children: React
 
   return (
     <IntlProvider locale={locale} messages={messages}>
-      <Providers>
-        <AuthProvider>
-          <Navbar />
-          <AutoLogoutIndicator />
-          <main id="main-content" className="flex-grow focus:outline-none">{children}</main>
-          <Footer />
-        </AuthProvider>
-      </Providers>
+      <div lang={locale} className="min-h-screen flex flex-col">
+        <Providers>
+          <AuthProvider>
+            <Navbar />
+            <AutoLogoutIndicator />
+            <main id="main-content" className="flex-grow focus:outline-none">{children}</main>
+            <Footer />
+          </AuthProvider>
+        </Providers>
+      </div>
     </IntlProvider>
   );
 }

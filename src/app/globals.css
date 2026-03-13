@@ -255,6 +255,16 @@ html {
   scrollbar-gutter: stable;
 }
 
+/* Sinhala-friendly input rendering in SI locale content */
+[lang="si"] input,
+[lang="si"] textarea,
+[lang="si"] select,
+[lang="si"] [contenteditable="true"] {
+  font-family: var(--font-sinhala), var(--font-jakarta), var(--font-inter), sans-serif;
+  font-feature-settings: "kern" 1;
+  text-rendering: optimizeLegibility;
+}
+
 /* Smooth scrolling for anchor links */
 @media (prefers-reduced-motion: no-preference) {
   html {
