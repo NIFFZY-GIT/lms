@@ -1,8 +1,12 @@
+'use client';
+
 import Link from 'next/link';
 import { Course } from '@/types';
 import Image from 'next/image';
 import { BookOpen, GraduationCap, Globe, UserRound } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
+import { useAuth } from '@/context/AuthContext';
+import { usePathname } from 'next/navigation';
 
 interface CourseCardProps {
   course: Course;
@@ -10,12 +14,21 @@ interface CourseCardProps {
 }
 
 export function CourseCard({ course, locale: localeProp }: CourseCardProps) {
-  const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
+  const { user } = useAuth();
+  const pathname = usePathname();
   const match = pathname.match(/^\/([a-zA-Z-]+)(\/|$)/);
   const locale = localeProp || (match ? match[1] : 'en');
+  const studentCoursePath = `/${locale}/dashboard/student/course/${course.id}`;
+  const href = !user
+    ? `/${locale}/auth/login?callbackUrl=${encodeURIComponent(studentCoursePath)}`
+    : user.role === 'ADMIN'
+      ? `/${locale}/dashboard/admin/courses`
+      : user.role === 'INSTRUCTOR'
+        ? `/${locale}/dashboard/instructor/courses`
+        : studentCoursePath;
 
   return (
-    <Link href={`/${locale}/dashboard/student/course/${course.id}`} className="block h-full group">
+    <Link href={href} className="block h-full group">
       <article className="h-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-all duration-300 group-hover:-translate-y-1 group-hover:shadow-xl">
         <div className="relative h-52 w-full border-b border-slate-100 bg-gradient-to-br from-slate-50 to-cyan-50 lg:h-56">
           {course.imageUrl ? (

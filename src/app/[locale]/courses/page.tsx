@@ -164,8 +164,8 @@ export default async function CoursesPage({
         </div>
 
         <div className="mt-8 lg:hidden">
-          <details className="overflow-hidden rounded-2xl border border-cyan-100 bg-white shadow-lg" open>
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4 sm:p-5">
+          <details className="group overflow-hidden rounded-2xl border border-cyan-100 bg-white shadow-lg [&_summary::-webkit-details-marker]:hidden" open>
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4 outline-none sm:p-5">
               <div className="flex items-center gap-3">
                 <div className="rounded-xl bg-cyan-100 p-2.5 text-cyan-700">
                   <Filter className="h-5 w-5" />
@@ -175,7 +175,7 @@ export default async function CoursesPage({
                   <p className="text-xs text-slate-500">Tap to minimize or expand filters.</p>
                 </div>
               </div>
-              <ChevronDown className="h-4 w-4 text-slate-500" />
+              <ChevronDown className="h-4 w-4 text-slate-500 transition-transform duration-200 group-open:rotate-180" />
             </summary>
             {filterContent}
           </details>
@@ -183,8 +183,8 @@ export default async function CoursesPage({
 
         <div className="mt-8 lg:pl-[320px]">
           <aside className="hidden lg:block lg:fixed lg:left-4 lg:top-1/2 lg:-translate-y-1/2 lg:w-[300px] xl:left-8">
-            <details className="overflow-hidden rounded-2xl border border-cyan-100 bg-white shadow-lg" open>
-              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4">
+            <details className="group max-h-[calc(100vh-2rem)] overflow-y-auto rounded-2xl border border-cyan-100 bg-white shadow-lg [&_summary::-webkit-details-marker]:hidden" open>
+              <summary className="sticky top-0 z-10 flex cursor-pointer list-none items-center justify-between gap-3 border-b border-slate-100 bg-white p-4 outline-none">
                 <div className="flex items-center gap-3">
                   <div className="rounded-xl bg-cyan-100 p-2.5 text-cyan-700">
                     <Filter className="h-5 w-5" />
@@ -194,7 +194,7 @@ export default async function CoursesPage({
                     <p className="text-xs text-slate-500">Click to minimize filters.</p>
                   </div>
                 </div>
-                <ChevronDown className="h-4 w-4 text-slate-500" />
+                <ChevronDown className="h-4 w-4 text-slate-500 transition-transform duration-200 group-open:rotate-180" />
               </summary>
               {filterContent}
             </details>
