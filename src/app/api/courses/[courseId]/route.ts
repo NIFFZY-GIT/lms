@@ -4,10 +4,13 @@ import { getServerUser } from '../../../../lib/auth';
 import { Role } from '../../../../types';
 import { IMAGE_5MB, assertFile } from '@/lib/security';
 import { saveUploadFile, removeUploadByUrl } from '@/lib/uploads';
+import { ensureCourseVisibilityColumn } from '@/lib/course-visibility';
 
 // --- GET function (no changes) ---
 export async function GET(req: Request, { params }: { params: Promise<{ courseId: string }> }) {
   try {
+        await ensureCourseVisibilityColumn();
+
     const user = await getServerUser();
     const { courseId } = await params;
 
@@ -20,6 +23,10 @@ export async function GET(req: Request, { params }: { params: Promise<{ courseId
 
     const paymentResult = await db.query('SELECT status FROM "Payment" WHERE "studentId" = $1 AND "courseId" = $2', [user.id, courseId]);
     const enrollmentStatus = paymentResult.rows[0]?.status || null;
+
+        if (course.isHidden && user.role === Role.STUDENT && enrollmentStatus !== 'APPROVED') {
+            return NextResponse.json({ error: 'Course not found' }, { status: 404 });
+        }
 
     if (enrollmentStatus === 'APPROVED') {
       const recordingsResult = await db.query('SELECT * FROM "Recording" WHERE "courseId" = $1 ORDER BY "createdAt" ASC', [courseId]);
@@ -44,6 +51,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ courseId
 // --- PATCH function (no changes) ---
 export async function PATCH(req: Request, { params }: { params: Promise<{ courseId: string }> }) {
     try {
+        await ensureCourseVisibilityColumn();
+
         const user = await getServerUser([Role.ADMIN, Role.INSTRUCTOR]);
         const { courseId } = await params;
         if (user.role === Role.INSTRUCTOR) {
@@ -54,7 +63,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ course
         const formData = await req.formData();
 
         const fields: string[] = [];
-        const values: (string | number | null)[] = [];
+        const values: (string | number | boolean | null)[] = [];
         let queryIndex = 1;
 
         // Process text fields
@@ -68,6 +77,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ course
         const subject = formData.get('subject');
         const grade = formData.get('grade');
         const medium = formData.get('medium');
+        const isHidden = formData.get('isHidden');
         
         if(title) { fields.push(`title = $${queryIndex++}`); values.push(title); }
         if(description) { fields.push(`description = $${queryIndex++}`); values.push(description); }
@@ -93,6 +103,13 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ course
         if (medium !== null) {
             fields.push(`medium = $${queryIndex++}`);
             values.push(typeof medium === 'string' && medium.trim() ? medium.trim() : null);
+        }
+        if (isHidden !== null) {
+            const normalizedIsHidden = typeof isHidden === 'string'
+                ? ['1', 'true', 'yes', 'on'].includes(isHidden.toLowerCase())
+                : Boolean(isHidden);
+            fields.push(`"isHidden" = $${queryIndex++}`);
+            values.push(normalizedIsHidden);
         }
 
     const imageFile = formData.get('image') as File | null;
@@ -149,6 +166,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ course
 // --- NEW: DELETE function ---
 export async function DELETE(req: Request, { params }: { params: Promise<{ courseId: string }> }) {
     try {
+        await ensureCourseVisibilityColumn();
+
         const user = await getServerUser([Role.ADMIN, Role.INSTRUCTOR]);
         const { courseId } = await params;
         if (user.role === Role.INSTRUCTOR) {

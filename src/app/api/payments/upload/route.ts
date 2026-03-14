@@ -7,6 +7,7 @@ import { IMAGE_OR_PDF_10MB, assertFile } from '@/lib/security';
 import { saveUploadFile, removeUploadByUrl } from '@/lib/uploads';
 import { sendReceiptUploadedEmailToAdmins } from '@/lib/notify';
 import { lastDayOfMonth } from 'date-fns';
+import { ensureCourseVisibilityColumn } from '@/lib/course-visibility';
 
 // Helper: Get the last day of the current month (end of day)
 function getSubscriptionExpiryDate(): Date {
@@ -18,6 +19,8 @@ function getSubscriptionExpiryDate(): Date {
 
 export async function POST(req: Request) {
   try {
+    await ensureCourseVisibilityColumn();
+
     const user = await getServerUser(Role.STUDENT);
     const formData = await req.formData();
     const courseId = formData.get('courseId') as string;
@@ -27,8 +30,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Course ID is required.' }, { status: 400 });
     }
 
-    const courseResult = await db.query<{ id: string; title: string; price: string; courseType: string }>(
-      'SELECT id, title, price, "courseType" FROM "Course" WHERE id = $1',
+    const courseResult = await db.query<{ id: string; title: string; price: string; courseType: string; isHidden: boolean }>(
+      'SELECT id, title, price, "courseType", "isHidden" FROM "Course" WHERE id = $1',
       [courseId]
     );
 
@@ -37,6 +40,10 @@ export async function POST(req: Request) {
     }
 
     const course = courseResult.rows[0];
+    if (course.isHidden) {
+      return NextResponse.json({ error: 'This course is currently hidden and cannot be enrolled in.' }, { status: 403 });
+    }
+
     const coursePrice = parseFloat(course.price);
     const courseType = course.courseType || 'ONE_TIME_PURCHASE';
     const isSubscription = courseType === 'SUBSCRIPTION';

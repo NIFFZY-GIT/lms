@@ -9,7 +9,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Course } from '@/types';
 import { Input } from '@/components/ui/Input';
-import { Plus, Edit, Trash2, BookCopy, RefreshCw, Loader2, AlertTriangle } from 'lucide-react';
+import { Plus, Edit, Trash2, BookCopy, RefreshCw, Loader2, AlertTriangle, Eye, EyeOff } from 'lucide-react';
 import { ManageContentModal } from '@/components/admin/ManageContentModal';
 import { formatCurrency } from '@/lib/utils';
 import Image from 'next/image';
@@ -56,6 +56,11 @@ const fetchPayments = async (): Promise<Payment[]> => (await axios.get('/api/pay
 const createCourse = async (data: FormData): Promise<Course> => (await axios.post('/api/courses', data)).data;
 const updateCourse = async ({ id, data }: { id: string; data: FormData }): Promise<Course> => (await axios.patch(`/api/courses/${id}`, data)).data;
 const deleteCourse = async (id: string): Promise<void> => (await axios.delete(`/api/courses/${id}`)).data;
+const updateCourseVisibility = async ({ id, isHidden }: { id: string; isHidden: boolean }): Promise<Course> => {
+  const formData = new FormData();
+  formData.append('isHidden', String(isHidden));
+  return (await axios.patch(`/api/courses/${id}`, formData)).data;
+};
 const forceExtendSubscription = ({ paymentId, force }: { paymentId: string; force?: boolean }) =>
   axios.patch(`/api/payments/${paymentId}/force-extend`, { force: force ?? false });
 
@@ -99,6 +104,16 @@ export default function AdminCoursesPage() {
   const createMutation = useMutation({ mutationFn: createCourse, ...mutationOptions });
   const updateMutation = useMutation({ mutationFn: updateCourse, ...mutationOptions });
   const deleteMutation = useMutation({ mutationFn: deleteCourse, onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['courses'] }); } });
+  const visibilityMutation = useMutation({
+    mutationFn: updateCourseVisibility,
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['courses'] });
+      toast.success(variables.isHidden ? 'Course hidden from students.' : 'Course is visible to students again.');
+    },
+    onError: (error: AxiosError<{ error?: string }>) => {
+      toast.error(error.response?.data?.error || error.message || 'Failed to update course visibility');
+    },
+  });
   const forceExtendMutation = useMutation({
     mutationFn: forceExtendSubscription,
     onSuccess: () => {
@@ -180,6 +195,10 @@ export default function AdminCoursesPage() {
     if (ok) deleteMutation.mutate(id);
   };
 
+  const handleToggleVisibility = (course: Course) => {
+    visibilityMutation.mutate({ id: course.id, isHidden: !course.isHidden });
+  };
+
   const handleForceExtend = (paymentId: string) => {
     setConfirmForceExtendPaymentId(paymentId);
     setForceExtendConflict(null);
@@ -219,7 +238,12 @@ export default function AdminCoursesPage() {
                       )}
                     </div>
                     <div className="min-w-0">
-                      <h3 className="font-bold text-lg text-gray-800 truncate">{course.title}</h3>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="font-bold text-lg text-gray-800 truncate">{course.title}</h3>
+                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${course.isHidden ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-700'}`}>
+                          {course.isHidden ? 'Hidden from students' : 'Visible to students'}
+                        </span>
+                      </div>
                       <p className="text-sm font-semibold text-green-600 whitespace-nowrap">{course.price === 0 ? 'Free' : formatCurrency(course.price)}</p>
                       <p className="text-xs text-gray-500 mt-1">
                         {course.courseType === 'SUBSCRIPTION' ? '📅 Monthly Subscription' : '🔓 One-Time Purchase'}
@@ -227,6 +251,21 @@ export default function AdminCoursesPage() {
                     </div>
                   </div>
                   <div className="w-full sm:w-auto flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                    <button
+                      onClick={() => handleToggleVisibility(course)}
+                      className={`btn-secondary p-2 w-full sm:w-auto ${course.isHidden ? 'text-emerald-700 border-emerald-300 hover:bg-emerald-50' : 'text-amber-700 border-amber-300 hover:bg-amber-50'}`}
+                      title={course.isHidden ? 'Unhide course' : 'Hide course'}
+                      type="button"
+                      disabled={visibilityMutation.isPending && visibilityMutation.variables?.id === course.id}
+                    >
+                      {visibilityMutation.isPending && visibilityMutation.variables?.id === course.id ? (
+                        <Loader2 className="w-5 h-5 mx-auto animate-spin" />
+                      ) : course.isHidden ? (
+                        <Eye className="w-5 h-5 mx-auto" />
+                      ) : (
+                        <EyeOff className="w-5 h-5 mx-auto" />
+                      )}
+                    </button>
                     <button onClick={() => openContentManager(course)} className="btn-secondary p-2 w-full sm:w-auto" title="Manage Content"><BookCopy className="w-5 h-5 mx-auto" /></button>
                     {course.courseType === 'SUBSCRIPTION' && (
                       <button

@@ -24,6 +24,7 @@ export interface Course {
   title: string;
   description: string;
   price: number;
+  isHidden?: boolean;
   subject?: string;
   grade?: string;
   medium?: string;

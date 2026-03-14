@@ -1,7 +1,7 @@
 'use client';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import axios from 'axios';
-import { Plus, Trash2, Edit, Layers, BookCopy } from 'lucide-react';
+import { Plus, Trash2, Edit, Layers, BookCopy, Eye, EyeOff, Loader2 } from 'lucide-react';
 import Image from 'next/image';
 import type { Course as FullCourse } from '@/types';
 import { useState } from 'react';
@@ -20,6 +20,7 @@ interface Course {
   title: string;
   description: string;
   price: number;
+  isHidden?: boolean;
   imageUrl?: string | null;
   subject?: string | null;
   grade?: string | null;
@@ -47,6 +48,21 @@ export default function InstructorCoursesPage() {
   const { data: courses, isLoading, refetch } = useQuery<Course[]>({
     queryKey: ['instructor-courses'],
     queryFn: async () => (await axios.get('/api/courses?mine=1')).data,
+  });
+
+  const visibilityMutation = useMutation({
+    mutationFn: async ({ id, isHidden }: { id: string; isHidden: boolean }) => {
+      const formData = new FormData();
+      formData.append('isHidden', String(isHidden));
+      return (await axios.patch(`/api/courses/${id}`, formData)).data;
+    },
+    onSuccess: (_data, variables) => {
+      toast.success(variables.isHidden ? 'Course hidden from students.' : 'Course is visible to students again.');
+      refetch();
+    },
+    onError: () => {
+      toast.error('Failed to update course visibility');
+    },
   });
 
   const [open, setOpen] = useState(false);
@@ -144,6 +160,10 @@ export default function InstructorCoursesPage() {
     }
   };
 
+  const handleToggleVisibility = (course: Course) => {
+    visibilityMutation.mutate({ id: course.id, isHidden: !course.isHidden });
+  };
+
   return (
     <div className="space-y-8">
       <div className="flex flex-wrap justify-between items-center gap-4">
@@ -173,7 +193,12 @@ export default function InstructorCoursesPage() {
                     )}
                   </div>
                   <div className="min-w-0">
-                    <h3 className="font-bold text-lg text-gray-800 truncate">{c.title}</h3>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="font-bold text-lg text-gray-800 truncate">{c.title}</h3>
+                      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${c.isHidden ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-700'}`}>
+                        {c.isHidden ? 'Hidden from students' : 'Visible to students'}
+                      </span>
+                    </div>
                     <p className="text-sm font-semibold text-green-600 whitespace-nowrap">{c.price === 0 ? 'Free' : formatCurrency(c.price)}</p>
                     <p className="text-xs text-gray-500 mt-1">
                       {c.courseType === 'SUBSCRIPTION' ? '📅 Monthly Subscription' : '🔓 One-Time Purchase'}
@@ -181,6 +206,21 @@ export default function InstructorCoursesPage() {
                   </div>
                 </div>
                 <div className="w-full sm:w-auto flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                  <button
+                    onClick={() => handleToggleVisibility(c)}
+                    className={`btn-secondary p-2 w-full sm:w-auto ${c.isHidden ? 'text-emerald-700 border-emerald-300 hover:bg-emerald-50' : 'text-amber-700 border-amber-300 hover:bg-amber-50'}`}
+                    title={c.isHidden ? 'Unhide Course' : 'Hide Course'}
+                    type="button"
+                    disabled={visibilityMutation.isPending && visibilityMutation.variables?.id === c.id}
+                  >
+                    {visibilityMutation.isPending && visibilityMutation.variables?.id === c.id ? (
+                      <Loader2 className="w-5 h-5 mx-auto animate-spin" />
+                    ) : c.isHidden ? (
+                      <Eye className="w-5 h-5 mx-auto" />
+                    ) : (
+                      <EyeOff className="w-5 h-5 mx-auto" />
+                    )}
+                  </button>
                   <button onClick={() => setManageCourse(c)} className="btn-secondary p-2 w-full sm:w-auto" title="Manage Content"><Layers className="w-5 h-5 mx-auto" /></button>
                   <button onClick={() => handleEdit(c)} className="btn-secondary p-2 w-full sm:w-auto" title="Edit Course"><Edit className="w-5 h-5 mx-auto" /></button>
                   <button onClick={() => handleDelete(c)} className="btn-danger p-2 w-full sm:w-auto" title="Delete Course"><Trash2 className="w-5 h-5 mx-auto" /></button>

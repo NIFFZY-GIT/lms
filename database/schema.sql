@@ -79,6 +79,7 @@ CREATE TABLE IF NOT EXISTS "Course" (
     title VARCHAR(500) NOT NULL,
     description TEXT NOT NULL,
     price DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
+    "isHidden" BOOLEAN NOT NULL DEFAULT FALSE,
     tutor VARCHAR(255),
     "imageUrl" TEXT,
     "whatsappGroupLink" TEXT,
@@ -94,10 +95,12 @@ CREATE TABLE IF NOT EXISTS "Course" (
 ALTER TABLE "Course" ADD COLUMN IF NOT EXISTS subject VARCHAR(255);
 ALTER TABLE "Course" ADD COLUMN IF NOT EXISTS grade VARCHAR(100);
 ALTER TABLE "Course" ADD COLUMN IF NOT EXISTS medium VARCHAR(100);
+ALTER TABLE "Course" ADD COLUMN IF NOT EXISTS "isHidden" BOOLEAN NOT NULL DEFAULT FALSE;
 
 -- Indexes for Course table
 CREATE INDEX IF NOT EXISTS idx_course_created_by ON "Course"("createdById");
 CREATE INDEX IF NOT EXISTS idx_course_created_at ON "Course"("createdAt" DESC);
+CREATE INDEX IF NOT EXISTS idx_course_is_hidden ON "Course"("isHidden");
 
 -- ============================================
 -- Recording Table
@@ -327,6 +330,9 @@ CREATE INDEX IF NOT EXISTS idx_pastpaper_term ON "PastPaper"(term);
 -- Add courseType if missing (old servers may not have it)
 ALTER TABLE "Course"
     ADD COLUMN IF NOT EXISTS "courseType" course_type NOT NULL DEFAULT 'ONE_TIME_PURCHASE';
+
+ALTER TABLE "Course"
+    ADD COLUMN IF NOT EXISTS "isHidden" BOOLEAN NOT NULL DEFAULT FALSE;
 
 -- Add subscriptionExpiryDate if missing
 ALTER TABLE "Payment"

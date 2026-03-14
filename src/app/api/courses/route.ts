@@ -5,10 +5,13 @@ import { v4 as uuidv4 } from 'uuid';
 import { Role } from '../../../types';
 import { IMAGE_5MB, assertFile } from '@/lib/security';
 import { saveUploadFile } from '@/lib/uploads';
+import { ensureCourseVisibilityColumn } from '@/lib/course-visibility';
 
 // GET handler (no changes needed)
 export async function GET(req: Request) {
   try {
+    await ensureCourseVisibilityColumn();
+
     const { searchParams } = new URL(req.url);
     const mine = searchParams.get('mine');
     let rows;
@@ -22,8 +25,14 @@ export async function GET(req: Request) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
       }
     } else {
-      const result = await db.query('SELECT * FROM "Course" ORDER BY "createdAt" DESC');
-      rows = result.rows;
+      try {
+        await getServerUser(Role.ADMIN);
+        const result = await db.query('SELECT * FROM "Course" ORDER BY "createdAt" DESC');
+        rows = result.rows;
+      } catch {
+        const result = await db.query('SELECT * FROM "Course" WHERE "isHidden" = FALSE ORDER BY "createdAt" DESC');
+        rows = result.rows;
+      }
     }
     const courses = rows.map(course => ({
       ...course,
@@ -39,6 +48,7 @@ export async function GET(req: Request) {
 // POST handler (UPDATED to handle file uploads and course types)
 export async function POST(req: Request) {
   try {
+  await ensureCourseVisibilityColumn();
   const user = await getServerUser([Role.ADMIN, Role.INSTRUCTOR]);
     const formData = await req.formData();
 
