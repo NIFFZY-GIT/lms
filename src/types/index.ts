@@ -24,6 +24,9 @@ export interface Course {
   title: string;
   description: string;
   price: number;
+  subject?: string;
+  grade?: string;
+  medium?: string;
   tutor?: string;
   imageUrl?: string;
   whatsappGroupLink?: string;

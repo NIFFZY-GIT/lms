@@ -1,51 +1,80 @@
 import Link from 'next/link';
 import { Course } from '@/types';
 import Image from 'next/image';
-import { BookOpen } from 'lucide-react';
+import { BookOpen, GraduationCap, Globe, UserRound } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 
 interface CourseCardProps {
   course: Course;
+  locale?: string;
 }
 
-export function CourseCard({ course }: CourseCardProps) {
+export function CourseCard({ course, locale: localeProp }: CourseCardProps) {
   const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
   const match = pathname.match(/^\/([a-zA-Z-]+)(\/|$)/);
-  const locale = match ? match[1] : 'en';
+  const locale = localeProp || (match ? match[1] : 'en');
+
   return (
-    <Link href={`/${locale}/dashboard/student/course/${course.id}`} className="block group">
-      <div className="bg-white rounded-2xl shadow-lg overflow-hidden flex flex-col h-full transition-all duration-300 ease-in-out hover:shadow-2xl hover:-translate-y-2">
-        
-        {/* --- THIS IS THE UPDATED IMAGE SECTION --- */}
-        <div className="relative w-full h-48 bg-gray-100">
+    <Link href={`/${locale}/dashboard/student/course/${course.id}`} className="block h-full group">
+      <article className="h-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-all duration-300 group-hover:-translate-y-1 group-hover:shadow-xl">
+        <div className="relative h-52 w-full border-b border-slate-100 bg-gradient-to-br from-slate-50 to-cyan-50 lg:h-56">
           {course.imageUrl ? (
-            // If an imageUrl exists, display it
             <Image
               src={course.imageUrl}
               alt={course.title}
               fill
-              // --- THE FIX IS HERE ---
-              // 'contain' ensures the entire image fits inside the container
-              style={{ objectFit: 'contain' }} 
+              sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 33vw"
+              style={{ objectFit: 'contain', padding: '10px' }}
             />
           ) : (
-            // Otherwise, show a placeholder
-            <div className="w-full h-full flex items-center justify-center bg-blue-500">
-                <BookOpen className="w-16 h-16 text-blue-200" />
+            <div className="flex h-full w-full items-center justify-center bg-cyan-600">
+              <BookOpen className="h-14 w-14 text-cyan-100" />
             </div>
           )}
+
+          {course.price === 0 ? (
+            <span className="absolute right-3 top-3 rounded-full bg-emerald-500 px-2.5 py-1 text-xs font-bold text-white">Free</span>
+          ) : null}
         </div>
-        
-        <div className="p-6 flex-grow flex flex-col">
-          <h3 className="font-extrabold text-xl text-gray-900 mb-2 leading-tight group-hover:text-blue-600 transition-colors">{course.title}</h3>
-          <p className="text-gray-600 text-sm leading-relaxed flex-grow mb-4">{course.description}</p>
-          <p className="text-sm text-gray-500 mb-4"><strong>Tutor:</strong> {course.tutor || 'N/A'}</p>
-          <div className="mt-auto flex justify-between items-center pt-4 border-t border-gray-100">
-            <p className="text-2xl font-bold text-gray-800">{course.price === 0 ? 'Free' : formatCurrency(course.price)}</p>
-            <span className="btn-primary text-sm">View Details</span>
+
+        <div className="flex h-[calc(100%-13rem)] flex-col p-5 lg:h-[calc(100%-14rem)]">
+          <h3 className="line-clamp-2 text-lg font-bold leading-tight text-slate-900 transition-colors group-hover:text-cyan-700">{course.title}</h3>
+          <p className="mt-2 line-clamp-3 min-h-[3.75rem] text-sm leading-relaxed text-slate-600">{course.description}</p>
+
+          <div className="mt-4 flex flex-wrap gap-2">
+            {course.subject ? <span className="rounded-full bg-cyan-50 px-2.5 py-1 text-xs font-semibold text-cyan-700">{course.subject}</span> : null}
+            {course.grade ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                <GraduationCap className="h-3 w-3" />
+                {course.grade}
+              </span>
+            ) : null}
+            {course.medium ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
+                <Globe className="h-3 w-3" />
+                {course.medium}
+              </span>
+            ) : null}
+          </div>
+
+          <div className="mt-4 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5">
+            <p className="inline-flex items-center gap-1.5 text-sm text-slate-600">
+              <UserRound className="h-4 w-4 text-slate-500" />
+              <span>Tutor:</span>
+              <span className="font-semibold text-slate-700">{course.tutor || 'N/A'}</span>
+            </p>
+          </div>
+
+          <div className="mt-4 flex items-center justify-between">
+            <p className="text-xl font-extrabold text-slate-900">{course.price === 0 ? 'Free' : formatCurrency(course.price)}</p>
+            <span className="text-xs font-semibold text-slate-500">{course.courseType === 'SUBSCRIPTION' ? 'Subscription' : 'One-time'}</span>
+          </div>
+
+          <div className="mt-4">
+            <span className="inline-flex w-full items-center justify-center rounded-lg bg-cyan-600 px-3 py-2 text-xs font-semibold text-white transition-colors group-hover:bg-cyan-700">Enroll Now</span>
           </div>
         </div>
-      </div>
+      </article>
     </Link>
   );
 }

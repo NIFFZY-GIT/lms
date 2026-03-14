@@ -23,6 +23,9 @@ const courseSchema = z.object({
   description: z.string().min(1, { message: 'Description is required' }),
   price: z.coerce.number({ message: 'Price must be a valid number.' }).min(0, { message: "Price cannot be negative." }),
   courseType: z.enum(['ONE_TIME_PURCHASE', 'SUBSCRIPTION'], { message: 'Please select a course type' }),
+  subject: z.string().optional(),
+  grade: z.string().optional(),
+  medium: z.string().optional(),
   tutor: z.string().optional(),
   whatsappGroupLink: z.string().url({ message: 'A valid URL is required' }).optional().or(z.literal('')),
   image: z.custom<FileList>().optional(),
@@ -81,6 +84,9 @@ export default function AdminCoursesPage() {
       description: '',
       price: 0,
       courseType: 'ONE_TIME_PURCHASE',
+      subject: '',
+      grade: '',
+      medium: '',
       tutor: '',
       whatsappGroupLink: ''
     }
@@ -115,7 +121,7 @@ export default function AdminCoursesPage() {
     setSelectedCourse(null);
     setPricingType('PAID');
     setCourseType('ONE_TIME_PURCHASE');
-    reset({ title: '', description: '', price: 0, courseType: 'ONE_TIME_PURCHASE', tutor: '', whatsappGroupLink: '' });
+    reset({ title: '', description: '', price: 0, courseType: 'ONE_TIME_PURCHASE', subject: '', grade: '', medium: '', tutor: '', whatsappGroupLink: '' });
     setIsCourseModalOpen(true);
   };
   const openModalForEdit = (course: Course) => {
@@ -126,6 +132,9 @@ export default function AdminCoursesPage() {
     setValue('description', course.description);
     setValue('price', course.price);
     setValue('courseType', course.courseType as 'ONE_TIME_PURCHASE' | 'SUBSCRIPTION');
+    setValue('subject', course.subject || '');
+    setValue('grade', course.grade || '');
+    setValue('medium', course.medium || '');
     setValue('tutor', course.tutor || '');
     setValue('whatsappGroupLink', course.whatsappGroupLink || '');
     setIsCourseModalOpen(true);
@@ -149,6 +158,9 @@ export default function AdminCoursesPage() {
     const normalizedPrice = pricingType === 'FREE' ? 0 : data.price;
     formData.append('price', String(normalizedPrice));
     formData.append('courseType', courseType);
+    if (data.subject) formData.append('subject', data.subject);
+    if (data.grade) formData.append('grade', data.grade);
+    if (data.medium) formData.append('medium', data.medium);
     if (data.tutor) formData.append('tutor', data.tutor);
     if (data.whatsappGroupLink) formData.append('whatsappGroupLink', data.whatsappGroupLink);
     if (data.image && data.image.length > 0) {
@@ -241,6 +253,11 @@ export default function AdminCoursesPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input label="Course Title" registration={register('title')} error={errors.title?.message} />
             <Input label="Tutor Name" registration={register('tutor')} error={errors.tutor?.message} />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Input label="Subject" registration={register('subject')} error={errors.subject?.message} />
+            <Input label="Grade" registration={register('grade')} error={errors.grade?.message} />
+            <Input label="Medium" registration={register('medium')} error={errors.medium?.message} />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700">Description</label>

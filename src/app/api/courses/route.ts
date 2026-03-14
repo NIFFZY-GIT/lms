@@ -48,6 +48,12 @@ export async function POST(req: Request) {
     const price = parseFloat(formData.get('price') as string);
     const tutor = formData.get('tutor') as string | null;
     const whatsappGroupLink = formData.get('whatsappGroupLink') as string | null;
+    const subjectRaw = formData.get('subject');
+    const gradeRaw = formData.get('grade');
+    const mediumRaw = formData.get('medium');
+    const subject = typeof subjectRaw === 'string' && subjectRaw.trim() ? subjectRaw.trim() : null;
+    const grade = typeof gradeRaw === 'string' && gradeRaw.trim() ? gradeRaw.trim() : null;
+    const medium = typeof mediumRaw === 'string' && mediumRaw.trim() ? mediumRaw.trim() : null;
     const courseType = (formData.get('courseType') as string) || 'ONE_TIME_PURCHASE';
     
     // Get the optional image file
@@ -72,9 +78,9 @@ export async function POST(req: Request) {
 
     const courseId = uuidv4();
     const sql = `
-      INSERT INTO "Course" (id, title, description, "createdById", price, tutor, "whatsappGroupLink", "imageUrl", "courseType")
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *;`;
-    const result = await db.query(sql, [courseId, title, description, user.id, price, tutor, whatsappGroupLink, imageUrl, courseType]);
+      INSERT INTO "Course" (id, title, description, "createdById", price, tutor, "whatsappGroupLink", "imageUrl", "courseType", subject, grade, medium)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *;`;
+    const result = await db.query(sql, [courseId, title, description, user.id, price, tutor, whatsappGroupLink, imageUrl, courseType, subject, grade, medium]);
     
     const newCourse = result.rows[0];
     newCourse.price = parseFloat(newCourse.price);

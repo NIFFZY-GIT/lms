@@ -84,10 +84,16 @@ CREATE TABLE IF NOT EXISTS "Course" (
     "whatsappGroupLink" TEXT,
     "zoomLink" TEXT,
     "courseType" course_type NOT NULL DEFAULT 'ONE_TIME_PURCHASE',
+    subject VARCHAR(255),
+    grade VARCHAR(100),
+    medium VARCHAR(100),
     "createdById" VARCHAR(36) NOT NULL REFERENCES "User"(id) ON DELETE CASCADE,
     "createdAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+ALTER TABLE "Course" ADD COLUMN IF NOT EXISTS subject VARCHAR(255);
+ALTER TABLE "Course" ADD COLUMN IF NOT EXISTS grade VARCHAR(100);
+ALTER TABLE "Course" ADD COLUMN IF NOT EXISTS medium VARCHAR(100);
 
 -- Indexes for Course table
 CREATE INDEX IF NOT EXISTS idx_course_created_by ON "Course"("createdById");

@@ -54,7 +54,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ course
         const formData = await req.formData();
 
         const fields: string[] = [];
-        const values: (string | number)[] = [];
+        const values: (string | number | null)[] = [];
         let queryIndex = 1;
 
         // Process text fields
@@ -65,6 +65,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ course
         const tutor = formData.get('tutor') as string;
         const zoomLink = formData.get('zoomLink') as string;
         const whatsappGroupLink = formData.get('whatsappGroupLink') as string;
+        const subject = formData.get('subject');
+        const grade = formData.get('grade');
+        const medium = formData.get('medium');
         
         if(title) { fields.push(`title = $${queryIndex++}`); values.push(title); }
         if(description) { fields.push(`description = $${queryIndex++}`); values.push(description); }
@@ -79,6 +82,18 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ course
         if(tutor) { fields.push(`tutor = $${queryIndex++}`); values.push(tutor); }
         if(zoomLink) { fields.push(`"zoomLink" = $${queryIndex++}`); values.push(zoomLink); }
         if(whatsappGroupLink) { fields.push(`"whatsappGroupLink" = $${queryIndex++}`); values.push(whatsappGroupLink); }
+        if (subject !== null) {
+            fields.push(`subject = $${queryIndex++}`);
+            values.push(typeof subject === 'string' && subject.trim() ? subject.trim() : null);
+        }
+        if (grade !== null) {
+            fields.push(`grade = $${queryIndex++}`);
+            values.push(typeof grade === 'string' && grade.trim() ? grade.trim() : null);
+        }
+        if (medium !== null) {
+            fields.push(`medium = $${queryIndex++}`);
+            values.push(typeof medium === 'string' && medium.trim() ? medium.trim() : null);
+        }
 
     const imageFile = formData.get('image') as File | null;
     const removeImage = formData.get('removeImage') as string | null;
