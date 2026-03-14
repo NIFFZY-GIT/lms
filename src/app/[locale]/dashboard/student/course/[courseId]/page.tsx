@@ -17,6 +17,56 @@ const isFileVideoUrl = (url?: string) => {
   return url.startsWith('/uploads/') || /\.(mp4|webm|ogg)(\?.*)?$/i.test(url);
 };
 
+const getEmbeddedRecordingUrl = (rawUrl?: string): { provider: 'youtube' | 'zoom' | 'external'; embedUrl: string } | null => {
+  if (!rawUrl) return null;
+  const input = rawUrl.trim();
+  if (!input) return null;
+
+  try {
+    const url = new URL(input);
+    const host = url.hostname.replace(/^www\./, '').toLowerCase();
+
+    // YouTube URLs (watch, short, shorts, embed)
+    if (host === 'youtube.com' || host === 'm.youtube.com' || host === 'youtu.be') {
+      let videoId: string | null = null;
+
+      if (host === 'youtu.be') {
+        videoId = url.pathname.split('/').filter(Boolean)[0] || null;
+      } else if (url.pathname === '/watch') {
+        videoId = url.searchParams.get('v');
+      } else if (url.pathname.startsWith('/shorts/')) {
+        videoId = url.pathname.split('/')[2] || null;
+      } else if (url.pathname.startsWith('/embed/')) {
+        videoId = url.pathname.split('/')[2] || null;
+      }
+
+      if (videoId) {
+        return {
+          provider: 'youtube',
+          embedUrl: `https://www.youtube-nocookie.com/embed/${videoId}`,
+        };
+      }
+    }
+
+    // Zoom cloud recording links often contain /rec/play or /rec/share
+    if (host.includes('zoom.us') && (url.pathname.includes('/rec/play') || url.pathname.includes('/rec/share'))) {
+      url.searchParams.set('autoplay', 'true');
+      return {
+        provider: 'zoom',
+        embedUrl: url.toString(),
+      };
+    }
+
+    // Fallback for other providers that allow iframing
+    return {
+      provider: 'external',
+      embedUrl: url.toString(),
+    };
+  } catch {
+    return null;
+  }
+};
+
 // --- Type Definition for this page's data ---
 interface CourseDetails extends Course {
   enrollmentStatus: 'APPROVED' | 'PENDING' | 'REJECTED' | null;
@@ -129,12 +179,44 @@ export default function StudentCoursePage() {
                                       Your browser does not support the video tag.
                                   </video>
                                 ) : (
-                                  <div className="p-4 rounded-lg border border-blue-100 bg-blue-50">
-                                    <p className="text-sm text-blue-900 mb-2">This recording is provided as an external link.</p>
-                                    <a href={rec.videoUrl} target="_blank" rel="noopener noreferrer" className="text-sm font-semibold text-blue-700 hover:underline">
-                                      Open recording link
-                                    </a>
-                                  </div>
+                                  (() => {
+                                    const embedded = getEmbeddedRecordingUrl(rec.videoUrl);
+                                    if (!embedded) {
+                                      return (
+                                        <div className="p-4 rounded-lg border border-blue-100 bg-blue-50">
+                                          <p className="text-sm text-blue-900 mb-2">Invalid recording URL.</p>
+                                        </div>
+                                      );
+                                    }
+
+                                    return (
+                                      <div className="space-y-3">
+                                        <div className="rounded-lg overflow-hidden border border-gray-200 bg-black aspect-video">
+                                          <iframe
+                                            src={embedded.embedUrl}
+                                            title={`Recording player - ${rec.title}`}
+                                            className="w-full h-full"
+                                            loading="lazy"
+                                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                            allowFullScreen
+                                          />
+                                        </div>
+                                        <div className="p-3 rounded-lg border border-blue-100 bg-blue-50 text-sm text-blue-900">
+                                          <p className="mb-2">
+                                            {embedded.provider === 'zoom'
+                                              ? 'Zoom recording is embedded below. If it does not load due to browser restrictions, open it directly.'
+                                              : embedded.provider === 'youtube'
+                                                ? 'YouTube recording is embedded below.'
+                                                : 'This recording link is embedded below.'}
+                                          </p>
+                                          <a href={rec.videoUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 font-semibold text-blue-700 hover:underline">
+                                            <ExternalLink className="w-4 h-4" />
+                                            Open recording link in new tab
+                                          </a>
+                                        </div>
+                                      </div>
+                                    );
+                                  })()
                                 )}
                             </div>
                         ))}
