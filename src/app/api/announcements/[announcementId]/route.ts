@@ -4,6 +4,7 @@ import { getServerUser } from '../../../../lib/auth';
 import { Role } from '../../../../types';
 import { IMAGE_10MB, assertFile } from '@/lib/security';
 import { saveUploadFile, removeUploadByUrl } from '@/lib/uploads';
+import { sendAnnouncementUpdatedEmail } from '@/lib/notify';
 
 // --- PATCH handler for updating an announcement ---
 export async function PATCH(req: Request, { params }: { params: Promise<{ announcementId: string }> }) {
@@ -64,7 +65,32 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ announ
             return NextResponse.json({ error: "Announcement not found" }, { status: 404 });
         }
 
-        return NextResponse.json(result.rows[0]);
+        const updatedAnnouncement = result.rows[0] as { id: string; title: string; description: string };
+
+        try {
+            const recipientResult = await db.query<{ email: string | null }>(
+                'SELECT email FROM "User" WHERE role = ANY($1) AND email IS NOT NULL',
+                [[Role.ADMIN, Role.INSTRUCTOR, Role.STUDENT]]
+            );
+            const recipients = recipientResult.rows
+                .map((row) => row.email)
+                .filter((email): email is string => Boolean(email));
+
+            if (recipients.length) {
+                const summary = updatedAnnouncement.description.length > 240
+                    ? `${updatedAnnouncement.description.slice(0, 237)}...`
+                    : updatedAnnouncement.description;
+                await sendAnnouncementUpdatedEmail(recipients, {
+                    title: updatedAnnouncement.title,
+                    summary,
+                    announcementId,
+                });
+            }
+        } catch (emailError) {
+            console.error('Announcement update email failed:', emailError);
+        }
+
+        return NextResponse.json(updatedAnnouncement);
 
     } catch (error) {
         console.error("Update announcement error:", error);

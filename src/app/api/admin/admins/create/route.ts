@@ -4,6 +4,7 @@ import { getServerUser } from '@/lib/auth';
 import { Role } from '@/types';
 import * as bcrypt from 'bcrypt';
 import { v4 as uuidv4 } from 'uuid';
+import { sendAccountCreatedEmail } from '@/lib/notify';
 
 export async function POST(req: Request) {
   try {
@@ -25,6 +26,15 @@ export async function POST(req: Request) {
       RETURNING id, email, name, role;
     `;
     const result = await db.query(sql, [userId, email, name, hashedPassword, assignedRole]);
+
+    try {
+      await sendAccountCreatedEmail(email, {
+        name,
+        role: assignedRole === 'INSTRUCTOR' ? Role.INSTRUCTOR : Role.ADMIN,
+      });
+    } catch (emailError) {
+      console.error('Account creation email failed:', emailError);
+    }
 
     return NextResponse.json(result.rows[0], { status: 201 });
   } catch (error: unknown) {

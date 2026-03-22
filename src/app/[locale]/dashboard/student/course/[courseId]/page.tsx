@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios, { AxiosError } from 'axios';
 import { useParams, useRouter } from 'next/navigation';
 import { Container } from '@/components/ui/Container';
-import { Video, Mic, HelpCircle, AlertTriangle, ArrowLeft, LogOut, MessageCircle, ExternalLink, BookOpen, FileText, Download } from 'lucide-react';
+import { Video, Mic, HelpCircle, AlertTriangle, ArrowLeft, LogOut, ExternalLink, BookOpen, FileText, Download } from 'lucide-react';
 import Link from 'next/link';
 import { Course, Recording, CourseTutorial } from '@/types';
 import { EnrollmentForm } from '@/components/student/EnrollmentForm';
@@ -275,16 +275,6 @@ export default function StudentCoursePage() {
                   )}
                 </section>
 
-                <section className="bg-white p-6 rounded-lg shadow-md">
-                  <h2 className="text-2xl font-bold text-gray-800 flex items-center mb-4"><MessageCircle className="w-6 h-6 mr-3 text-green-600" />WhatsApp Group</h2>
-                  {course.whatsappGroupLink ? (
-                    <a href={course.whatsappGroupLink} target="_blank" rel="noopener noreferrer" className="font-medium text-green-700 hover:underline">
-                      Join course WhatsApp group
-                    </a>
-                  ) : (
-                    <p className="text-gray-500">WhatsApp group link has not been added yet.</p>
-                  )}
-                </section>
               </div>
               
 
@@ -330,16 +320,6 @@ export default function StudentCoursePage() {
             <h1 className="text-3xl font-bold mb-2">{course?.title}</h1>
             {course && <p className="text-2xl font-semibold text-indigo-600 mb-6">{course.price === 0 ? 'Free' : formatCurrency(course.price)}</p>}
             <p className="text-gray-600 mb-2"><strong>Tutor:</strong> {course?.tutor || 'N/A'}</p>
-            <p className="text-gray-600 mb-2">
-              <strong>WhatsApp Group:</strong>{' '}
-              {course?.whatsappGroupLink ? (
-                <a href={course.whatsappGroupLink} target="_blank" rel="noopener noreferrer" className="text-green-700 hover:underline font-medium">
-                  Join group
-                </a>
-              ) : (
-                'Not available'
-              )}
-            </p>
             <p className="text-gray-600 mb-8">{course?.description}</p>
             
             <hr className="my-8" />

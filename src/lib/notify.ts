@@ -322,5 +322,132 @@ export async function sendTestEmail(to: string): Promise<{ success: boolean; err
   }
 }
 
+export async function sendAccountCreatedEmail(to: string, payload: { name: string; role: Role }) {
+  const baseUrl = getBaseUrl();
+  const roleLabel = roleLabels[payload.role];
+  const subject = `${appName}: Your ${roleLabel} account is ready`;
+  const text = `Hi ${payload.name}, your ${roleLabel} account has been created in ${appName}. You can now log in and start using the platform.`;
+  const html = wrapHtmlContent('Your account is ready', `
+    <p>Hi ${payload.name},</p>
+    <p>Your <strong>${roleLabel}</strong> account has been created successfully in <strong>${appName}</strong>.</p>
+    <p>You can now sign in and start using your dashboard features.</p>
+    <a class="btn" href="${baseUrl}/auth/login">Sign in now</a>
+  `);
+  await sendEmail({ to, subject, text, html });
+}
+
+export async function sendEnrollmentSubmittedEmail(to: string, payload: { name: string; courseTitle: string; isSubscription?: boolean }) {
+  const isSubscription = Boolean(payload.isSubscription);
+  const subject = `${appName}: Enrollment request received for ${payload.courseTitle}`;
+  const text = `Hi ${payload.name}, we received your ${isSubscription ? 'subscription' : 'enrollment'} request for ${payload.courseTitle}. We will notify you once it is reviewed.`;
+  const html = wrapHtmlContent('Enrollment request received', `
+    <p>Hi ${payload.name},</p>
+    <p>We received your ${isSubscription ? '<strong>subscription</strong>' : '<strong>enrollment</strong>'} request for <strong>${payload.courseTitle}</strong>.</p>
+    <p>Your request is currently pending review. You will receive another email as soon as it is approved or rejected.</p>
+  `);
+  await sendEmail({ to, subject, text, html });
+}
+
+export async function sendPaymentRejectedEmail(to: string, payload: { name: string; courseTitle: string }) {
+  const baseUrl = getBaseUrl();
+  const subject = `${appName}: Payment update for ${payload.courseTitle}`;
+  const text = `Hi ${payload.name}, your payment for ${payload.courseTitle} was rejected. Please upload a new receipt and try again.`;
+  const html = wrapHtmlContent('Payment needs attention', `
+    <p>Hi ${payload.name},</p>
+    <p>Your payment for <strong>${payload.courseTitle}</strong> was marked as <strong>rejected</strong>.</p>
+    <p>Please check your receipt details and submit a new payment proof to continue enrollment.</p>
+    <a class="btn" href="${baseUrl}/courses">Retry enrollment</a>
+  `);
+  await sendEmail({ to, subject, text, html });
+}
+
+export async function sendEnrollmentStatusToStaff(staffEmails: string[], payload: { studentName: string; studentEmail: string; courseTitle: string; status: 'APPROVED' | 'REJECTED' }) {
+  if (!staffEmails.length) return;
+
+  const baseUrl = getBaseUrl();
+  const statusLabel = payload.status === 'APPROVED' ? 'approved' : 'rejected';
+  const subject = `${appName}: Enrollment ${statusLabel} for ${payload.courseTitle}`;
+  const text = `${payload.studentName} (${payload.studentEmail}) enrollment for ${payload.courseTitle} was ${statusLabel}.`;
+  const html = wrapHtmlContent(`Enrollment ${statusLabel}`, `
+    <p>Hello team,</p>
+    <p>The enrollment for <strong>${payload.courseTitle}</strong> has been <strong>${statusLabel}</strong>.</p>
+    <p><strong>Student:</strong> ${payload.studentName} (<a href="mailto:${payload.studentEmail}">${payload.studentEmail}</a>)</p>
+    <a class="btn" href="${baseUrl}/dashboard/admin/payments">Open payments</a>
+  `);
+
+  await sendEmail({ to: staffEmails, subject, text, html });
+}
+
+export async function sendCoursePublishedEmail(recipients: string[], payload: { courseTitle: string; description: string; courseId: string }) {
+  if (!recipients.length) return;
+
+  const baseUrl = getBaseUrl();
+  const subject = `${appName}: New course published - ${payload.courseTitle}`;
+  const text = `A new course, ${payload.courseTitle}, is now available on ${appName}.`;
+  const summary = payload.description.length > 220 ? `${payload.description.slice(0, 217)}...` : payload.description;
+  const html = wrapHtmlContent('A new course is now available', `
+    <p>Hello,</p>
+    <p>We just published a new course: <strong>${payload.courseTitle}</strong>.</p>
+    <p>${summary}</p>
+    <a class="btn" href="${baseUrl}/courses/${payload.courseId}">View course</a>
+  `);
+
+  await sendEmail({ to: recipients, subject, text, html });
+}
+
+export async function sendCourseUpdatedEmail(recipients: string[], payload: { courseTitle: string; highlights: string; courseId: string }) {
+  if (!recipients.length) return;
+
+  const baseUrl = getBaseUrl();
+  const subject = `${appName}: Course updated - ${payload.courseTitle}`;
+  const text = `${payload.courseTitle} has been updated. ${payload.highlights}`;
+  const html = wrapHtmlContent('Course updated', `
+    <p>Hello,</p>
+    <p>The course <strong>${payload.courseTitle}</strong> has new updates.</p>
+    <p>${payload.highlights}</p>
+    <a class="btn" href="${baseUrl}/courses/${payload.courseId}">Open course</a>
+  `);
+
+  await sendEmail({ to: recipients, subject, text, html });
+}
+
+export async function sendCourseContentUpdateEmail(recipients: string[], payload: { courseTitle: string; contentType: 'RECORDING' | 'TUTORIAL' | 'MATERIAL'; contentTitle: string; courseId: string }) {
+  if (!recipients.length) return;
+
+  const baseUrl = getBaseUrl();
+  const labels: Record<'RECORDING' | 'TUTORIAL' | 'MATERIAL', string> = {
+    RECORDING: 'recording',
+    TUTORIAL: 'tutorial',
+    MATERIAL: 'course material',
+  };
+  const contentLabel = labels[payload.contentType];
+  const subject = `${appName}: New ${contentLabel} in ${payload.courseTitle}`;
+  const text = `A new ${contentLabel} (${payload.contentTitle}) was added to ${payload.courseTitle}.`;
+  const html = wrapHtmlContent(`New ${contentLabel} available`, `
+    <p>Hello,</p>
+    <p>A new ${contentLabel} has been added to <strong>${payload.courseTitle}</strong>.</p>
+    <p><strong>Title:</strong> ${payload.contentTitle}</p>
+    <a class="btn" href="${baseUrl}/courses/${payload.courseId}">Open course</a>
+  `);
+
+  await sendEmail({ to: recipients, subject, text, html });
+}
+
+export async function sendAnnouncementUpdatedEmail(recipients: string[], payload: { title: string; summary: string; announcementId: string }) {
+  if (!recipients.length) return;
+
+  const baseUrl = getBaseUrl();
+  const subject = `${appName}: Announcement updated - ${payload.title}`;
+  const text = `The announcement \"${payload.title}\" was updated. Check the latest details on ${appName}.`;
+  const html = wrapHtmlContent('Announcement updated', `
+    <p>Hello,</p>
+    <p>The announcement <strong>${payload.title}</strong> has been updated.</p>
+    <p>${payload.summary}</p>
+    <a class="btn" href="${baseUrl}/announcements/${payload.announcementId}">Read update</a>
+  `);
+
+  await sendEmail({ to: recipients, subject, text, html });
+}
+
 
 

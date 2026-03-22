@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { db } from '../../../../lib/db';
 import * as bcrypt from 'bcrypt';
 import { v4 as uuidv4 } from 'uuid';
+import { Role } from '@/types';
+import { sendAccountCreatedEmail } from '@/lib/notify';
 
 export async function POST(req: Request) {
   try {
@@ -30,6 +32,12 @@ export async function POST(req: Request) {
       RETURNING id, email, name;
     `;
     const result = await db.query(sql, [userId, email, name, hashedPassword, address, phone]);
+
+    try {
+      await sendAccountCreatedEmail(email, { name, role: Role.STUDENT });
+    } catch (emailError) {
+      console.error('Student welcome email failed:', emailError);
+    }
 
     return NextResponse.json(result.rows[0], { status: 201 });
   } catch (error: unknown) {

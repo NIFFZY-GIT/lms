@@ -6,6 +6,7 @@ import { Role } from '../../../types';
 import { IMAGE_5MB, assertFile } from '@/lib/security';
 import { saveUploadFile } from '@/lib/uploads';
 import { ensureCourseVisibilityColumn, hasCourseVisibilityColumn } from '@/lib/course-visibility';
+import { sendCoursePublishedEmail } from '@/lib/notify';
 
 // GET handler (no changes needed)
 export async function GET(req: Request) {
@@ -99,6 +100,26 @@ export async function POST(req: Request) {
     
     const newCourse = result.rows[0];
     newCourse.price = parseFloat(newCourse.price);
+
+    try {
+      const recipientResult = await db.query<{ email: string | null }>(
+        'SELECT email FROM "User" WHERE role = ANY($1) AND email IS NOT NULL',
+        [[Role.ADMIN, Role.INSTRUCTOR, Role.STUDENT]]
+      );
+      const recipients = recipientResult.rows
+        .map((row) => row.email)
+        .filter((email): email is string => Boolean(email));
+
+      if (recipients.length) {
+        await sendCoursePublishedEmail(recipients, {
+          courseTitle: newCourse.title,
+          description: newCourse.description,
+          courseId,
+        });
+      }
+    } catch (emailError) {
+      console.error('Course publish email failed:', emailError);
+    }
     
     return NextResponse.json(newCourse, { status: 201 });
   } catch (error) {

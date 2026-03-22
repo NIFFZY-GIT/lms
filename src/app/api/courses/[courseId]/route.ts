@@ -5,6 +5,7 @@ import { Role } from '../../../../types';
 import { IMAGE_5MB, assertFile } from '@/lib/security';
 import { saveUploadFile, removeUploadByUrl } from '@/lib/uploads';
 import { ensureCourseVisibilityColumn } from '@/lib/course-visibility';
+import { sendCourseUpdatedEmail } from '@/lib/notify';
 
 // --- GET function (no changes) ---
 export async function GET(req: Request, { params }: { params: Promise<{ courseId: string }> }) {
@@ -63,6 +64,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ course
         const formData = await req.formData();
 
         const fields: string[] = [];
+        const changedFields: string[] = [];
         const values: (string | number | boolean | null)[] = [];
         let queryIndex = 1;
 
@@ -79,30 +81,34 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ course
         const medium = formData.get('medium');
         const isHidden = formData.get('isHidden');
         
-        if(title) { fields.push(`title = $${queryIndex++}`); values.push(title); }
-        if(description) { fields.push(`description = $${queryIndex++}`); values.push(description); }
-        if(price) { fields.push(`price = $${queryIndex++}`); values.push(parseFloat(price)); }
+        if(title) { fields.push(`title = $${queryIndex++}`); values.push(title); changedFields.push('title'); }
+        if(description) { fields.push(`description = $${queryIndex++}`); values.push(description); changedFields.push('description'); }
+        if(price) { fields.push(`price = $${queryIndex++}`); values.push(parseFloat(price)); changedFields.push('price'); }
         if (courseType) {
             if (courseType !== 'ONE_TIME_PURCHASE' && courseType !== 'SUBSCRIPTION') {
                 return NextResponse.json({ error: 'Invalid course type' }, { status: 400 });
             }
             fields.push(`"courseType" = $${queryIndex++}`);
             values.push(courseType);
+            changedFields.push('course type');
         }
-        if(tutor) { fields.push(`tutor = $${queryIndex++}`); values.push(tutor); }
-        if(zoomLink) { fields.push(`"zoomLink" = $${queryIndex++}`); values.push(zoomLink); }
-        if(whatsappGroupLink) { fields.push(`"whatsappGroupLink" = $${queryIndex++}`); values.push(whatsappGroupLink); }
+        if(tutor) { fields.push(`tutor = $${queryIndex++}`); values.push(tutor); changedFields.push('tutor'); }
+        if(zoomLink) { fields.push(`"zoomLink" = $${queryIndex++}`); values.push(zoomLink); changedFields.push('zoom link'); }
+        if(whatsappGroupLink) { fields.push(`"whatsappGroupLink" = $${queryIndex++}`); values.push(whatsappGroupLink); changedFields.push('whatsapp link'); }
         if (subject !== null) {
             fields.push(`subject = $${queryIndex++}`);
             values.push(typeof subject === 'string' && subject.trim() ? subject.trim() : null);
+            changedFields.push('subject');
         }
         if (grade !== null) {
             fields.push(`grade = $${queryIndex++}`);
             values.push(typeof grade === 'string' && grade.trim() ? grade.trim() : null);
+            changedFields.push('grade');
         }
         if (medium !== null) {
             fields.push(`medium = $${queryIndex++}`);
             values.push(typeof medium === 'string' && medium.trim() ? medium.trim() : null);
+            changedFields.push('medium');
         }
         if (isHidden !== null) {
             const normalizedIsHidden = typeof isHidden === 'string'
@@ -110,6 +116,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ course
                 : Boolean(isHidden);
             fields.push(`"isHidden" = $${queryIndex++}`);
             values.push(normalizedIsHidden);
+            changedFields.push('visibility');
         }
 
     const imageFile = formData.get('image') as File | null;
@@ -128,6 +135,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ course
             const { publicPath: newImageUrl } = await saveUploadFile(imageFile, 'posters');
             fields.push(`"imageUrl" = $${queryIndex++}`);
             values.push(newImageUrl);
+            changedFields.push('poster');
         } else if (removeImage) {
             // Remove existing image without replacement
             const existing = await db.query('SELECT "imageUrl" FROM "Course" WHERE id = $1', [courseId]);
@@ -135,6 +143,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ course
                 try { await removeUploadByUrl(existing.rows[0].imageUrl); } catch (e) { console.error("Failed to delete old image:", e); }
             }
             fields.push('"imageUrl" = NULL');
+            changedFields.push('poster');
         }
 
         if (fields.length === 0) {
@@ -154,6 +163,39 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ course
         
         const updatedCourse = result.rows[0];
         updatedCourse.price = parseFloat(updatedCourse.price);
+
+        try {
+            const recipientResult = await db.query<{ email: string | null }>(
+                `
+                SELECT DISTINCT u.email
+                FROM "User" u
+                LEFT JOIN "Payment" p ON p."studentId" = u.id
+                WHERE u.email IS NOT NULL
+                  AND (
+                                        u.role = ANY($1)
+                    OR u.id = $2
+                    OR (p."courseId" = $3 AND p.status = 'APPROVED')
+                  )
+                `,
+                                [[Role.ADMIN, Role.INSTRUCTOR], updatedCourse.createdById, courseId]
+            );
+            const recipients = recipientResult.rows
+                .map((row) => row.email)
+                .filter((email): email is string => Boolean(email));
+
+            if (recipients.length) {
+                const highlights = changedFields.length
+                    ? `Updated fields: ${changedFields.join(', ')}.`
+                    : 'Course details were updated.';
+                await sendCourseUpdatedEmail(recipients, {
+                    courseTitle: updatedCourse.title,
+                    highlights,
+                    courseId,
+                });
+            }
+        } catch (emailError) {
+            console.error('Course update email failed:', emailError);
+        }
 
         return NextResponse.json(updatedCourse);
     } catch (error) {

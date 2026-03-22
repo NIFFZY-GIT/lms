@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '../../../../../lib/db';
 import { getServerUser } from '../../../../../lib/auth';
 import { Role } from '../../../../../types';
-import { sendPaymentApprovedEmail } from '../../../../../lib/notify';
+import { sendEnrollmentStatusToStaff, sendPaymentApprovedEmail } from '../../../../../lib/notify';
 import { lastDayOfMonth } from 'date-fns';
 
 interface PostgresError { code?: string; }
@@ -77,7 +77,8 @@ export async function PATCH(req: Request, props: { params: Promise<{ paymentId: 
       SELECT 
         u.email AS "studentEmail",
         COALESCE(u.name, 'there') AS "studentName",
-        c.title AS "courseTitle"
+        c.title AS "courseTitle",
+        c."createdById" AS "createdById"
       FROM "Payment" p
       JOIN "User" u ON p."studentId" = u.id
       JOIN "Course" c ON p."courseId" = c.id
@@ -86,11 +87,31 @@ export async function PATCH(req: Request, props: { params: Promise<{ paymentId: 
     `;
 
     const detailResult = await db.query(detailSql, [paymentId]);
-    const details = detailResult.rows[0] as { studentEmail: string; studentName: string; courseTitle: string } | undefined;
+    const details = detailResult.rows[0] as { studentEmail: string; studentName: string; courseTitle: string; createdById: string } | undefined;
 
     if (details) {
       try {
         await sendPaymentApprovedEmail(details.studentEmail, details.studentName, details.courseTitle, payment.referenceNumber);
+
+        const staffResult = await db.query<{ email: string | null }>(
+          `
+          SELECT DISTINCT email
+          FROM "User"
+          WHERE email IS NOT NULL
+            AND (role = ANY($1) OR id = $2)
+          `,
+          [[Role.ADMIN, Role.INSTRUCTOR], details.createdById]
+        );
+        const staffEmails = staffResult.rows
+          .map((row) => row.email)
+          .filter((email): email is string => Boolean(email));
+
+        await sendEnrollmentStatusToStaff(staffEmails, {
+          studentName: details.studentName,
+          studentEmail: details.studentEmail,
+          courseTitle: details.courseTitle,
+          status: 'APPROVED',
+        });
       } catch (emailError) {
         console.error('Payment approval email failed:', emailError);
       }

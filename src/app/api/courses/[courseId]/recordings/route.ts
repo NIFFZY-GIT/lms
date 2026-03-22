@@ -6,6 +6,7 @@ import { Role } from '../../../../../types';
 import { v4 as uuidv4 } from 'uuid';
 import { VIDEO_500MB, assertFile } from '@/lib/security';
 import { saveUploadFile } from '@/lib/uploads';
+import { sendCourseContentUpdateEmail } from '@/lib/notify';
 
 // GET all recordings for a course
 export async function GET(req: Request, { params }: { params: Promise<{ courseId: string }> }) {
@@ -24,10 +25,17 @@ export async function POST(req: Request, { params }: { params: Promise<{ courseI
     try {
         const user = await getServerUser([Role.ADMIN, Role.INSTRUCTOR]);
         const { courseId } = await params;
+        const courseResult = await db.query<{ title: string; createdById: string }>(
+            'SELECT title, "createdById" FROM "Course" WHERE id = $1',
+            [courseId]
+        );
+        if (courseResult.rows.length === 0) {
+            return NextResponse.json({ error: 'Course not found' }, { status: 404 });
+        }
+        const course = courseResult.rows[0];
+
         if (user.role === Role.INSTRUCTOR) {
-            const ownerCheck = await db.query('SELECT "createdById" FROM "Course" WHERE id = $1', [courseId]);
-            if (ownerCheck.rows.length === 0) return NextResponse.json({ error: 'Course not found' }, { status: 404 });
-            if (ownerCheck.rows[0].createdById !== user.id) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+            if (course.createdById !== user.id) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
         }
         const formData = await req.formData();
 
@@ -73,6 +81,35 @@ export async function POST(req: Request, { params }: { params: Promise<{ courseI
 
         const sql = 'INSERT INTO "Recording" (id, title, "videoUrl", "courseId") VALUES ($1, $2, $3, $4) RETURNING *;';
         const result = await db.query(sql, [recordingId, title, videoUrl, courseId]);
+
+        try {
+            const recipientResult = await db.query<{ email: string | null }>(
+                `
+                SELECT DISTINCT u.email
+                FROM "User" u
+                LEFT JOIN "Payment" p ON p."studentId" = u.id
+                WHERE u.email IS NOT NULL
+                  AND (
+                                        u.role = ANY($1)
+                    OR u.id = $2
+                    OR (p."courseId" = $3 AND p.status = 'APPROVED')
+                  )
+                `,
+                                [[Role.ADMIN, Role.INSTRUCTOR], course.createdById, courseId]
+            );
+            const recipients = recipientResult.rows
+                .map((row) => row.email)
+                .filter((email): email is string => Boolean(email));
+
+            await sendCourseContentUpdateEmail(recipients, {
+                courseTitle: course.title,
+                contentType: 'RECORDING',
+                contentTitle: title,
+                courseId,
+            });
+        } catch (emailError) {
+            console.error('Recording notification email failed:', emailError);
+        }
 
         return NextResponse.json(result.rows[0], { status: 201 });
     } catch (error) {

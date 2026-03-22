@@ -5,7 +5,12 @@ import { Role } from '../../../../types';
 import { v4 as uuidv4 } from 'uuid';
 import { IMAGE_OR_PDF_10MB, assertFile } from '@/lib/security';
 import { saveUploadFile, removeUploadByUrl } from '@/lib/uploads';
-import { sendReceiptUploadedEmailToAdmins } from '@/lib/notify';
+import {
+  sendEnrollmentStatusToStaff,
+  sendEnrollmentSubmittedEmail,
+  sendPaymentApprovedEmail,
+  sendReceiptUploadedEmailToAdmins,
+} from '@/lib/notify';
 import { lastDayOfMonth } from 'date-fns';
 import { ensureCourseVisibilityColumn } from '@/lib/course-visibility';
 
@@ -30,8 +35,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Course ID is required.' }, { status: 400 });
     }
 
-    const courseResult = await db.query<{ id: string; title: string; price: string; courseType: string; isHidden: boolean }>(
-      'SELECT id, title, price, "courseType", "isHidden" FROM "Course" WHERE id = $1',
+    const courseResult = await db.query<{ id: string; title: string; price: string; courseType: string; isHidden: boolean; createdById: string }>(
+      'SELECT id, title, price, "courseType", "isHidden", "createdById" FROM "Course" WHERE id = $1',
       [courseId]
     );
 
@@ -126,6 +131,38 @@ export async function POST(req: Request) {
         : [paymentId, user.id, courseId];
       
       const freeEnrollmentResult = await db.query(freeEnrollmentSql, params);
+
+      try {
+        await sendPaymentApprovedEmail(
+          user.email,
+          user.name ?? 'Student',
+          course.title,
+          'FREE-ENROLLMENT'
+        );
+
+        const staffResult = await db.query<{ email: string | null }>(
+          `
+          SELECT DISTINCT email
+          FROM "User"
+          WHERE email IS NOT NULL
+            AND (role = ANY($1) OR id = $2)
+          `,
+          [[Role.ADMIN, Role.INSTRUCTOR], course.createdById]
+        );
+        const staffEmails = staffResult.rows
+          .map((row) => row.email)
+          .filter((email): email is string => Boolean(email));
+
+        await sendEnrollmentStatusToStaff(staffEmails, {
+          studentName: user.name ?? 'A student',
+          studentEmail: user.email,
+          courseTitle: course.title,
+          status: 'APPROVED',
+        });
+      } catch (emailError) {
+        console.error('Free enrollment emails failed:', emailError);
+      }
+
       return NextResponse.json(freeEnrollmentResult.rows[0], { status: 201 });
     }
 
@@ -154,9 +191,20 @@ export async function POST(req: Request) {
     const result = await db.query(sql, [paymentId, user.id, courseId, publicUrl]);
 
     try {
+      await sendEnrollmentSubmittedEmail(user.email, {
+        name: user.name ?? 'Student',
+        courseTitle: course.title,
+        isSubscription,
+      });
+
       const adminResult = await db.query<{ email: string | null }>(
-        'SELECT email FROM "User" WHERE role = $1 AND email IS NOT NULL',
-        [Role.ADMIN]
+        `
+        SELECT DISTINCT email
+        FROM "User"
+        WHERE email IS NOT NULL
+          AND (role = ANY($1) OR id = $2)
+        `,
+        [[Role.ADMIN, Role.INSTRUCTOR], course.createdById]
       );
       const adminEmails = adminResult.rows.map(row => row.email).filter((email): email is string => Boolean(email));
 
