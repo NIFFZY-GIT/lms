@@ -5,12 +5,13 @@ import { v4 as uuidv4 } from 'uuid';
 import { Role } from '../../../types';
 import { IMAGE_5MB, assertFile } from '@/lib/security';
 import { saveUploadFile } from '@/lib/uploads';
-import { ensureCourseVisibilityColumn } from '@/lib/course-visibility';
+import { ensureCourseVisibilityColumn, hasCourseVisibilityColumn } from '@/lib/course-visibility';
 
 // GET handler (no changes needed)
 export async function GET(req: Request) {
   try {
     await ensureCourseVisibilityColumn();
+    const hasVisibilityColumn = await hasCourseVisibilityColumn();
 
     const { searchParams } = new URL(req.url);
     const mine = searchParams.get('mine');
@@ -30,7 +31,11 @@ export async function GET(req: Request) {
         const result = await db.query('SELECT * FROM "Course" ORDER BY "createdAt" DESC');
         rows = result.rows;
       } catch {
-        const result = await db.query('SELECT * FROM "Course" WHERE "isHidden" = FALSE ORDER BY "createdAt" DESC');
+        const result = await db.query(
+          hasVisibilityColumn
+            ? 'SELECT * FROM "Course" WHERE "isHidden" = FALSE ORDER BY "createdAt" DESC'
+            : 'SELECT * FROM "Course" ORDER BY "createdAt" DESC'
+        );
         rows = result.rows;
       }
     }
