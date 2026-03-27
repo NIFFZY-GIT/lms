@@ -34,3 +34,23 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## Class Reminder Emails
+
+Weekly classes can send reminder emails to approved students 5 minutes before class start time.
+
+### Required environment variables
+
+- `CRON_SECRET`: Secret token used to authorize cron requests.
+- `CLASS_SCHEDULE_TIMEZONE` (optional): Timezone used to evaluate weekly day/time. Default is `Asia/Colombo`.
+
+### Cron endpoint
+
+- `GET /api/cron/class-reminders`
+- Requires header: `Authorization: Bearer <CRON_SECRET>`
+
+### Vercel schedule
+
+This repository includes `vercel.json` to run reminders every 5 minutes:
+
+- `*/5 * * * *` -> `/api/cron/class-reminders`

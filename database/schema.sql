@@ -85,6 +85,11 @@ CREATE TABLE IF NOT EXISTS "Course" (
     "whatsappGroupLink" TEXT,
     "zoomLink" TEXT,
     "courseType" course_type NOT NULL DEFAULT 'ONE_TIME_PURCHASE',
+    "scheduleMode" VARCHAR(20) NOT NULL DEFAULT 'RECORDED',
+    "weeklyDay" VARCHAR(20),
+    "startTime" TIME,
+    "endTime" TIME,
+    "scheduleNote" VARCHAR(255),
     subject VARCHAR(255),
     grade VARCHAR(100),
     medium VARCHAR(100),
@@ -96,6 +101,11 @@ ALTER TABLE "Course" ADD COLUMN IF NOT EXISTS subject VARCHAR(255);
 ALTER TABLE "Course" ADD COLUMN IF NOT EXISTS grade VARCHAR(100);
 ALTER TABLE "Course" ADD COLUMN IF NOT EXISTS medium VARCHAR(100);
 ALTER TABLE "Course" ADD COLUMN IF NOT EXISTS "isHidden" BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE "Course" ADD COLUMN IF NOT EXISTS "scheduleMode" VARCHAR(20) NOT NULL DEFAULT 'RECORDED';
+ALTER TABLE "Course" ADD COLUMN IF NOT EXISTS "weeklyDay" VARCHAR(20);
+ALTER TABLE "Course" ADD COLUMN IF NOT EXISTS "startTime" TIME;
+ALTER TABLE "Course" ADD COLUMN IF NOT EXISTS "endTime" TIME;
+ALTER TABLE "Course" ADD COLUMN IF NOT EXISTS "scheduleNote" VARCHAR(255);
 
 -- Indexes for Course table
 CREATE INDEX IF NOT EXISTS idx_course_created_by ON "Course"("createdById");
@@ -185,6 +195,24 @@ CREATE TABLE IF NOT EXISTS "Payment" (
 CREATE INDEX IF NOT EXISTS idx_payment_student ON "Payment"("studentId");
 CREATE INDEX IF NOT EXISTS idx_payment_course ON "Payment"("courseId");
 CREATE INDEX IF NOT EXISTS idx_payment_status ON "Payment"(status);
+
+-- ============================================
+-- ClassReminderLog Table
+-- ============================================
+-- Prevents duplicate class reminder emails for the same student/course/time slot
+CREATE TABLE IF NOT EXISTS "ClassReminderLog" (
+    id VARCHAR(36) PRIMARY KEY DEFAULT uuid_generate_v4()::text,
+    "courseId" VARCHAR(36) NOT NULL REFERENCES "Course"(id) ON DELETE CASCADE,
+    "studentId" VARCHAR(36) NOT NULL REFERENCES "User"(id) ON DELETE CASCADE,
+    "reminderKey" VARCHAR(100) NOT NULL,
+    "scheduledDay" VARCHAR(20) NOT NULL,
+    "scheduledTime" VARCHAR(5) NOT NULL,
+    "sentAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE("courseId", "studentId", "reminderKey")
+);
+
+CREATE INDEX IF NOT EXISTS idx_classreminderlog_course_student ON "ClassReminderLog"("courseId", "studentId");
+CREATE INDEX IF NOT EXISTS idx_classreminderlog_sent_at ON "ClassReminderLog"("sentAt" DESC);
 
 -- ============================================
 -- QuizAttempt Table

@@ -433,6 +433,33 @@ export async function sendCourseContentUpdateEmail(recipients: string[], payload
   await sendEmail({ to: recipients, subject, text, html });
 }
 
+export async function sendClassStartingReminderEmail(
+  to: string,
+  payload: {
+    studentName: string;
+    courseTitle: string;
+    classDay: string;
+    classStartTime: string;
+    startsInMinutes: number;
+    courseId: string;
+    scheduleNote?: string | null;
+  }
+) {
+  const baseUrl = getBaseUrl();
+  const subject = `${appName}: ${payload.courseTitle} starts in ${payload.startsInMinutes} minutes`;
+  const text = `Hi ${payload.studentName}, your class ${payload.courseTitle} starts in ${payload.startsInMinutes} minutes (${payload.classDay} at ${payload.classStartTime}).`;
+  const noteLine = payload.scheduleNote ? `<p><strong>Class note:</strong> ${payload.scheduleNote}</p>` : '';
+  const html = wrapHtmlContent('Class starts soon', `
+    <p>Hi ${payload.studentName},</p>
+    <p>Your class <strong>${payload.courseTitle}</strong> starts in <strong>${payload.startsInMinutes} minutes</strong>.</p>
+    <p><strong>Schedule:</strong> ${payload.classDay} at ${payload.classStartTime}</p>
+    ${noteLine}
+    <a class="btn" href="${baseUrl}/dashboard/student/course/${payload.courseId}">Open course</a>
+  `);
+
+  await sendEmail({ to, subject, text, html });
+}
+
 export async function sendAnnouncementUpdatedEmail(recipients: string[], payload: { title: string; summary: string; announcementId: string }) {
   if (!recipients.length) return;
 

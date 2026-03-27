@@ -6,7 +6,17 @@ import { Role } from '../../../types';
 import { IMAGE_5MB, assertFile } from '@/lib/security';
 import { saveUploadFile } from '@/lib/uploads';
 import { ensureCourseVisibilityColumn, hasCourseVisibilityColumn } from '@/lib/course-visibility';
+import { ensureCourseScheduleColumns, hasCourseScheduleColumns } from '@/lib/course-schedule';
 import { sendCoursePublishedEmail } from '@/lib/notify';
+
+const VALID_WEEK_DAYS = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'] as const;
+const TIME_24H_REGEX = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+const normalizeOptionalString = (value: FormDataEntryValue | null): string | null => {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  return trimmed ? trimmed : null;
+};
 
 // GET handler (no changes needed)
 export async function GET(req: Request) {
@@ -55,6 +65,8 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
   await ensureCourseVisibilityColumn();
+  await ensureCourseScheduleColumns();
+  const scheduleColumnsReady = await hasCourseScheduleColumns();
   const user = await getServerUser([Role.ADMIN, Role.INSTRUCTOR]);
     const formData = await req.formData();
 
@@ -64,13 +76,43 @@ export async function POST(req: Request) {
     const price = parseFloat(formData.get('price') as string);
     const tutor = formData.get('tutor') as string | null;
     const whatsappGroupLink = formData.get('whatsappGroupLink') as string | null;
-    const subjectRaw = formData.get('subject');
-    const gradeRaw = formData.get('grade');
-    const mediumRaw = formData.get('medium');
-    const subject = typeof subjectRaw === 'string' && subjectRaw.trim() ? subjectRaw.trim() : null;
-    const grade = typeof gradeRaw === 'string' && gradeRaw.trim() ? gradeRaw.trim() : null;
-    const medium = typeof mediumRaw === 'string' && mediumRaw.trim() ? mediumRaw.trim() : null;
+    const subject = normalizeOptionalString(formData.get('subject'));
+    const grade = normalizeOptionalString(formData.get('grade'));
+    const medium = normalizeOptionalString(formData.get('medium'));
     const courseType = (formData.get('courseType') as string) || 'ONE_TIME_PURCHASE';
+
+    let scheduleMode: 'WEEKLY' | 'RECORDED' = 'RECORDED';
+    let weeklyDay: string | null = null;
+    let startTime: string | null = null;
+    let endTime: string | null = null;
+    let scheduleNote: string | null = null;
+
+    if (scheduleColumnsReady) {
+      const scheduleModeRaw = (formData.get('scheduleMode') as string | null)?.toUpperCase();
+      scheduleMode = scheduleModeRaw === 'WEEKLY' ? 'WEEKLY' : 'RECORDED';
+      weeklyDay = normalizeOptionalString(formData.get('weeklyDay'))?.toUpperCase() ?? null;
+      startTime = normalizeOptionalString(formData.get('startTime'));
+      endTime = normalizeOptionalString(formData.get('endTime'));
+      scheduleNote = normalizeOptionalString(formData.get('scheduleNote'));
+
+      if (scheduleMode === 'WEEKLY') {
+        if (!weeklyDay || !VALID_WEEK_DAYS.includes(weeklyDay as typeof VALID_WEEK_DAYS[number])) {
+          return NextResponse.json({ error: 'A valid weekly day is required for weekly schedules.' }, { status: 400 });
+        }
+
+        if (!startTime || !TIME_24H_REGEX.test(startTime) || !endTime || !TIME_24H_REGEX.test(endTime)) {
+          return NextResponse.json({ error: 'Start and end times must use HH:MM format.' }, { status: 400 });
+        }
+
+        if (startTime >= endTime) {
+          return NextResponse.json({ error: 'End time must be later than start time.' }, { status: 400 });
+        }
+      } else {
+        weeklyDay = null;
+        startTime = null;
+        endTime = null;
+      }
+    }
     
     // Get the optional image file
   const imageFile = formData.get('image') as File | null;
@@ -93,10 +135,20 @@ export async function POST(req: Request) {
     }
 
     const courseId = uuidv4();
-    const sql = `
+    const sql = scheduleColumnsReady
+      ? `
+      INSERT INTO "Course" (
+        id, title, description, "createdById", price, tutor, "whatsappGroupLink", "imageUrl", "courseType", subject, grade, medium,
+        "scheduleMode", "weeklyDay", "startTime", "endTime", "scheduleNote"
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) RETURNING *;`
+      : `
       INSERT INTO "Course" (id, title, description, "createdById", price, tutor, "whatsappGroupLink", "imageUrl", "courseType", subject, grade, medium)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *;`;
-    const result = await db.query(sql, [courseId, title, description, user.id, price, tutor, whatsappGroupLink, imageUrl, courseType, subject, grade, medium]);
+    const params = scheduleColumnsReady
+      ? [courseId, title, description, user.id, price, tutor, whatsappGroupLink, imageUrl, courseType, subject, grade, medium, scheduleMode, weeklyDay, startTime, endTime, scheduleNote]
+      : [courseId, title, description, user.id, price, tutor, whatsappGroupLink, imageUrl, courseType, subject, grade, medium];
+    const result = await db.query(sql, params);
     
     const newCourse = result.rows[0];
     newCourse.price = parseFloat(newCourse.price);

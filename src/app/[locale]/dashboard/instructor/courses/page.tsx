@@ -21,6 +21,10 @@ interface Course {
   description: string;
   price: number;
   isHidden?: boolean;
+  scheduleMode?: 'WEEKLY' | 'RECORDED' | null;
+  weeklyDay?: string | null;
+  startTime?: string | null;
+  endTime?: string | null;
   imageUrl?: string | null;
   subject?: string | null;
   grade?: string | null;
@@ -43,6 +47,26 @@ const schema = z.object({
 });
 
 type FormData = z.infer<typeof schema>;
+
+const formatTime12h = (timeValue?: string | null): string => {
+  if (!timeValue) return '';
+  const [hourRaw, minuteRaw] = timeValue.split(':');
+  const hour = Number(hourRaw);
+  const minute = Number(minuteRaw);
+  if (Number.isNaN(hour) || Number.isNaN(minute)) return timeValue;
+
+  const meridiem = hour >= 12 ? 'PM' : 'AM';
+  const normalizedHour = hour % 12 || 12;
+  return `${normalizedHour}:${String(minute).padStart(2, '0')} ${meridiem}`;
+};
+
+const getScheduleSummary = (course: Course): string => {
+  if (course.scheduleMode === 'WEEKLY' && course.weeklyDay && course.startTime && course.endTime) {
+    return `Weekly: ${course.weeklyDay} ${formatTime12h(course.startTime)} - ${formatTime12h(course.endTime)}`;
+  }
+
+  return 'Recorded course (on-demand)';
+};
 
 export default function InstructorCoursesPage() {
   const { data: courses, isLoading, refetch } = useQuery<Course[]>({
@@ -203,6 +227,7 @@ export default function InstructorCoursesPage() {
                     <p className="text-xs text-gray-500 mt-1">
                       {c.courseType === 'SUBSCRIPTION' ? '📅 Monthly Subscription' : '🔓 One-Time Purchase'}
                     </p>
+                    <p className="text-xs text-gray-500 mt-1">{getScheduleSummary(c)}</p>
                   </div>
                 </div>
                 <div className="w-full sm:w-auto flex items-center gap-2 flex-wrap sm:flex-nowrap">

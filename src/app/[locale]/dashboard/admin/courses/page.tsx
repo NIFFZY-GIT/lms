@@ -17,19 +17,82 @@ import { toast } from '@/components/ui/toast';
 import { useConfirm } from '@/components/ui/confirm-dialog';
 import { format, isPast } from 'date-fns';
 
+const WEEK_DAYS = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'] as const;
+
+const formatTime12h = (timeValue?: string | null): string => {
+  if (!timeValue) return '';
+  const [hourRaw, minuteRaw] = timeValue.split(':');
+  const hour = Number(hourRaw);
+  const minute = Number(minuteRaw);
+  if (Number.isNaN(hour) || Number.isNaN(minute)) return timeValue;
+
+  const meridiem = hour >= 12 ? 'PM' : 'AM';
+  const normalizedHour = hour % 12 || 12;
+  return `${normalizedHour}:${String(minute).padStart(2, '0')} ${meridiem}`;
+};
+
+const getScheduleSummary = (course: Course): string => {
+  if (course.scheduleMode === 'WEEKLY' && course.weeklyDay && course.startTime && course.endTime) {
+    return `Weekly: ${course.weeklyDay} ${formatTime12h(course.startTime)} - ${formatTime12h(course.endTime)}`;
+  }
+
+  return 'Recorded course (on-demand)';
+};
+
 // --- Zod Schema (Corrected) ---
-const courseSchema = z.object({
-  title: z.string().min(1, { message: 'Title is required' }),
-  description: z.string().min(1, { message: 'Description is required' }),
-  price: z.coerce.number({ message: 'Price must be a valid number.' }).min(0, { message: "Price cannot be negative." }),
-  courseType: z.enum(['ONE_TIME_PURCHASE', 'SUBSCRIPTION'], { message: 'Please select a course type' }),
-  subject: z.string().optional(),
-  grade: z.string().optional(),
-  medium: z.string().optional(),
-  tutor: z.string().optional(),
-  whatsappGroupLink: z.string().url({ message: 'A valid URL is required' }).optional().or(z.literal('')),
-  image: z.custom<FileList>().optional(),
-});
+const courseSchema = z
+  .object({
+    title: z.string().min(1, { message: 'Title is required' }),
+    description: z.string().min(1, { message: 'Description is required' }),
+    price: z.coerce.number({ message: 'Price must be a valid number.' }).min(0, { message: 'Price cannot be negative.' }),
+    courseType: z.enum(['ONE_TIME_PURCHASE', 'SUBSCRIPTION'], { message: 'Please select a course type' }),
+    scheduleMode: z.enum(['WEEKLY', 'RECORDED'], { message: 'Please select a schedule mode' }),
+    weeklyDay: z.string().optional(),
+    startTime: z.string().optional(),
+    endTime: z.string().optional(),
+    scheduleNote: z.string().max(255, { message: 'Schedule note must be 255 characters or less' }).optional(),
+    subject: z.string().optional(),
+    grade: z.string().optional(),
+    medium: z.string().optional(),
+    tutor: z.string().optional(),
+    whatsappGroupLink: z.string().url({ message: 'A valid URL is required' }).optional().or(z.literal('')),
+    image: z.custom<FileList>().optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.scheduleMode !== 'WEEKLY') return;
+
+    if (!data.weeklyDay) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['weeklyDay'],
+        message: 'Select the weekly class day',
+      });
+    }
+
+    if (!data.startTime) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['startTime'],
+        message: 'Start time is required for weekly classes',
+      });
+    }
+
+    if (!data.endTime) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['endTime'],
+        message: 'End time is required for weekly classes',
+      });
+    }
+
+    if (data.startTime && data.endTime && data.startTime >= data.endTime) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['endTime'],
+        message: 'End time must be later than start time',
+      });
+    }
+  });
 type CourseFormData = z.infer<typeof courseSchema>;
 
 type Payment = {
@@ -71,6 +134,7 @@ export default function AdminCoursesPage() {
   const [subscriptionCourse, setSubscriptionCourse] = useState<Course | null>(null);
   const [pricingType, setPricingType] = useState<'PAID' | 'FREE'>('PAID');
   const [courseType, setCourseType] = useState<'ONE_TIME_PURCHASE' | 'SUBSCRIPTION'>('ONE_TIME_PURCHASE');
+  const [scheduleMode, setScheduleMode] = useState<'WEEKLY' | 'RECORDED'>('RECORDED');
   const [confirmForceExtendPaymentId, setConfirmForceExtendPaymentId] = useState<string | null>(null);
   const [forceExtendConflict, setForceExtendConflict] = useState<ForceExtendConflict | null>(null);
   const queryClient = useQueryClient();
@@ -89,6 +153,11 @@ export default function AdminCoursesPage() {
       description: '',
       price: 0,
       courseType: 'ONE_TIME_PURCHASE',
+      scheduleMode: 'RECORDED',
+      weeklyDay: '',
+      startTime: '',
+      endTime: '',
+      scheduleNote: '',
       subject: '',
       grade: '',
       medium: '',
@@ -136,17 +205,24 @@ export default function AdminCoursesPage() {
     setSelectedCourse(null);
     setPricingType('PAID');
     setCourseType('ONE_TIME_PURCHASE');
-    reset({ title: '', description: '', price: 0, courseType: 'ONE_TIME_PURCHASE', subject: '', grade: '', medium: '', tutor: '', whatsappGroupLink: '' });
+    setScheduleMode('RECORDED');
+    reset({ title: '', description: '', price: 0, courseType: 'ONE_TIME_PURCHASE', scheduleMode: 'RECORDED', weeklyDay: '', startTime: '', endTime: '', scheduleNote: '', subject: '', grade: '', medium: '', tutor: '', whatsappGroupLink: '' });
     setIsCourseModalOpen(true);
   };
   const openModalForEdit = (course: Course) => {
     setSelectedCourse(course);
     setPricingType(course.price === 0 ? 'FREE' : 'PAID');
     setCourseType(course.courseType as 'ONE_TIME_PURCHASE' | 'SUBSCRIPTION');
+    setScheduleMode(course.scheduleMode === 'WEEKLY' ? 'WEEKLY' : 'RECORDED');
     setValue('title', course.title);
     setValue('description', course.description);
     setValue('price', course.price);
     setValue('courseType', course.courseType as 'ONE_TIME_PURCHASE' | 'SUBSCRIPTION');
+    setValue('scheduleMode', course.scheduleMode === 'WEEKLY' ? 'WEEKLY' : 'RECORDED');
+    setValue('weeklyDay', course.weeklyDay || '');
+    setValue('startTime', course.startTime ? course.startTime.slice(0, 5) : '');
+    setValue('endTime', course.endTime ? course.endTime.slice(0, 5) : '');
+    setValue('scheduleNote', course.scheduleNote || '');
     setValue('subject', course.subject || '');
     setValue('grade', course.grade || '');
     setValue('medium', course.medium || '');
@@ -173,6 +249,17 @@ export default function AdminCoursesPage() {
     const normalizedPrice = pricingType === 'FREE' ? 0 : data.price;
     formData.append('price', String(normalizedPrice));
     formData.append('courseType', courseType);
+    formData.append('scheduleMode', scheduleMode);
+    if (scheduleMode === 'WEEKLY') {
+      formData.append('weeklyDay', data.weeklyDay || '');
+      formData.append('startTime', data.startTime || '');
+      formData.append('endTime', data.endTime || '');
+    } else {
+      formData.append('weeklyDay', '');
+      formData.append('startTime', '');
+      formData.append('endTime', '');
+    }
+    if (data.scheduleNote) formData.append('scheduleNote', data.scheduleNote);
     if (data.subject) formData.append('subject', data.subject);
     if (data.grade) formData.append('grade', data.grade);
     if (data.medium) formData.append('medium', data.medium);
@@ -248,6 +335,7 @@ export default function AdminCoursesPage() {
                       <p className="text-xs text-gray-500 mt-1">
                         {course.courseType === 'SUBSCRIPTION' ? '📅 Monthly Subscription' : '🔓 One-Time Purchase'}
                       </p>
+                      <p className="text-xs text-gray-500 mt-1">{getScheduleSummary(course)}</p>
                     </div>
                   </div>
                   <div className="w-full sm:w-auto flex items-center gap-2 flex-wrap sm:flex-nowrap">
@@ -320,6 +408,51 @@ export default function AdminCoursesPage() {
               </select>
               {errors.courseType && <p className="text-sm text-red-600 mt-1">{errors.courseType.message}</p>}
             </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Class Delivery</label>
+              <select
+                value={scheduleMode}
+                onChange={(e) => {
+                  const value = e.target.value as 'WEEKLY' | 'RECORDED';
+                  setScheduleMode(value);
+                  setValue('scheduleMode', value, { shouldValidate: true });
+                  if (value === 'RECORDED') {
+                    setValue('weeklyDay', '', { shouldValidate: true });
+                    setValue('startTime', '', { shouldValidate: true });
+                    setValue('endTime', '', { shouldValidate: true });
+                  }
+                }}
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="RECORDED">Recorded (No weekly live class)</option>
+                <option value="WEEKLY">Weekly live class</option>
+              </select>
+              {errors.scheduleMode && <p className="text-sm text-red-600 mt-1">{errors.scheduleMode.message}</p>}
+            </div>
+          </div>
+
+          {scheduleMode === 'WEEKLY' && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Class Day</label>
+                <select
+                  {...register('weeklyDay')}
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">Select day</option>
+                  {WEEK_DAYS.map((day) => (
+                    <option key={day} value={day}>{day}</option>
+                  ))}
+                </select>
+                {errors.weeklyDay && <p className="text-sm text-red-600 mt-1">{errors.weeklyDay.message}</p>}
+              </div>
+              <Input label="Start Time" registration={register('startTime')} error={errors.startTime?.message} type="time" />
+              <Input label="End Time" registration={register('endTime')} error={errors.endTime?.message} type="time" />
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Input label="Schedule Note (Optional)" registration={register('scheduleNote')} error={errors.scheduleNote?.message} />
             <div>
               <label className="block text-sm font-medium text-gray-700">Pricing</label>
               <select

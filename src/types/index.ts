@@ -25,6 +25,11 @@ export interface Course {
   description: string;
   price: number;
   isHidden?: boolean;
+  scheduleMode?: 'WEEKLY' | 'RECORDED';
+  weeklyDay?: string | null;
+  startTime?: string | null;
+  endTime?: string | null;
+  scheduleNote?: string | null;
   subject?: string;
   grade?: string;
   medium?: string;

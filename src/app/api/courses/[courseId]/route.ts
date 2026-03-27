@@ -5,7 +5,22 @@ import { Role } from '../../../../types';
 import { IMAGE_5MB, assertFile } from '@/lib/security';
 import { saveUploadFile, removeUploadByUrl } from '@/lib/uploads';
 import { ensureCourseVisibilityColumn } from '@/lib/course-visibility';
+import { ensureCourseScheduleColumns, hasCourseScheduleColumns } from '@/lib/course-schedule';
 import { sendCourseUpdatedEmail } from '@/lib/notify';
+
+const VALID_WEEK_DAYS = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'] as const;
+const TIME_24H_REGEX = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+const normalizeOptionalString = (value: FormDataEntryValue | null): string | null => {
+    if (typeof value !== 'string') return null;
+    const trimmed = value.trim();
+    return trimmed ? trimmed : null;
+};
+
+const normalizeTimeForComparison = (timeValue: string | null): string | null => {
+    if (!timeValue) return null;
+    return timeValue.slice(0, 5);
+};
 
 // --- GET function (no changes) ---
 export async function GET(req: Request, { params }: { params: Promise<{ courseId: string }> }) {
@@ -53,6 +68,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ courseId
 export async function PATCH(req: Request, { params }: { params: Promise<{ courseId: string }> }) {
     try {
         await ensureCourseVisibilityColumn();
+        await ensureCourseScheduleColumns();
+        const scheduleColumnsReady = await hasCourseScheduleColumns();
 
         const user = await getServerUser([Role.ADMIN, Role.INSTRUCTOR]);
         const { courseId } = await params;
@@ -80,6 +97,11 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ course
         const grade = formData.get('grade');
         const medium = formData.get('medium');
         const isHidden = formData.get('isHidden');
+        const scheduleModeInput = formData.get('scheduleMode');
+        const weeklyDayInput = formData.get('weeklyDay');
+        const startTimeInput = formData.get('startTime');
+        const endTimeInput = formData.get('endTime');
+        const scheduleNoteInput = formData.get('scheduleNote');
         
         if(title) { fields.push(`title = $${queryIndex++}`); values.push(title); changedFields.push('title'); }
         if(description) { fields.push(`description = $${queryIndex++}`); values.push(description); changedFields.push('description'); }
@@ -117,6 +139,105 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ course
             fields.push(`"isHidden" = $${queryIndex++}`);
             values.push(normalizedIsHidden);
             changedFields.push('visibility');
+        }
+
+        if (scheduleColumnsReady) {
+            const scheduleTouched =
+                scheduleModeInput !== null ||
+                weeklyDayInput !== null ||
+                startTimeInput !== null ||
+                endTimeInput !== null ||
+                scheduleNoteInput !== null;
+
+            let normalizedScheduleMode: 'WEEKLY' | 'RECORDED' | null = null;
+            let normalizedWeeklyDay: string | null = null;
+            let normalizedStartTime: string | null = null;
+            let normalizedEndTime: string | null = null;
+            let normalizedScheduleNote: string | null = null;
+
+            if (scheduleModeInput !== null) {
+                const raw = typeof scheduleModeInput === 'string' ? scheduleModeInput.toUpperCase() : '';
+                if (raw !== 'WEEKLY' && raw !== 'RECORDED') {
+                    return NextResponse.json({ error: 'Invalid schedule mode' }, { status: 400 });
+                }
+                normalizedScheduleMode = raw;
+                fields.push(`"scheduleMode" = $${queryIndex++}`);
+                values.push(normalizedScheduleMode);
+                changedFields.push('schedule mode');
+            }
+
+            if (weeklyDayInput !== null) {
+                normalizedWeeklyDay = normalizeOptionalString(weeklyDayInput)?.toUpperCase() ?? null;
+                fields.push(`"weeklyDay" = $${queryIndex++}`);
+                values.push(normalizedWeeklyDay);
+                changedFields.push('class day');
+            }
+
+            if (startTimeInput !== null) {
+                normalizedStartTime = normalizeOptionalString(startTimeInput);
+                fields.push(`"startTime" = $${queryIndex++}`);
+                values.push(normalizedStartTime);
+                changedFields.push('start time');
+            }
+
+            if (endTimeInput !== null) {
+                normalizedEndTime = normalizeOptionalString(endTimeInput);
+                fields.push(`"endTime" = $${queryIndex++}`);
+                values.push(normalizedEndTime);
+                changedFields.push('end time');
+            }
+
+            if (scheduleNoteInput !== null) {
+                normalizedScheduleNote = normalizeOptionalString(scheduleNoteInput);
+                fields.push(`"scheduleNote" = $${queryIndex++}`);
+                values.push(normalizedScheduleNote);
+                changedFields.push('schedule note');
+            }
+
+            if (scheduleTouched) {
+                const existingScheduleResult = await db.query<{
+                    scheduleMode: string | null;
+                    weeklyDay: string | null;
+                    startTime: string | null;
+                    endTime: string | null;
+                }>('SELECT "scheduleMode", "weeklyDay", "startTime", "endTime" FROM "Course" WHERE id = $1', [courseId]);
+
+                if (existingScheduleResult.rows.length === 0) {
+                    return NextResponse.json({ error: 'Course not found' }, { status: 404 });
+                }
+
+                const existingSchedule = existingScheduleResult.rows[0];
+                const effectiveScheduleMode = normalizedScheduleMode ?? (existingSchedule.scheduleMode === 'WEEKLY' ? 'WEEKLY' : 'RECORDED');
+                const effectiveWeeklyDay = weeklyDayInput !== null ? normalizedWeeklyDay : existingSchedule.weeklyDay;
+                const effectiveStartTime = normalizeTimeForComparison(startTimeInput !== null ? normalizedStartTime : existingSchedule.startTime);
+                const effectiveEndTime = normalizeTimeForComparison(endTimeInput !== null ? normalizedEndTime : existingSchedule.endTime);
+
+                if (effectiveScheduleMode === 'WEEKLY') {
+                    if (!effectiveWeeklyDay || !VALID_WEEK_DAYS.includes(effectiveWeeklyDay as typeof VALID_WEEK_DAYS[number])) {
+                        return NextResponse.json({ error: 'A valid weekly day is required for weekly schedules.' }, { status: 400 });
+                    }
+
+                    if (!effectiveStartTime || !TIME_24H_REGEX.test(effectiveStartTime) || !effectiveEndTime || !TIME_24H_REGEX.test(effectiveEndTime)) {
+                        return NextResponse.json({ error: 'Start and end times must use HH:MM format.' }, { status: 400 });
+                    }
+
+                    if (effectiveStartTime >= effectiveEndTime) {
+                        return NextResponse.json({ error: 'End time must be later than start time.' }, { status: 400 });
+                    }
+                }
+
+                if (effectiveScheduleMode === 'RECORDED') {
+                    if (weeklyDayInput === null) {
+                        fields.push('"weeklyDay" = NULL');
+                    }
+                    if (startTimeInput === null) {
+                        fields.push('"startTime" = NULL');
+                    }
+                    if (endTimeInput === null) {
+                        fields.push('"endTime" = NULL');
+                    }
+                }
+            }
         }
 
     const imageFile = formData.get('image') as File | null;

@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { Course } from '@/types';
 import Image from 'next/image';
-import { BookOpen, GraduationCap, Globe, UserRound } from 'lucide-react';
+import { BookOpen, CalendarDays, GraduationCap, Globe, UserRound } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { useAuth } from '@/context/AuthContext';
 import { usePathname } from 'next/navigation';
@@ -12,6 +12,26 @@ interface CourseCardProps {
   course: Course;
   locale?: string;
 }
+
+const formatTime12h = (timeValue?: string | null): string => {
+  if (!timeValue) return '';
+  const [hourRaw, minuteRaw] = timeValue.split(':');
+  const hour = Number(hourRaw);
+  const minute = Number(minuteRaw);
+  if (Number.isNaN(hour) || Number.isNaN(minute)) return timeValue;
+
+  const meridiem = hour >= 12 ? 'PM' : 'AM';
+  const normalizedHour = hour % 12 || 12;
+  return `${normalizedHour}:${String(minute).padStart(2, '0')} ${meridiem}`;
+};
+
+const getScheduleLabel = (course: Course): string => {
+  if (course.scheduleMode === 'WEEKLY' && course.weeklyDay && course.startTime && course.endTime) {
+    return `${course.weeklyDay}, ${formatTime12h(course.startTime)} - ${formatTime12h(course.endTime)}`;
+  }
+
+  return 'Recorded / On-demand';
+};
 
 export function CourseCard({ course, locale: localeProp }: CourseCardProps) {
   const { user } = useAuth();
@@ -75,6 +95,10 @@ export function CourseCard({ course, locale: localeProp }: CourseCardProps) {
               <UserRound className="h-4 w-4 text-slate-500" />
               <span>Tutor:</span>
               <span className="font-semibold text-slate-700">{course.tutor || 'N/A'}</span>
+            </p>
+            <p className="mt-2 inline-flex items-center gap-1.5 text-sm text-slate-600">
+              <CalendarDays className="h-4 w-4 text-slate-500" />
+              <span>{getScheduleLabel(course)}</span>
             </p>
           </div>
 
