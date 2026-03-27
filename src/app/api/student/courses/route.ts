@@ -5,7 +5,7 @@ import { Role } from '../../../../types';
 
 export async function GET() {
   try {
-    const user = await getServerUser(Role.STUDENT);
+    const user = await getServerUser([Role.STUDENT, Role.ADMIN]);
 
     // For ONE_TIME_PURCHASE courses: join where status = 'APPROVED'
     // For SUBSCRIPTION courses: join where status = 'APPROVED' AND subscriptionExpiryDate > NOW

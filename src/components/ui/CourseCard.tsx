@@ -41,9 +41,7 @@ export function CourseCard({ course, locale: localeProp }: CourseCardProps) {
   const studentCoursePath = `/${locale}/dashboard/student/course/${course.id}`;
   const href = !user
     ? `/${locale}/auth/login?callbackUrl=${encodeURIComponent(studentCoursePath)}`
-    : user.role === 'ADMIN'
-      ? `/${locale}/dashboard/admin/courses`
-      : user.role === 'INSTRUCTOR'
+    : user.role === 'INSTRUCTOR'
         ? `/${locale}/dashboard/instructor/courses`
         : studentCoursePath;
 

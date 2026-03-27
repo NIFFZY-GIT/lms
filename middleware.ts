@@ -51,10 +51,10 @@ export default function middleware(request: NextRequest) {
     const token = request.cookies.get('token')?.value;
     const role = decodeRoleFromToken(token);
 
-    const routeChecks: Array<{ prefix: string; role: string }> = [
-      { prefix: `/${locale}/dashboard/admin`, role: 'ADMIN' },
-      { prefix: `/${locale}/dashboard/instructor`, role: 'INSTRUCTOR' },
-      { prefix: `/${locale}/dashboard/student`, role: 'STUDENT' },
+    const routeChecks: Array<{ prefix: string; allowedRoles: string[] }> = [
+      { prefix: `/${locale}/dashboard/admin`, allowedRoles: ['ADMIN'] },
+      { prefix: `/${locale}/dashboard/instructor`, allowedRoles: ['INSTRUCTOR'] },
+      { prefix: `/${locale}/dashboard/student`, allowedRoles: ['STUDENT', 'ADMIN'] },
     ];
 
     const matched = routeChecks.find((r) => pathname.startsWith(r.prefix));
@@ -62,7 +62,7 @@ export default function middleware(request: NextRequest) {
       if (!token || !role) {
         return buildLoginRedirect(locale);
       }
-      if (role !== matched.role) {
+      if (!matched.allowedRoles.includes(role)) {
         const url = request.nextUrl.clone();
         url.pathname = roleDefaultPath(role, locale);
         url.search = '';

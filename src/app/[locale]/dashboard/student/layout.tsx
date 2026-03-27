@@ -20,8 +20,8 @@ async function getCurrentUser() {
     const userResult = await db.query('SELECT id, name, role FROM "User" WHERE id = $1', [decoded.id]);
     const user = userResult.rows[0];
     
-    // Ensure the user is a student
-    if (!user || user.role !== 'STUDENT') {
+    // Ensure the user is a student or admin (admins can access student course views)
+    if (!user || (user.role !== 'STUDENT' && user.role !== 'ADMIN')) {
       return null;
     }
     

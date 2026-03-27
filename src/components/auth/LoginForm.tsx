@@ -194,6 +194,7 @@ export function LoginForm() {
       if (callbackUrl) {
         const allowed = (
           (data.role === 'ADMIN' && /([a-zA-Z-]+\/)?dashboard\/admin/.test(callbackUrl)) ||
+          (data.role === 'ADMIN' && /([a-zA-Z-]+\/)?dashboard\/student/.test(callbackUrl)) ||
           (data.role === 'INSTRUCTOR' && /([a-zA-Z-]+\/)?dashboard\/instructor/.test(callbackUrl)) ||
           (data.role === 'STUDENT' && /([a-zA-Z-]+\/)?dashboard\/student/.test(callbackUrl))
         );
