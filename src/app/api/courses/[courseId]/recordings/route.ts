@@ -48,22 +48,34 @@ export async function POST(req: Request, { params }: { params: Promise<{ courseI
             return NextResponse.json({ error: 'Title is required.' }, { status: 400 });
         }
 
-        if (recordingType === 'link' || videoLink) {
-            return NextResponse.json({ error: 'External recording links are not allowed. Please upload a video file.' }, { status: 400 });
-        }
+        let videoUrl = '';
+        if (recordingType === 'link') {
+            if (!videoLink) {
+                return NextResponse.json({ error: 'Recording link is required.' }, { status: 400 });
+            }
+            try {
+                const url = new URL(videoLink);
+                if (!['http:', 'https:'].includes(url.protocol)) {
+                    return NextResponse.json({ error: 'Recording link must use http or https.' }, { status: 400 });
+                }
+                videoUrl = videoLink;
+            } catch {
+                return NextResponse.json({ error: 'Recording link is invalid.' }, { status: 400 });
+            }
+        } else {
+            if (!videoFile) {
+                return NextResponse.json({ error: 'Video file is required.' }, { status: 400 });
+            }
+            try {
+                assertFile(videoFile, VIDEO_500MB, 'video');
+            } catch (e) {
+                const message = e instanceof Error ? e.message : 'Invalid file';
+                return NextResponse.json({ error: message }, { status: 400 });
+            }
 
-        if (!videoFile) {
-            return NextResponse.json({ error: 'Video file is required.' }, { status: 400 });
+            const uploadResult = await saveUploadFile(videoFile, 'recordings');
+            videoUrl = uploadResult.publicPath;
         }
-        try {
-            assertFile(videoFile, VIDEO_500MB, 'video');
-        } catch (e) {
-            const message = e instanceof Error ? e.message : 'Invalid file';
-            return NextResponse.json({ error: message }, { status: 400 });
-        }
-
-        const uploadResult = await saveUploadFile(videoFile, 'recordings');
-        const videoUrl = uploadResult.publicPath;
 
         const recordingId = uuidv4();
 

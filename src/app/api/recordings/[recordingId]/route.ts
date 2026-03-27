@@ -56,14 +56,6 @@ export async function GET(req: Request, { params }: { params: Promise<{ recordin
         }
 
         const videoUrl = recording.videoUrl;
-
-        if (user.role === Role.STUDENT && !videoUrl.startsWith('/')) {
-            return NextResponse.json(
-                { error: 'External recording links are disabled. Please contact support.' },
-                { status: 403 }
-            );
-        }
-
         if (videoUrl.startsWith('/')) {
             return NextResponse.redirect(new URL(videoUrl, req.url));
         }
