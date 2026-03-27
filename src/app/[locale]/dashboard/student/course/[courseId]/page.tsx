@@ -17,6 +17,11 @@ const isFileVideoUrl = (url?: string) => {
   return url.startsWith('/uploads/') || /\.(mp4|webm|ogg)(\?.*)?$/i.test(url);
 };
 
+const isProtectedRecordingUrl = (url?: string) => {
+  if (!url) return false;
+  return url.startsWith('/api/recordings/');
+};
+
 const getEmbeddedRecordingUrl = (rawUrl?: string): { provider: 'youtube' | 'zoom' | 'external'; embedUrl: string } | null => {
   if (!rawUrl) return null;
   const input = rawUrl.trim();
@@ -181,6 +186,15 @@ export default function StudentCoursePage() {
                                       <source src={rec.videoUrl} type="video/mp4" />
                                       Your browser does not support the video tag.
                                   </video>
+                                ) : isProtectedRecordingUrl(rec.videoUrl) ? (
+                                  <iframe
+                                    src={rec.videoUrl}
+                                    title={`Protected recording - ${rec.title}`}
+                                    className="w-full rounded-lg aspect-video border border-gray-200 bg-black"
+                                    loading="lazy"
+                                    allow="autoplay; encrypted-media; picture-in-picture"
+                                    allowFullScreen
+                                  />
                                 ) : (
                                   (() => {
                                     const embedded = getEmbeddedRecordingUrl(rec.videoUrl);
@@ -207,15 +221,11 @@ export default function StudentCoursePage() {
                                         <div className="p-3 rounded-lg border border-blue-100 bg-blue-50 text-sm text-blue-900">
                                           <p className="mb-2">
                                             {embedded.provider === 'zoom'
-                                              ? 'Zoom recording is embedded below. If it does not load due to browser restrictions, open it directly.'
+                                              ? 'Zoom recording is embedded below.'
                                               : embedded.provider === 'youtube'
                                                 ? 'YouTube recording is embedded below.'
                                                 : 'This recording link is embedded below.'}
                                           </p>
-                                          <a href={rec.videoUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 font-semibold text-blue-700 hover:underline">
-                                            <ExternalLink className="w-4 h-4" />
-                                            Open recording link in new tab
-                                          </a>
                                         </div>
                                       </div>
                                     );

@@ -42,19 +42,45 @@ export async function GET(req: Request, { params }: { params: Promise<{ courseId
         if (isAdminViewer) {
             enrollmentStatus = 'APPROVED';
         } else {
-            const paymentResult = await db.query('SELECT status FROM "Payment" WHERE "studentId" = $1 AND "courseId" = $2', [user.id, courseId]);
-            enrollmentStatus = paymentResult.rows[0]?.status || null;
+            const paymentResult = await db.query<{
+                status: 'APPROVED' | 'PENDING' | 'REJECTED';
+                subscriptionExpiryDate: string | null;
+            }>(
+                `SELECT status, "subscriptionExpiryDate"
+                 FROM "Payment"
+                 WHERE "studentId" = $1 AND "courseId" = $2
+                 ORDER BY "createdAt" DESC
+                 LIMIT 1`,
+                [user.id, courseId]
+            );
+
+            const latestPayment = paymentResult.rows[0];
+            if (latestPayment) {
+                if (course.courseType === 'SUBSCRIPTION' && latestPayment.status === 'APPROVED') {
+                    const isStillActive = latestPayment.subscriptionExpiryDate
+                        ? new Date(latestPayment.subscriptionExpiryDate) > new Date()
+                        : false;
+                    enrollmentStatus = isStillActive ? 'APPROVED' : null;
+                } else {
+                    enrollmentStatus = latestPayment.status;
+                }
+            }
         }
 
         if (course.isHidden && user.role === Role.STUDENT && enrollmentStatus !== 'APPROVED') {
             return NextResponse.json({ error: 'Course not found' }, { status: 404 });
         }
 
-        if (isAdminViewer || enrollmentStatus === 'APPROVED') {
-      const recordingsResult = await db.query('SELECT * FROM "Recording" WHERE "courseId" = $1 ORDER BY "createdAt" ASC', [courseId]);
-      const quizzesResult = await db.query('SELECT id, title FROM "Quiz" WHERE "courseId" = $1 ORDER BY "createdAt" ASC', [courseId]);
-            const tutorialsResult = await db.query('SELECT * FROM "CourseTutorial" WHERE "courseId" = $1 ORDER BY "createdAt" ASC', [courseId]);
-            course.recordings = recordingsResult.rows;
+                if (isAdminViewer || enrollmentStatus === 'APPROVED') {
+            const recordingsResult = await db.query('SELECT * FROM "Recording" WHERE "courseId" = $1 ORDER BY "createdAt" ASC', [courseId]);
+            const quizzesResult = await db.query('SELECT id, title FROM "Quiz" WHERE "courseId" = $1 ORDER BY "createdAt" ASC', [courseId]);
+                        const tutorialsResult = await db.query('SELECT * FROM "CourseTutorial" WHERE "courseId" = $1 ORDER BY "createdAt" ASC', [courseId]);
+                        course.recordings = user.role === Role.STUDENT
+                                ? recordingsResult.rows.map((recording: { id: string }) => ({
+                                        ...recording,
+                                        videoUrl: `/api/recordings/${recording.id}`,
+                                }))
+                                : recordingsResult.rows;
             course.quizzes = quizzesResult.rows;
             course.tutorials = tutorialsResult.rows;
         } else {

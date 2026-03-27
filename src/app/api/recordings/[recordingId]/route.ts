@@ -6,6 +6,67 @@ import { Role } from '../../../../types';
 import { unlink } from 'fs/promises'; // For deleting the file from disk
 import path from 'path';
 
+export async function GET(req: Request, { params }: { params: Promise<{ recordingId: string }> }) {
+    try {
+        const user = await getServerUser([Role.ADMIN, Role.STUDENT]);
+        const { recordingId } = await params;
+
+        const recordingResult = await db.query<{
+            videoUrl: string;
+            courseId: string;
+            courseType: 'ONE_TIME_PURCHASE' | 'SUBSCRIPTION';
+        }>(
+            `SELECT r."videoUrl", r."courseId", c."courseType"
+             FROM "Recording" r
+             JOIN "Course" c ON c.id = r."courseId"
+             WHERE r.id = $1`,
+            [recordingId]
+        );
+
+        if (!recordingResult.rows.length) {
+            return NextResponse.json({ error: 'Recording not found' }, { status: 404 });
+        }
+
+        const recording = recordingResult.rows[0];
+
+        if (user.role === Role.STUDENT) {
+            const paymentResult = await db.query<{
+                status: 'APPROVED' | 'PENDING' | 'REJECTED';
+                subscriptionExpiryDate: string | null;
+            }>(
+                `SELECT status, "subscriptionExpiryDate"
+                 FROM "Payment"
+                 WHERE "studentId" = $1 AND "courseId" = $2
+                 ORDER BY "createdAt" DESC
+                 LIMIT 1`,
+                [user.id, recording.courseId]
+            );
+
+            const latestPayment = paymentResult.rows[0];
+            const hasAccess = Boolean(
+                latestPayment && latestPayment.status === 'APPROVED' && (
+                    recording.courseType !== 'SUBSCRIPTION' ||
+                    (latestPayment.subscriptionExpiryDate && new Date(latestPayment.subscriptionExpiryDate) > new Date())
+                )
+            );
+
+            if (!hasAccess) {
+                return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+            }
+        }
+
+        const videoUrl = recording.videoUrl;
+        if (videoUrl.startsWith('/')) {
+            return NextResponse.redirect(new URL(videoUrl, req.url));
+        }
+
+        return NextResponse.redirect(videoUrl);
+    } catch (error) {
+        console.error('Recording playback error:', error);
+        return NextResponse.json({ error: 'Failed to load recording' }, { status: 500 });
+    }
+}
+
 export async function DELETE(req: Request, { params }: { params: Promise<{ recordingId: string }> }) {
     try {
     const user = await getServerUser([Role.ADMIN, Role.INSTRUCTOR]);
