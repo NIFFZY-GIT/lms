@@ -29,6 +29,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ courseId
 
     const user = await getServerUser();
     const { courseId } = await params;
+    const isAdminViewer = user.role === Role.ADMIN;
 
     const courseResult = await db.query('SELECT * FROM "Course" WHERE id = $1', [courseId]);
     if (courseResult.rows.length === 0) {
@@ -37,14 +38,19 @@ export async function GET(req: Request, { params }: { params: Promise<{ courseId
     const course = courseResult.rows[0];
     course.price = parseFloat(course.price);
 
-    const paymentResult = await db.query('SELECT status FROM "Payment" WHERE "studentId" = $1 AND "courseId" = $2', [user.id, courseId]);
-    const enrollmentStatus = paymentResult.rows[0]?.status || null;
+        let enrollmentStatus: 'APPROVED' | 'PENDING' | 'REJECTED' | null = null;
+        if (isAdminViewer) {
+            enrollmentStatus = 'APPROVED';
+        } else {
+            const paymentResult = await db.query('SELECT status FROM "Payment" WHERE "studentId" = $1 AND "courseId" = $2', [user.id, courseId]);
+            enrollmentStatus = paymentResult.rows[0]?.status || null;
+        }
 
         if (course.isHidden && user.role === Role.STUDENT && enrollmentStatus !== 'APPROVED') {
             return NextResponse.json({ error: 'Course not found' }, { status: 404 });
         }
 
-    if (enrollmentStatus === 'APPROVED') {
+        if (isAdminViewer || enrollmentStatus === 'APPROVED') {
       const recordingsResult = await db.query('SELECT * FROM "Recording" WHERE "courseId" = $1 ORDER BY "createdAt" ASC', [courseId]);
       const quizzesResult = await db.query('SELECT id, title FROM "Quiz" WHERE "courseId" = $1 ORDER BY "createdAt" ASC', [courseId]);
             const tutorialsResult = await db.query('SELECT * FROM "CourseTutorial" WHERE "courseId" = $1 ORDER BY "createdAt" ASC', [courseId]);
@@ -57,7 +63,11 @@ export async function GET(req: Request, { params }: { params: Promise<{ courseId
             course.tutorials = [];
         }
     
-    return NextResponse.json({ ...course, enrollmentStatus });
+        return NextResponse.json({
+            ...course,
+            enrollmentStatus,
+            canUnenroll: !isAdminViewer && enrollmentStatus === 'APPROVED',
+        });
   } catch (error) {
     console.error("Fetch course details error:", error);
     return NextResponse.json({ error: 'Failed to fetch course details' }, { status: 500 });

@@ -72,6 +72,7 @@ interface CourseDetails extends Course {
   enrollmentStatus: 'APPROVED' | 'PENDING' | 'REJECTED' | null;
   recordings: Recording[];
   tutorials: CourseTutorial[];
+  canUnenroll?: boolean;
 }
 
 // --- API Functions ---
@@ -150,14 +151,16 @@ export default function StudentCoursePage() {
                 <p className="mt-2 text-lg text-gray-600">{course.description}</p>
               </div>
               {/* --- UNENROLL BUTTON --- */}
-              <button 
-                onClick={handleUnenroll}
-                disabled={unenrollMutation.isPending}
-                className="btn-danger flex items-center flex-shrink-0 w-full sm:w-auto justify-center"
-              >
-                <LogOut className="w-4 h-4 mr-2"/>
-                {unenrollMutation.isPending ? 'Unenrolling...' : 'Unenroll'}
-              </button>
+              {course.canUnenroll ? (
+                <button 
+                  onClick={handleUnenroll}
+                  disabled={unenrollMutation.isPending}
+                  className="btn-danger flex items-center flex-shrink-0 w-full sm:w-auto justify-center"
+                >
+                  <LogOut className="w-4 h-4 mr-2"/>
+                  {unenrollMutation.isPending ? 'Unenrolling...' : 'Unenroll'}
+                </button>
+              ) : null}
             </div>
           </Container>
         </header>
