@@ -5,7 +5,8 @@ import { Role, StudentCourseInfo } from '../../../../types';
 
 export async function GET(req: NextRequest) {
   try {
-    await getServerUser(Role.ADMIN);
+    const user = await getServerUser([Role.ADMIN, Role.INSTRUCTOR]);
+    const instructorId = user.role === Role.INSTRUCTOR ? user.id : null;
     const { searchParams } = new URL(req.url);
     const searchTerm = searchParams.get('search')?.toLowerCase() || '';
     const courseIdFilter = searchParams.get('courseId') || null;
@@ -30,6 +31,7 @@ export async function GET(req: NextRequest) {
           )) AS courses
         FROM "Payment" p
         JOIN "Course" c ON p."courseId" = c.id
+        WHERE ($4::varchar IS NULL OR c."createdById" = $4::varchar)
         GROUP BY p."studentId"
       )
       SELECT
@@ -46,20 +48,31 @@ export async function GET(req: NextRequest) {
           LOWER(u.address) LIKE $1
         ) AND
         (
+          $4::varchar IS NULL OR EXISTS (
+            SELECT 1
+            FROM "Payment" ip
+            JOIN "Course" ic ON ip."courseId" = ic.id
+            WHERE ip."studentId" = u.id
+              AND ic."createdById" = $4::varchar
+          )
+        ) AND
+        (
           ($2::varchar IS NULL AND $3::int IS NULL) OR
           EXISTS (
             SELECT 1
             FROM "Payment" fp
+            JOIN "Course" fc ON fp."courseId" = fc.id
             WHERE fp."studentId" = u.id
               AND fp.status = 'APPROVED'
               AND ($2::varchar IS NULL OR fp."courseId" = $2::varchar)
               AND ($3::int IS NULL OR EXTRACT(MONTH FROM fp."createdAt") = $3::int)
+              AND ($4::varchar IS NULL OR fc."createdById" = $4::varchar)
           )
         )
       ORDER BY u."createdAt" DESC;
     `;
     
-    const result = await db.query(sql, [`%${searchTerm}%`, courseIdFilter, monthFilter]);
+    const result = await db.query(sql, [`%${searchTerm}%`, courseIdFilter, monthFilter, instructorId]);
 
     // --- THIS IS THE CORRECTED DATA TRANSFORMATION ---
     const students = result.rows.map(student => {

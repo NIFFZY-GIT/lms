@@ -51,6 +51,23 @@ export default function middleware(request: NextRequest) {
     const token = request.cookies.get('token')?.value;
     const role = decodeRoleFromToken(token);
 
+    const isAdminUsersPath =
+      pathname === `/${locale}/dashboard/admin/users` ||
+      pathname.startsWith(`/${locale}/dashboard/admin/users/`);
+
+    if (isAdminUsersPath) {
+      if (!token || !role) {
+        return buildLoginRedirect(locale);
+      }
+      if (role !== 'ADMIN' && role !== 'INSTRUCTOR') {
+        const url = request.nextUrl.clone();
+        url.pathname = roleDefaultPath(role, locale);
+        url.search = '';
+        return NextResponse.redirect(url);
+      }
+      return intlMiddleware(request);
+    }
+
     const routeChecks: Array<{ prefix: string; allowedRoles: string[] }> = [
       { prefix: `/${locale}/dashboard/admin`, allowedRoles: ['ADMIN'] },
       { prefix: `/${locale}/dashboard/instructor`, allowedRoles: ['INSTRUCTOR'] },

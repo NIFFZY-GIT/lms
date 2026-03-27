@@ -6,6 +6,13 @@ import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { ComponentType } from 'react';
 
+const isUsersPagePath = (path: string) => /\/dashboard\/admin\/users(\/|$)/.test(path);
+const isAllowedForPath = (path: string, role: string) => {
+  if (role === 'ADMIN') return true;
+  if (role === 'INSTRUCTOR' && isUsersPagePath(path)) return true;
+  return false;
+};
+
 // This is a Higher-Order Component (HOC)
 export function withAdminAuth<P extends object>(WrappedComponent: ComponentType<P>) {
   const WithAdminAuth = (props: P) => {
@@ -21,7 +28,7 @@ export function withAdminAuth<P extends object>(WrappedComponent: ComponentType<
         const localeMatch = currentPath.match(/^\/([a-zA-Z-]+)\//); 
         const locale = localeMatch ? localeMatch[1] : 'en';
         router.replace(`/${locale}/auth/login?next=%2F${encodeURIComponent(locale)}%2Fdashboard%2Fadmin`); // Redirect to locale-aware login
-      } else if (user.role !== 'ADMIN') {
+      } else if (!isAllowedForPath(window.location.pathname, user.role)) {
         const currentPath = window.location.pathname;
         const localeMatch = currentPath.match(/^\/([a-zA-Z-]+)\//); 
         const locale = localeMatch ? localeMatch[1] : 'en';
@@ -30,7 +37,7 @@ export function withAdminAuth<P extends object>(WrappedComponent: ComponentType<
     }, [user, isLoading, router]);
 
     // Show a full-page loading screen while checking auth state
-  if (isLoading || !user || user.role !== 'ADMIN') {
+  if (isLoading || !user || !isAllowedForPath(typeof window !== 'undefined' ? window.location.pathname : '', user.role)) {
       return (
         <div className="flex items-center justify-center min-h-screen bg-gray-100">
           <div className="text-center">

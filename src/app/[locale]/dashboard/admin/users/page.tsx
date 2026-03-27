@@ -11,6 +11,7 @@ import { Plus, Edit, Trash2, Search } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { Course, Role } from '@/types';
 import { toast } from '@/components/ui/toast';
+import { useAuth } from '@/context/AuthContext';
 
 // --- Type Definitions ---
 interface StudentCourseInfo {
@@ -49,6 +50,19 @@ const studentSchema = z.object({
 });
 type StudentFormData = z.infer<typeof studentSchema>;
 
+interface CreatedStudentResponse {
+    id: string;
+    email: string;
+    name: string;
+}
+
+interface ManualEnrollResponse {
+    message: string;
+    enrolledCourseIds: string[];
+    skippedCourseIds: string[];
+    invalidCourseIds: string[];
+}
+
 const MONTH_OPTIONS = [
     { value: 'all', label: 'All Months' },
     { value: '1', label: 'January' },
@@ -69,16 +83,21 @@ const MONTH_OPTIONS = [
 const fetchStudents = async (searchTerm: string, courseId: string, month: string): Promise<Student[]> => (
     await axios.get(`/api/admin/students?search=${searchTerm}&courseId=${courseId}&month=${month}`)
 ).data;
-const fetchCourses = async (): Promise<Course[]> => (await axios.get('/api/courses')).data;
 const createStudent = async (data: StudentFormData) => (await axios.post('/api/auth/register', data)).data;
 const updateStudent = async ({ id, data }: { id: string, data: StudentFormData }) => (await axios.patch(`/api/users/${id}`, data)).data;
 const deleteStudent = async (id: string) => (await axios.delete(`/api/users/${id}`)).data;
+const manualEnrollStudent = async ({ studentId, courseIds }: { studentId: string; courseIds: string[] }): Promise<ManualEnrollResponse> => (
+    await axios.post('/api/admin/students/manual-enroll', { studentId, courseIds })
+).data;
 
 // --- Main Component ---
 export default function AdminStudentsPage() {
     // --- RESTORED LOGIC ---
+    const { user } = useAuth();
+    const isAdmin = user?.role === Role.ADMIN;
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingStudent, setEditingStudent] = useState<Student | null>(null);
+    const [selectedCourseIds, setSelectedCourseIds] = useState<string[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [courseFilter, setCourseFilter] = useState('all');
     const [monthFilter, setMonthFilter] = useState('all');
@@ -95,8 +114,11 @@ export default function AdminStudentsPage() {
     }, [searchTerm]);
 
     const { data: courses } = useQuery<Course[]>({
-        queryKey: ['allCoursesForFilter'],
-        queryFn: fetchCourses,
+        queryKey: ['allCoursesForFilter', user?.role],
+        queryFn: async () => {
+            const endpoint = user?.role === Role.INSTRUCTOR ? '/api/courses?mine=1' : '/api/courses';
+            return (await axios.get(endpoint)).data;
+        },
     });
 
     const { data: students, isLoading } = useQuery<Student[]>({
@@ -116,12 +138,38 @@ export default function AdminStudentsPage() {
     onError: (error: AxiosError<{ error?: string }>) => toast.error(error.response?.data?.error || error.message),
     };
 
-    const createMutation = useMutation({ mutationFn: createStudent, ...mutationOptions });
+    const createMutation = useMutation<
+        { student: CreatedStudentResponse; enrollment: ManualEnrollResponse | null },
+        AxiosError<{ error?: string }>,
+        { data: StudentFormData; courseIds: string[] }
+    >({
+        mutationFn: async ({ data, courseIds }) => {
+            const student = await createStudent(data) as CreatedStudentResponse;
+            if (!courseIds.length) {
+                return { student, enrollment: null };
+            }
+            const enrollment = await manualEnrollStudent({ studentId: student.id, courseIds });
+            return { student, enrollment };
+        },
+        onSuccess: ({ enrollment }) => {
+            queryClient.invalidateQueries({ queryKey: ['adminStudents'] });
+            if (enrollment) {
+                const enrolledCount = enrollment.enrolledCourseIds.length;
+                const skippedCount = enrollment.skippedCourseIds.length;
+                toast.success(`Student created. ${enrolledCount} course(s) enrolled${skippedCount ? `, ${skippedCount} already active` : ''}.`);
+            } else {
+                toast.success('Student created successfully.');
+            }
+            closeModal();
+        },
+        onError: (error) => toast.error(error.response?.data?.error || error.message),
+    });
     const updateMutation = useMutation({ mutationFn: updateStudent, ...mutationOptions });
     const deleteMutation = useMutation({ mutationFn: deleteStudent, ...mutationOptions });
 
     const openModalForCreate = () => {
         setEditingStudent(null);
+        setSelectedCourseIds([]);
         reset({ name: '', email: '', phone: '', address: '', password: '', role: Role.STUDENT });
         setIsModalOpen(true);
     };
@@ -139,6 +187,15 @@ export default function AdminStudentsPage() {
     const closeModal = () => {
         setIsModalOpen(false);
         setEditingStudent(null);
+        setSelectedCourseIds([]);
+    };
+
+    const toggleCourseSelection = (courseId: string) => {
+        setSelectedCourseIds((current) =>
+            current.includes(courseId)
+                ? current.filter((id) => id !== courseId)
+                : [...current, courseId]
+        );
     };
 
     const onSubmit = (data: StudentFormData) => {
@@ -147,7 +204,7 @@ export default function AdminStudentsPage() {
             updateMutation.mutate({ id: editingStudent.id, data: payload });
         } else {
             if (!payload.password) { toast.warning('Password is required for new students.'); return; }
-            createMutation.mutate(payload);
+            createMutation.mutate({ data: payload, courseIds: selectedCourseIds });
         }
     };
     
@@ -238,9 +295,14 @@ export default function AdminStudentsPage() {
                                     ) : <span className="text-gray-400">No enrollments</span>}
                                 </td>
                                 <td className="px-4 sm:px-6 py-4 flex items-center space-x-2">
-                                    {/* --- CORRECTED JSX --- */}
-                                    <button type="button" onClick={() => openModalForEdit(student)} className="p-2 text-gray-500 hover:text-blue-600"><Edit className="w-4 h-4" /></button>
-                                    <button type="button" onClick={() => handleDelete(student.id)} className="p-2 text-gray-500 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
+                                    {isAdmin ? (
+                                        <>
+                                            <button type="button" onClick={() => openModalForEdit(student)} className="p-2 text-gray-500 hover:text-blue-600"><Edit className="w-4 h-4" /></button>
+                                            <button type="button" onClick={() => handleDelete(student.id)} className="p-2 text-gray-500 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
+                                        </>
+                                    ) : (
+                                        <span className="text-xs text-gray-400">View only</span>
+                                    )}
                                 </td>
                             </tr>
                         ))}
@@ -279,10 +341,12 @@ export default function AdminStudentsPage() {
                                         <div className="text-gray-400">No enrollments</div>
                                     )}
                                 </div>
-                                <div className="mt-4 grid grid-cols-2 gap-2">
-                                    <button type="button" onClick={() => openModalForEdit(student)} className="btn-secondary w-full">Edit</button>
-                                    <button type="button" onClick={() => handleDelete(student.id)} className="btn-danger w-full">Delete</button>
-                                </div>
+                                {isAdmin ? (
+                                    <div className="mt-4 grid grid-cols-2 gap-2">
+                                        <button type="button" onClick={() => openModalForEdit(student)} className="btn-secondary w-full">Edit</button>
+                                        <button type="button" onClick={() => handleDelete(student.id)} className="btn-danger w-full">Delete</button>
+                                    </div>
+                                ) : null}
                             </li>
                         ))}
                     </ul>
@@ -304,6 +368,7 @@ export default function AdminStudentsPage() {
                             <select
                                 {...register('role')}
                                 defaultValue={editingStudent.role}
+                                disabled={!isAdmin}
                                 className="w-full rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500"
                             >
                                 <option value={Role.STUDENT}>Student</option>
@@ -313,6 +378,26 @@ export default function AdminStudentsPage() {
                             <p className="mt-1 text-xs text-gray-500">Changing role will immediately update this user&apos;s access. Promoted users will no longer appear in the student list.</p>
                         </div>
                     )}
+                    {!editingStudent ? (
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Enroll Courses (Optional, multiple)</label>
+                            <div className="max-h-44 overflow-auto rounded-md border border-gray-200 p-2 space-y-1">
+                                {courses && courses.length > 0 ? courses.map((course) => (
+                                    <label key={course.id} className="flex items-center gap-2 rounded px-2 py-1 hover:bg-gray-50 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            checked={selectedCourseIds.includes(course.id)}
+                                            onChange={() => toggleCourseSelection(course.id)}
+                                        />
+                                        <span className="text-sm text-gray-700">{course.title}</span>
+                                    </label>
+                                )) : (
+                                    <p className="text-sm text-gray-500 px-2 py-1">No courses available.</p>
+                                )}
+                            </div>
+                            <p className="mt-1 text-xs text-gray-500">Selected courses will be approved instantly so the student can access them directly.</p>
+                        </div>
+                    ) : null}
                     {!editingStudent && (<Input label="Password" registration={register('password')} error={errors.password?.message} type="password" />)}
                     <div className="flex flex-col sm:flex-row justify-end pt-4 gap-2">
                         <button type="button" onClick={closeModal} className="btn-secondary w-full sm:w-auto">Cancel</button>
