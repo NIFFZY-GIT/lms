@@ -371,21 +371,36 @@ export function Navbar() {
             {/* Action buttons */}
             <div className="space-y-3 mb-6">
               {user ? (
-                <Link 
-                  href={user?.role === 'ADMIN'
-                    ? `/${locale}/dashboard/admin`
-                    : user?.role === 'INSTRUCTOR'
-                      ? `/${locale}/dashboard/instructor`
-                      : `/${locale}/dashboard/student/courses`} 
-                  className="group w-full flex items-center justify-center gap-3 px-6 py-4 rounded-2xl bg-gradient-to-r from-blue-600 via-blue-700 to-blue-800 text-white font-bold shadow-xl hover:shadow-2xl transition-all duration-300 active:scale-95 relative overflow-hidden" 
-                  onClick={closeMenu}
-                >
-                  {/* Animated background */}
-                  <div className="absolute inset-0 bg-gradient-to-r from-blue-500 via-purple-600 to-blue-700 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                  <LayoutDashboard className="w-5 h-5 relative z-10 transition-transform duration-300 group-hover:scale-110" />
-                  <span className="relative z-10">Dashboard</span>
-                  <div className="absolute inset-0 rounded-2xl bg-white/20 opacity-0 group-hover:opacity-100 group-active:opacity-30 transition-opacity duration-200" />
-                </Link>
+                <>
+                  <Link 
+                    href={user?.role === 'ADMIN'
+                      ? `/${locale}/dashboard/admin`
+                      : user?.role === 'INSTRUCTOR'
+                        ? `/${locale}/dashboard/instructor`
+                        : `/${locale}/dashboard/student/courses`} 
+                    className="group w-full flex items-center justify-center gap-3 px-6 py-4 rounded-2xl bg-gradient-to-r from-blue-600 via-blue-700 to-blue-800 text-white font-bold shadow-xl hover:shadow-2xl transition-all duration-300 active:scale-95 relative overflow-hidden" 
+                    onClick={closeMenu}
+                  >
+                    {/* Animated background */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-blue-500 via-purple-600 to-blue-700 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                    <LayoutDashboard className="w-5 h-5 relative z-10 transition-transform duration-300 group-hover:scale-110" />
+                    <span className="relative z-10">Dashboard</span>
+                    <div className="absolute inset-0 rounded-2xl bg-white/20 opacity-0 group-hover:opacity-100 group-active:opacity-30 transition-opacity duration-200" />
+                  </Link>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      closeMenu();
+                      logout();
+                    }}
+                    className="group w-full flex items-center justify-center gap-3 px-6 py-4 rounded-2xl font-bold text-red-700 bg-red-50/90 border-2 border-red-200/70 hover:bg-red-100 hover:border-red-300 hover:shadow-lg transition-all duration-300 active:scale-95 backdrop-blur-sm relative overflow-hidden"
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-r from-red-50 to-red-100 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                    <LogOut className="w-5 h-5 relative z-10" />
+                    <span className="relative z-10">Logout</span>
+                  </button>
+                </>
               ) : (
                 <>
                   <Link 
