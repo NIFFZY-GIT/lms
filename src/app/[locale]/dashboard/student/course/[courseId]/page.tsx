@@ -45,18 +45,33 @@ const getEmbeddedRecordingUrl = (rawUrl?: string): { provider: 'youtube' | 'zoom
         videoId = url.pathname.split('/').filter(Boolean)[0] || null;
       } else if (url.pathname === '/watch') {
         videoId = url.searchParams.get('v');
+      } else if (url.pathname.startsWith('/live/')) {
+        videoId = url.pathname.split('/')[2] || null;
       } else if (url.pathname.startsWith('/shorts/')) {
         videoId = url.pathname.split('/')[2] || null;
       } else if (url.pathname.startsWith('/embed/')) {
         videoId = url.pathname.split('/')[2] || null;
+      } else if (url.pathname.startsWith('/v/')) {
+        videoId = url.pathname.split('/')[2] || null;
+      }
+
+      // Some YouTube URLs carry the ID in query params even on non-/watch routes.
+      if (!videoId) {
+        videoId = url.searchParams.get('v') || url.searchParams.get('vi');
       }
 
       if (videoId) {
+        const cleanVideoId = videoId.replace(/[^a-zA-Z0-9_-]/g, '');
+        if (!cleanVideoId) return null;
+
         return {
           provider: 'youtube',
-          embedUrl: `https://www.youtube-nocookie.com/embed/${videoId}`,
+          embedUrl: `https://www.youtube-nocookie.com/embed/${cleanVideoId}`,
         };
       }
+
+      // Do not iframe raw YouTube page URLs; they are blocked by X-Frame-Options.
+      return null;
     }
 
     // Zoom cloud recording links often contain /rec/play or /rec/share
