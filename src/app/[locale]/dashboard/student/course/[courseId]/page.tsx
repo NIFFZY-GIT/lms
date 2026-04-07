@@ -24,15 +24,21 @@ const isProtectedRecordingUrl = (url?: string) => {
 
 const getEmbeddedRecordingUrl = (rawUrl?: string): { provider: 'youtube' | 'zoom' | 'external'; embedUrl: string } | null => {
   if (!rawUrl) return null;
-  const input = rawUrl.trim();
+  let input = rawUrl.trim();
   if (!input) return null;
+
+  // Accept links pasted without protocol (e.g. m.youtube.com/watch?v=...)
+  if (!/^https?:\/\//i.test(input) && /^(www\.|m\.|youtu\.be|youtube\.com)/i.test(input)) {
+    input = `https://${input}`;
+  }
 
   try {
     const url = new URL(input);
     const host = url.hostname.replace(/^www\./, '').toLowerCase();
+    const isYoutubeHost = host === 'youtu.be' || host === 'youtube.com' || host === 'm.youtube.com' || host.endsWith('.youtube.com');
 
     // YouTube URLs (watch, short, shorts, embed)
-    if (host === 'youtube.com' || host === 'm.youtube.com' || host === 'youtu.be') {
+    if (isYoutubeHost) {
       let videoId: string | null = null;
 
       if (host === 'youtu.be') {
