@@ -6,6 +6,51 @@ import { Role } from '../../../../types';
 import { unlink } from 'fs/promises'; // For deleting the file from disk
 import path from 'path';
 
+const toEmbeddableYoutubeUrl = (rawUrl: string): string | null => {
+    let input = rawUrl.trim();
+    if (!input) return null;
+
+    if (!/^https?:\/\//i.test(input) && /^(www\.|m\.|youtu\.be|youtube\.com)/i.test(input)) {
+        input = `https://${input}`;
+    }
+
+    try {
+        const parsed = new URL(input);
+        const host = parsed.hostname.replace(/^www\./, '').toLowerCase();
+        const isYoutubeHost = host === 'youtu.be' || host === 'youtube.com' || host === 'm.youtube.com' || host.endsWith('.youtube.com');
+
+        if (!isYoutubeHost) return null;
+
+        let videoId: string | null = null;
+        if (host === 'youtu.be') {
+            videoId = parsed.pathname.split('/').filter(Boolean)[0] || null;
+        } else if (parsed.pathname === '/watch') {
+            videoId = parsed.searchParams.get('v');
+        } else if (parsed.pathname.startsWith('/live/')) {
+            videoId = parsed.pathname.split('/')[2] || null;
+        } else if (parsed.pathname.startsWith('/shorts/')) {
+            videoId = parsed.pathname.split('/')[2] || null;
+        } else if (parsed.pathname.startsWith('/embed/')) {
+            videoId = parsed.pathname.split('/')[2] || null;
+        } else if (parsed.pathname.startsWith('/v/')) {
+            videoId = parsed.pathname.split('/')[2] || null;
+        }
+
+        if (!videoId) {
+            videoId = parsed.searchParams.get('v') || parsed.searchParams.get('vi');
+        }
+
+        if (!videoId) return null;
+
+        const cleanVideoId = videoId.replace(/[^a-zA-Z0-9_-]/g, '');
+        if (!cleanVideoId) return null;
+
+        return `https://www.youtube-nocookie.com/embed/${cleanVideoId}`;
+    } catch {
+        return null;
+    }
+};
+
 export async function GET(req: Request, { params }: { params: Promise<{ recordingId: string }> }) {
     try {
         const user = await getServerUser([Role.ADMIN, Role.STUDENT]);
@@ -58,6 +103,11 @@ export async function GET(req: Request, { params }: { params: Promise<{ recordin
         const videoUrl = recording.videoUrl;
         if (videoUrl.startsWith('/')) {
             return NextResponse.redirect(new URL(videoUrl, req.url));
+        }
+
+        const embeddableYoutubeUrl = toEmbeddableYoutubeUrl(videoUrl);
+        if (embeddableYoutubeUrl) {
+            return NextResponse.redirect(embeddableYoutubeUrl);
         }
 
         return NextResponse.redirect(videoUrl);
