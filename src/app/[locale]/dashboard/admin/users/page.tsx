@@ -86,8 +86,8 @@ const fetchStudents = async (searchTerm: string, courseId: string, month: string
 const createStudent = async (data: StudentFormData) => (await axios.post('/api/auth/register', data)).data;
 const updateStudent = async ({ id, data }: { id: string, data: StudentFormData }) => (await axios.patch(`/api/users/${id}`, data)).data;
 const deleteStudent = async (id: string) => (await axios.delete(`/api/users/${id}`)).data;
-const manualEnrollStudent = async ({ studentId, courseIds }: { studentId: string; courseIds: string[] }): Promise<ManualEnrollResponse> => (
-    await axios.post('/api/admin/students/manual-enroll', { studentId, courseIds })
+const manualEnrollStudent = async ({ studentId, courseIds, duration }: { studentId: string; courseIds: string[]; duration?: string }): Promise<ManualEnrollResponse> => (
+    await axios.post('/api/admin/students/manual-enroll', { studentId, courseIds, duration })
 ).data;
 
 // --- Main Component ---
@@ -98,6 +98,7 @@ export default function AdminStudentsPage() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingStudent, setEditingStudent] = useState<Student | null>(null);
     const [selectedCourseIds, setSelectedCourseIds] = useState<string[]>([]);
+    const [enrollDuration, setEnrollDuration] = useState<'1_week' | '1_month'>('1_month');
     const [searchTerm, setSearchTerm] = useState('');
     const [courseFilter, setCourseFilter] = useState('all');
     const [monthFilter, setMonthFilter] = useState('all');
@@ -176,6 +177,8 @@ export default function AdminStudentsPage() {
 
     const openModalForEdit = (student: Student) => {
         setEditingStudent(student);
+        setSelectedCourseIds([]);
+        setEnrollDuration('1_month');
         setValue('name', student.name);
         setValue('email', student.email);
         setValue('phone', student.phone || '');
@@ -198,10 +201,21 @@ export default function AdminStudentsPage() {
         );
     };
 
-    const onSubmit = (data: StudentFormData) => {
+    const onSubmit = async (data: StudentFormData) => {
         const payload: StudentFormData = { ...data, role: data.role ?? Role.STUDENT };
         if (editingStudent) {
             updateMutation.mutate({ id: editingStudent.id, data: payload });
+            if (selectedCourseIds.length > 0) {
+                try {
+                    const result = await manualEnrollStudent({ studentId: editingStudent.id, courseIds: selectedCourseIds, duration: enrollDuration });
+                    const enrolledCount = result.enrolledCourseIds.length;
+                    const skippedCount = result.skippedCourseIds.length;
+                    if (enrolledCount > 0) toast.success(`Enrolled in ${enrolledCount} course(s)${skippedCount ? `, ${skippedCount} already active` : ''}.`);
+                    else toast.warning(`No new enrollments. ${skippedCount} course(s) already active.`);
+                } catch {
+                    toast.error('Failed to enroll student in selected courses.');
+                }
+            }
         } else {
             if (!payload.password) { toast.warning('Password is required for new students.'); return; }
             createMutation.mutate({ data: payload, courseIds: selectedCourseIds });
@@ -362,6 +376,37 @@ export default function AdminStudentsPage() {
                         <label className="block text-sm">Address</label>
                         <textarea {...register('address')} rows={3} className="mt-1 w-full border-gray-300 rounded-md" />
                     </div>
+                    {editingStudent && (
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Enroll in Additional Courses</label>
+                            <div className="mb-2">
+                                <label className="block text-xs text-gray-500 mb-1">Access Duration</label>
+                                <select
+                                    value={enrollDuration}
+                                    onChange={(e) => setEnrollDuration(e.target.value as '1_week' | '1_month')}
+                                    className="w-full rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm"
+                                >
+                                    <option value="1_week">1 Week</option>
+                                    <option value="1_month">1 Month</option>
+                                </select>
+                            </div>
+                            <div className="max-h-44 overflow-auto rounded-md border border-gray-200 p-2 space-y-1">
+                                {courses && courses.length > 0 ? courses.map((course) => (
+                                    <label key={course.id} className="flex items-center gap-2 rounded px-2 py-1 hover:bg-gray-50 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            checked={selectedCourseIds.includes(course.id)}
+                                            onChange={() => toggleCourseSelection(course.id)}
+                                        />
+                                        <span className="text-sm text-gray-700">{course.title}</span>
+                                    </label>
+                                )) : (
+                                    <p className="text-sm text-gray-500 px-2 py-1">No courses available.</p>
+                                )}
+                            </div>
+                            <p className="mt-1 text-xs text-gray-500">Selected courses will be approved instantly for the chosen duration. Already-active enrollments will be skipped.</p>
+                        </div>
+                    )}
                     {editingStudent && (
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>

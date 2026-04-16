@@ -12,8 +12,20 @@ type CourseRow = {
   createdById: string;
 };
 
-function getSubscriptionExpiryDate(): Date {
+function getSubscriptionExpiryDate(duration?: string): Date {
   const now = new Date();
+  if (duration === '1_week') {
+    const d = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    d.setHours(23, 59, 59, 999);
+    return d;
+  }
+  if (duration === '1_month') {
+    const d = new Date(now);
+    d.setMonth(d.getMonth() + 1);
+    d.setHours(23, 59, 59, 999);
+    return d;
+  }
+  // default: end of current month
   const endOfMonth = lastDayOfMonth(now);
   endOfMonth.setHours(23, 59, 59, 999);
   return endOfMonth;
@@ -22,8 +34,9 @@ function getSubscriptionExpiryDate(): Date {
 export async function POST(req: Request) {
   try {
     const user = await getServerUser([Role.ADMIN, Role.INSTRUCTOR]);
-    const body = await req.json() as { studentId?: string; courseIds?: string[] };
+    const body = await req.json() as { studentId?: string; courseIds?: string[]; duration?: string };
     const studentId = body.studentId?.trim();
+    const duration = body.duration;
     const uniqueCourseIds = Array.from(new Set((body.courseIds ?? []).filter(Boolean)));
 
     if (!studentId) {
@@ -68,7 +81,7 @@ export async function POST(req: Request) {
 
     const enrolledCourseIds: string[] = [];
     const skippedCourseIds: string[] = [];
-    const subscriptionExpiryDate = getSubscriptionExpiryDate();
+    const subscriptionExpiryDate = getSubscriptionExpiryDate(duration);
 
     await db.query('BEGIN');
 
