@@ -3,8 +3,9 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios, { AxiosError } from 'axios';
 import { useParams, useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
 import { Container } from '@/components/ui/Container';
-import { Video, Mic, HelpCircle, AlertTriangle, ArrowLeft, LogOut, ExternalLink, BookOpen, FileText, Download } from 'lucide-react';
+import { Video, Mic, HelpCircle, AlertTriangle, ArrowLeft, LogOut, ExternalLink, BookOpen, FileText, Download, Clock } from 'lucide-react';
 import Link from 'next/link';
 import { Course, Recording, CourseTutorial } from '@/types';
 import { EnrollmentForm } from '@/components/student/EnrollmentForm';
@@ -99,6 +100,67 @@ interface CourseDetails extends Course {
   recordings: Recording[];
   tutorials: CourseTutorial[];
   canUnenroll?: boolean;
+  subscriptionExpiryDate?: string | null;
+}
+
+// --- Subscription Countdown Timer ---
+function SubscriptionCountdown({ expiryDate }: { expiryDate: string }) {
+  const calcTimeLeft = () => {
+    const diff = new Date(expiryDate).getTime() - Date.now();
+    if (diff <= 0) return null;
+    return {
+      days: Math.floor(diff / (1000 * 60 * 60 * 24)),
+      hours: Math.floor((diff / (1000 * 60 * 60)) % 24),
+      minutes: Math.floor((diff / (1000 * 60)) % 60),
+      seconds: Math.floor((diff / 1000) % 60),
+    };
+  };
+
+  const [timeLeft, setTimeLeft] = useState(calcTimeLeft);
+
+  useEffect(() => {
+    const id = setInterval(() => setTimeLeft(calcTimeLeft()), 1000);
+    return () => clearInterval(id);
+  }, [expiryDate]);
+
+  const expiryFormatted = new Date(expiryDate).toLocaleDateString('en-GB', { year: 'numeric', month: 'long', day: 'numeric' });
+
+  if (!timeLeft) {
+    return (
+      <div className="w-full sm:w-auto bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-800 flex-shrink-0">
+        <div className="flex items-center gap-2 font-semibold"><Clock className="w-4 h-4" /> Subscription Expired</div>
+        <div className="text-xs mt-1 opacity-75">Expired on {expiryFormatted}</div>
+      </div>
+    );
+  }
+
+  const unit = (val: number, label: string) => (
+    <div className="flex flex-col items-center">
+      <span className="text-xl font-bold leading-none">{String(val).padStart(2, '0')}</span>
+      <span className="text-xs uppercase tracking-wide opacity-70">{label}</span>
+    </div>
+  );
+
+  const isUrgent = timeLeft.days < 3;
+
+  return (
+    <div className={`w-full sm:w-auto flex-shrink-0 rounded-lg border px-4 py-3 ${
+      isUrgent ? 'bg-red-50 border-red-200 text-red-800' : 'bg-amber-50 border-amber-200 text-amber-800'
+    }`}>
+      <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide mb-2">
+        <Clock className="w-3.5 h-3.5" /> Access expires {expiryFormatted}
+      </div>
+      <div className="flex items-center gap-3">
+        {unit(timeLeft.days, 'days')}
+        <span className="text-lg font-bold opacity-50 mb-1">:</span>
+        {unit(timeLeft.hours, 'hrs')}
+        <span className="text-lg font-bold opacity-50 mb-1">:</span>
+        {unit(timeLeft.minutes, 'min')}
+        <span className="text-lg font-bold opacity-50 mb-1">:</span>
+        {unit(timeLeft.seconds, 'sec')}
+      </div>
+    </div>
+  );
 }
 
 // --- API Functions ---
@@ -176,6 +238,10 @@ export default function StudentCoursePage() {
                 <h1 className="text-4xl font-extrabold text-gray-800">{course.title}</h1>
                 <p className="mt-2 text-lg text-gray-600">{course.description}</p>
               </div>
+              {/* --- SUBSCRIPTION COUNTDOWN TIMER --- */}
+              {course.courseType === 'SUBSCRIPTION' && course.subscriptionExpiryDate && (
+                <SubscriptionCountdown expiryDate={course.subscriptionExpiryDate} />
+              )}
               {/* --- UNENROLL BUTTON --- */}
               {course.canUnenroll ? (
                 <button 

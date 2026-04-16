@@ -61,6 +61,9 @@ export async function GET(req: Request, { params }: { params: Promise<{ courseId
                         ? new Date(latestPayment.subscriptionExpiryDate) > new Date()
                         : false;
                     enrollmentStatus = isStillActive ? 'APPROVED' : null;
+                    if (isStillActive) {
+                        course.subscriptionExpiryDate = latestPayment.subscriptionExpiryDate;
+                    }
                 } else {
                     enrollmentStatus = latestPayment.status;
                 }
