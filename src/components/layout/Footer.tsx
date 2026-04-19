@@ -170,7 +170,7 @@ export function Footer() {
                   </div>
                   <div>
                     <p className="text-slate-400 text-sm leading-relaxed">
-                      Sahashra, Kottawa,<br />
+                      Sahashra Higher Educational Institutem, Kottawa,<br />
                       Colombo, Sri Lanka
                     </p>
                   </div>
