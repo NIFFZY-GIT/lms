@@ -201,17 +201,24 @@ export function Footer() {
               <p className="text-sm text-slate-500">
                 © {new Date().getFullYear()} Online Thakshilawa. All rights reserved.
               </p>
-    <p className="text-sm text-slate-500">
-  Powered By{" "}
-  <a
-    href="https://zevarone.com"
-    target="_blank"
-    rel="noopener noreferrer"
-    className="font-semibold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent hover:from-blue-300 hover:to-cyan-300 transition-all duration-300"
-  >
-    ZEVARONE
-  </a>
-</p>
+              <p className="text-sm text-slate-500 flex items-center gap-2">
+                <span>Powered By</span>
+                <a
+                  href="https://zevarone.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center transition-transform duration-300 hover:scale-105"
+                  aria-label="Powered by ZEVARONE"
+                >
+                  <Image
+                    src="/images/zevaronelogo/zevaronelogo.png"
+                    alt="ZEVARONE"
+                    width={120}
+                    height={30}
+                    className="h-4 w-auto"
+                  />
+                </a>
+              </p>
             </div>
           </div>
         </Container>
