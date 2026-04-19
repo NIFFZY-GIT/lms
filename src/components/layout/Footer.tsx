@@ -170,8 +170,8 @@ export function Footer() {
                   </div>
                   <div>
                     <p className="text-slate-400 text-sm leading-relaxed">
-                      123 Education Street,<br />
-                      Colombo 00700, Sri Lanka
+                      Sahashra, Kottawa,<br />
+                      Colombo, Sri Lanka
                     </p>
                   </div>
                 </li>
@@ -179,8 +179,8 @@ export function Footer() {
                   <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center flex-shrink-0 group-hover:bg-green-500/20 group-hover:border-green-500/30 transition-all duration-300">
                     <Phone className="w-5 h-5 text-green-400" />
                   </div>
-                  <a href="tel:+94112345678" className="text-slate-400 hover:text-white transition-colors text-sm">
-                    +94 11 234 5678
+                  <a href="tel:+94777389500" className="text-slate-400 hover:text-white transition-colors text-sm">
+                    +94 77 738 9500
                   </a>
                 </li>
                 <li className="flex items-center gap-4 group">
@@ -189,7 +189,7 @@ export function Footer() {
                   </div>
                   <a href="mailto:info@thakshilawa.lk" className="text-slate-400 hover:text-white transition-colors text-sm">
                     info@thakshilawa.lk
-                  </a>
+                  </a>  
                 </li>
               </ul>
             </div>
