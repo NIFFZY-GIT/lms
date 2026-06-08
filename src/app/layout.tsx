@@ -16,6 +16,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" suppressHydrationWarning className={`${jakarta.variable} ${inter.variable} ${sinhala.variable}`}>
       <head>
+        <meta name="google-adsense-account" content="ca-pub-4147783548079095" />
         <Script
           async
           src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4147783548079095"
