@@ -1,6 +1,7 @@
 import { Container } from '@/components/ui/Container';
 import { Course } from '@/types';
 import { CourseCard } from '@/components/ui/CourseCard';
+import { AdSenseBanner } from '@/components/ui/AdSenseBanner';
 import { BookOpen, ChevronDown, Filter, Search, Sparkles, X } from 'lucide-react';
 import { getPublicCourses } from '@/lib/courses';
 
@@ -22,6 +23,7 @@ export default async function CoursesPage({
   const courses: Course[] = await getPublicCourses();
   const sp = (await searchParams) ?? {};
   const { locale } = await params;
+  const adSlot = process.env.NEXT_PUBLIC_ADSENSE_IN_CONTENT_SLOT ?? '';
 
   const selectedSubject = sp.subject?.trim() || '';
   const selectedGrade = sp.grade?.trim() || '';
@@ -88,6 +90,8 @@ export default async function CoursesPage({
             Filter by subject, grade, and medium to find exactly what you need in seconds.
           </p>
         </div>
+
+        <AdSenseBanner slot={adSlot} className="mx-auto mt-8 max-w-5xl overflow-hidden rounded-2xl border border-cyan-100 bg-white p-3 shadow-sm" />
 
         <section className="mt-8 rounded-3xl border border-slate-200 bg-white/95 shadow-sm backdrop-blur">
           <details className="group [&_summary::-webkit-details-marker]:hidden" open>

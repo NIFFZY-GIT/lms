@@ -5,6 +5,7 @@ import axios, { AxiosError } from 'axios';
 import { useParams, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { Container } from '@/components/ui/Container';
+import { AdSenseBanner } from '@/components/ui/AdSenseBanner';
 import { Video, Mic, HelpCircle, AlertTriangle, ArrowLeft, LogOut, ExternalLink, BookOpen, FileText, Download, Clock } from 'lucide-react';
 import Link from 'next/link';
 import { Course, Recording, CourseTutorial } from '@/types';
@@ -188,6 +189,7 @@ export default function StudentCoursePage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const courseId = params.courseId as string;
+  const adSlot = process.env.NEXT_PUBLIC_ADSENSE_IN_CONTENT_SLOT ?? '';
 
   const { data: course, isLoading, isError, error } = useQuery<CourseDetails, Error>({
     queryKey: ['course', courseId],
@@ -269,6 +271,7 @@ export default function StudentCoursePage() {
         
         <main>
           <Container className="py-10">
+            <AdSenseBanner slot={adSlot} className="mb-8 overflow-hidden rounded-2xl border border-blue-100 bg-white p-3 shadow-sm" />
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               <div className="lg:col-span-2 space-y-8">
                 <section className="bg-white p-6 rounded-lg shadow-md">
@@ -422,6 +425,7 @@ export default function StudentCoursePage() {
     return (
       <Container className="py-10">
         <div className="max-w-3xl mx-auto">
+          <AdSenseBanner slot={adSlot} className="mb-6 overflow-hidden rounded-2xl border border-indigo-100 bg-white p-3 shadow-sm" />
           <button onClick={() => router.back()} className="flex items-center text-indigo-600 hover:underline mb-4 font-medium">
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to all courses

@@ -4,6 +4,7 @@ import { format } from 'date-fns';
 import { Megaphone } from 'lucide-react';
 import Image from 'next/image';
 import { getPublicAnnouncements } from '@/lib/announcements';
+import { AdSenseBanner } from '@/components/ui/AdSenseBanner';
 
 // Cache and refresh periodically for smoother navigations.
 export const revalidate = 300;
@@ -35,6 +36,7 @@ function AnnouncementPost({ announcement }: { announcement: Announcement }) {
 
 export default async function AnnouncementsPage() {
   const announcements = await getPublicAnnouncements();
+  const adSlot = process.env.NEXT_PUBLIC_ADSENSE_IN_CONTENT_SLOT ?? '';
 
   return (
     <div className="bg-gray-50 min-h-screen">
@@ -51,6 +53,7 @@ export default async function AnnouncementsPage() {
             The latest news, updates, and important notices from our platform.
           </p>
         </div>
+        <AdSenseBanner slot={adSlot} className="mx-auto mt-10 max-w-4xl overflow-hidden rounded-2xl border border-indigo-100 bg-white p-3 shadow-sm" />
         <div className="mt-16 max-w-4xl mx-auto">
           {announcements.length > 0 ? (
             <div className="space-y-12">

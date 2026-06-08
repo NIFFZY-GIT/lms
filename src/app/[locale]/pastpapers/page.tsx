@@ -1,4 +1,5 @@
 import { Container } from '@/components/ui/Container';
+import { AdSenseBanner } from '@/components/ui/AdSenseBanner';
 import { fetchPastPapersTree } from '@/lib/pastpapers';
 import { FileDown, Eye, GraduationCap, BookOpen, FileText, Sparkles, Filter, X, Calendar, Globe, Layers, AlertTriangle } from 'lucide-react';
 
@@ -12,6 +13,7 @@ export default async function PastPapersPage({
   searchParams?: Promise<SearchParams>;
 }) {
   const sp = (await searchParams) ?? {};
+  const adSlot = process.env.NEXT_PUBLIC_ADSENSE_IN_CONTENT_SLOT ?? '';
 
   let data;
   try {
@@ -122,6 +124,8 @@ export default async function PastPapersPage({
           <h1 className="mt-4 text-4xl font-bold text-slate-900 md:text-5xl">Past Papers</h1>
           <p className="mt-3 text-lg text-slate-600">Browse and download past examination papers</p>
         </div>
+
+        <AdSenseBanner slot={adSlot} className="mx-auto mb-8 max-w-6xl overflow-hidden rounded-2xl border border-violet-100 bg-white p-3 shadow-sm" />
 
         {grades.length === 0 ? (
           <div className="mx-auto max-w-lg rounded-3xl bg-white p-16 text-center shadow-xl">
