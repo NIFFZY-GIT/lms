@@ -407,7 +407,7 @@ export default function StudentCoursePage() {
                   <span className="flex-shrink-0 p-1.5 rounded-lg bg-purple-100">
                     <ExternalLink className="w-3.5 h-3.5 text-purple-600" />
                   </span>
-                  <span className="font-semibold text-gray-800 text-sm truncate">{quiz.title}</span>
+                  <span className="font-semibold text-gray-800 text-sm">{quiz.title}</span>
                 </div>
                 <a
                   href={quiz.externalLink}
@@ -426,7 +426,7 @@ export default function StudentCoursePage() {
                 <span className="flex-shrink-0 p-1.5 rounded-lg bg-blue-100 group-hover:bg-blue-200 transition-colors">
                   <HelpCircle className="w-3.5 h-3.5 text-blue-600" />
                 </span>
-                <span className="font-semibold text-gray-800 text-sm truncate flex-1">{quiz.title}</span>
+                <span className="font-semibold text-gray-800 text-sm flex-1">{quiz.title}</span>
                 <span className="text-xs font-semibold text-blue-600 flex-shrink-0">Start →</span>
               </Link>
             )}
