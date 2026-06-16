@@ -64,6 +64,7 @@ export interface Quiz {
   id: string;
   title: string;
   courseId: string;
+  externalLink?: string | null;
   questions?: Question[];
 }
 

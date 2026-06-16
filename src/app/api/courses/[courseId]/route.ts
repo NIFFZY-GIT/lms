@@ -76,7 +76,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ courseId
 
                 if (isAdminViewer || enrollmentStatus === 'APPROVED') {
             const recordingsResult = await db.query('SELECT * FROM "Recording" WHERE "courseId" = $1 ORDER BY "createdAt" ASC', [courseId]);
-            const quizzesResult = await db.query('SELECT id, title FROM "Quiz" WHERE "courseId" = $1 ORDER BY "createdAt" ASC', [courseId]);
+            const quizzesResult = await db.query('SELECT id, title, "externalLink" FROM "Quiz" WHERE "courseId" = $1 ORDER BY "createdAt" ASC', [courseId]);
                         const tutorialsResult = await db.query('SELECT * FROM "CourseTutorial" WHERE "courseId" = $1 ORDER BY "createdAt" ASC', [courseId]);
                         course.recordings = user.role === Role.STUDENT
                                 ? recordingsResult.rows.map((recording: { id: string }) => ({

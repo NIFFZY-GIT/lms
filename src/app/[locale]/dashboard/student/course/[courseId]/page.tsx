@@ -392,26 +392,52 @@ export default function StudentCoursePage() {
               
 
 <aside className="space-y-6">
-  <div className="bg-white p-6 rounded-lg shadow-md">
-    <h2 className="text-2xl font-bold text-gray-800 flex items-center mb-4">
-  <HelpCircle className="w-6 h-6 mr-3 text-blue-600" />
-        Quizzes
+  <div className="bg-white p-6 rounded-xl shadow-md">
+    <h2 className="text-xl font-bold text-gray-800 flex items-center mb-4">
+      <HelpCircle className="w-5 h-5 mr-2.5 text-blue-600" />
+      Quizzes
     </h2>
     {course.quizzes && course.quizzes.length > 0 ? (
-      <ul className="space-y-3">
-        {course.quizzes.map((quiz) => ( // No need for index if we're not using "Quiz 1", "Quiz 2"
+      <ul className="space-y-2.5">
+        {course.quizzes.map((quiz) => (
           <li key={quiz.id}>
-            <Link 
-                href={`/dashboard/student/quiz/${quiz.id}`} 
-                className="block p-4 bg-gray-100 rounded-md hover:bg-blue-100 transition-colors font-semibold text-gray-700"
-            >
-              {quiz.title} {/* <-- THE FIX IS HERE */}
-            </Link>
+            {quiz.externalLink ? (
+              <div className="flex items-center justify-between gap-3 p-3.5 bg-purple-50 border border-purple-100 rounded-xl hover:border-purple-300 transition-colors">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <span className="flex-shrink-0 p-1.5 rounded-lg bg-purple-100">
+                    <ExternalLink className="w-3.5 h-3.5 text-purple-600" />
+                  </span>
+                  <span className="font-semibold text-gray-800 text-sm truncate">{quiz.title}</span>
+                </div>
+                <a
+                  href={quiz.externalLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-600 text-white text-xs font-semibold hover:bg-purple-700 active:bg-purple-800 transition-colors flex-shrink-0 shadow-sm"
+                >
+                  Open Quiz
+                </a>
+              </div>
+            ) : (
+              <Link
+                href={`/dashboard/student/quiz/${quiz.id}`}
+                className="flex items-center gap-2.5 p-3.5 bg-blue-50 border border-blue-100 rounded-xl hover:border-blue-300 hover:bg-blue-100 transition-colors group"
+              >
+                <span className="flex-shrink-0 p-1.5 rounded-lg bg-blue-100 group-hover:bg-blue-200 transition-colors">
+                  <HelpCircle className="w-3.5 h-3.5 text-blue-600" />
+                </span>
+                <span className="font-semibold text-gray-800 text-sm truncate flex-1">{quiz.title}</span>
+                <span className="text-xs font-semibold text-blue-600 flex-shrink-0">Start →</span>
+              </Link>
+            )}
           </li>
         ))}
       </ul>
     ) : (
-      <p className="text-gray-500">No quizzes are available for this course yet.</p>
+      <div className="text-center py-8 text-gray-400">
+        <HelpCircle className="w-8 h-8 mx-auto mb-2 opacity-30" />
+        <p className="text-sm">No quizzes available yet.</p>
+      </div>
     )}
   </div>
 </aside>

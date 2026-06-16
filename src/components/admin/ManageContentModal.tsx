@@ -11,7 +11,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
 import { QuestionForm, QuestionFormData } from './QuestionForm';
 import RecordingForm from './RecordingForm';
-import { Trash2, Edit, Plus, Film, Link as LinkIcon, FileText, Download, BookOpen, Upload } from 'lucide-react';
+import { Trash2, Edit, Plus, Film, Link as LinkIcon, FileText, Download, BookOpen, Upload, HelpCircle } from 'lucide-react';
 import { toast } from '@/components/ui/toast';
 
 // --- Schemas ---
@@ -29,7 +29,7 @@ const addRecording = async ({ courseId, data }: { courseId: string, data: FormDa
 const deleteRecording = async (recordingId: string) => (await axios.delete(`/api/recordings/${recordingId}`)).data;
 
 const fetchQuizzes = async (courseId: string): Promise<Quiz[]> => (await axios.get(`/api/courses/${courseId}/quizzes`)).data;
-const createQuiz = async ({ courseId, title }: { courseId: string; title: string }) => (await axios.post(`/api/courses/${courseId}/quizzes`, { title })).data;
+const createQuiz = async ({ courseId, title, externalLink }: { courseId: string; title: string; externalLink?: string }) => (await axios.post(`/api/courses/${courseId}/quizzes`, { title, externalLink })).data;
 const deleteQuiz = async (quizId: string) => (await axios.delete(`/api/quizzes/${quizId}`)).data;
 
 const fetchQuestions = async (quizId: string): Promise<Question[]> => (await axios.get(`/api/quizzes/${quizId}/questions`)).data;
@@ -59,6 +59,8 @@ export function ManageContentModal({ isOpen, onClose, course }: { isOpen: boolea
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
   const [showRecordingForm, setShowRecordingForm] = useState(false);
     const [newQuizTitle, setNewQuizTitle] = useState('');
+    const [newExternalQuizTitle, setNewExternalQuizTitle] = useState('');
+    const [newExternalQuizLink, setNewExternalQuizLink] = useState('');
     const [showTutorialForm, setShowTutorialForm] = useState(false);
     const [tutorialTitle, setTutorialTitle] = useState('');
     const [tutorialFile, setTutorialFile] = useState<File | null>(null);
@@ -97,11 +99,18 @@ export function ManageContentModal({ isOpen, onClose, course }: { isOpen: boolea
   const { data: questions, isLoading: questionsLoading } = useQuery<Question[]>({ queryKey: ['questions', managingQuestionsOf?.id], queryFn: () => fetchQuestions(managingQuestionsOf!.id), enabled: !!managingQuestionsOf });
     const questionMutationOptions = { onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['questions', managingQuestionsOf?.id] }); setShowQuestionForm(false); setEditingQuestion(null); toast.success('Saved'); }, onError: (error: AxiosError<{ error?: string }>) => toast.error(error.response?.data?.error || error.message) };
     const createQuizMutation = useMutation({ mutationFn: createQuiz, onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['quizzes', course.id] }); setNewQuizTitle(''); toast.success('Quiz created'); }, onError: (error: AxiosError<{ error?: string }>) => toast.error(error.response?.data?.error || error.message) });
+    const createExternalQuizMutation = useMutation({ mutationFn: createQuiz, onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['quizzes', course.id] }); setNewExternalQuizTitle(''); setNewExternalQuizLink(''); toast.success('External quiz link added'); }, onError: (error: AxiosError<{ error?: string }>) => toast.error(error.response?.data?.error || error.message) });
     const deleteQuizMutation = useMutation({ mutationFn: deleteQuiz, onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['quizzes', course.id] }); toast.info('Quiz deleted'); }, onError: (error: AxiosError<{ error?: string }>) => toast.error(error.response?.data?.error || error.message) });
     const createQuestionMutation = useMutation({ mutationFn: addQuestion, ...questionMutationOptions });
     const updateQuestionMutation = useMutation({ mutationFn: updateQuestion, ...questionMutationOptions });
     const deleteQuestionMutation = useMutation({ mutationFn: deleteQuestion, ...questionMutationOptions });
     const handleCreateQuiz = () => { if (!newQuizTitle.trim()) return toast.warning('Please enter a title for the quiz.'); createQuizMutation.mutate({ courseId: course.id, title: newQuizTitle }); };
+    const handleCreateExternalQuiz = () => {
+        if (!newExternalQuizTitle.trim()) return toast.warning('Please enter a title for the quiz link.');
+        if (!newExternalQuizLink.trim()) return toast.warning('Please enter the quiz URL.');
+        try { new URL(newExternalQuizLink.trim()); } catch { return toast.error('Please enter a valid URL (e.g. https://forms.google.com/...).'); }
+        createExternalQuizMutation.mutate({ courseId: course.id, title: newExternalQuizTitle, externalLink: newExternalQuizLink });
+    };
   const handleDeleteQuiz = (quizId: string) => { if (window.confirm("Delete this quiz?")) deleteQuizMutation.mutate(quizId); };
     const handleQuestionSubmit = (data: QuestionFormData | FormData) => {
         const quizId = managingQuestionsOf!.id;
@@ -289,63 +298,156 @@ export function ManageContentModal({ isOpen, onClose, course }: { isOpen: boolea
             )}
 
                         {activeTab === 'quizzes' && (
+                            <div>
+                                {managingQuestionsOf ? (
                                     <div>
-                                        {managingQuestionsOf ? (
-                        <div>
-                            <button onClick={() => setManagingQuestionsOf(null)} className="text-sm text-gray-600 mb-4">&larr; Back to all quizzes</button>
-                            <h3 className="text-xl font-bold mb-4">Manage Questions for: {managingQuestionsOf.title}</h3>
-                            {showQuestionForm ? (
-                                <QuestionForm onSubmit={handleQuestionSubmit} initialData={editingQuestion || undefined} isPending={createQuestionMutation.isPending || updateQuestionMutation.isPending} onCancel={() => { setEditingQuestion(null); setShowQuestionForm(false); }} />
-                            ) : (
-                                <div>
-                                    <div className="flex justify-end mb-4">
-                                        <button onClick={() => { setEditingQuestion(null); setShowQuestionForm(true); }} className="btn-primary flex items-center"><Plus className="w-4 h-4 mr-2"/> Add Question</button>
+                                        <button
+                                            onClick={() => setManagingQuestionsOf(null)}
+                                            className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:text-blue-800 mb-5 transition-colors"
+                                        >
+                                            ← Back to all quizzes
+                                        </button>
+                                        <div className="flex items-center justify-between mb-5">
+                                            <div>
+                                                <h3 className="text-lg font-bold text-gray-900">{managingQuestionsOf.title}</h3>
+                                                <p className="text-sm text-gray-500 mt-0.5">Manage questions for this quiz</p>
+                                            </div>
+                                            {!showQuestionForm && (
+                                                <button
+                                                    onClick={() => { setEditingQuestion(null); setShowQuestionForm(true); }}
+                                                    className="btn-primary flex items-center gap-1.5"
+                                                >
+                                                    <Plus className="w-4 h-4" /> Add Question
+                                                </button>
+                                            )}
+                                        </div>
+                                        {showQuestionForm ? (
+                                            <QuestionForm onSubmit={handleQuestionSubmit} initialData={editingQuestion || undefined} isPending={createQuestionMutation.isPending || updateQuestionMutation.isPending} onCancel={() => { setEditingQuestion(null); setShowQuestionForm(false); }} />
+                                        ) : (
+                                            <div className="space-y-2">
+                                                {questionsLoading && <p className="text-sm text-gray-500 py-4 text-center">Loading questions...</p>}
+                                                {questions?.map((q, idx) => (
+                                                    <div key={q.id} className="flex items-start justify-between gap-3 p-3.5 bg-gray-50 border border-gray-200 rounded-lg hover:border-blue-200 transition-colors">
+                                                        <div className="flex items-start gap-3 min-w-0">
+                                                            <span className="mt-0.5 flex-shrink-0 w-6 h-6 rounded-full bg-blue-100 text-blue-700 text-xs font-bold flex items-center justify-center">{idx + 1}</span>
+                                                            <p className="text-sm font-medium text-gray-800 leading-snug">{q.questionText}</p>
+                                                        </div>
+                                                        <div className="flex items-center gap-1 flex-shrink-0">
+                                                            <button onClick={() => { setEditingQuestion(q); setShowQuestionForm(true); }} className="p-1.5 rounded text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors" title="Edit"><Edit className="w-3.5 h-3.5"/></button>
+                                                            <button onClick={() => handleDeleteQuestion(q.id)} className="p-1.5 rounded text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors" title="Delete"><Trash2 className="w-3.5 h-3.5"/></button>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                                {questions?.length === 0 && !questionsLoading && (
+                                                    <div className="text-center py-10 text-gray-400">
+                                                        <HelpCircle className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                                                        <p className="text-sm">No questions yet. Add your first question above.</p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
-                                    {questionsLoading && <p>Loading questions...</p>}
-                                    <div className="space-y-3">
-                                        {questions?.map(q => (
-                                            <div key={q.id} className="p-3 border rounded-md flex justify-between items-center">
-                                                <p className="font-medium">{q.questionText}</p>
-                                                <div className="space-x-2">
-                                                    <button onClick={() => { setEditingQuestion(q); setShowQuestionForm(true); }} className="p-2 text-gray-500 hover:text-blue-600"><Edit className="w-4 h-4"/></button>
-                                                    <button onClick={() => handleDeleteQuestion(q.id)} className="p-2 text-gray-500 hover:text-red-600"><Trash2 className="w-4 h-4"/></button>
+                                ) : (
+                                    <div className="space-y-6">
+                                        {/* Quiz list */}
+                                        <div>
+                                            <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-400 mb-3">All Quizzes</h3>
+                                            <div className="space-y-2">
+                                                {quizzes?.map(quiz => (
+                                                    <div
+                                                        key={quiz.id}
+                                                        className={`flex items-center justify-between gap-3 p-3.5 rounded-xl border transition-colors ${
+                                                            quiz.externalLink
+                                                                ? 'bg-purple-50 border-purple-100 hover:border-purple-300'
+                                                                : 'bg-blue-50 border-blue-100 hover:border-blue-300'
+                                                        }`}
+                                                    >
+                                                        <div className="flex items-center gap-3 min-w-0">
+                                                            <span className={`flex-shrink-0 p-1.5 rounded-lg ${quiz.externalLink ? 'bg-purple-100' : 'bg-blue-100'}`}>
+                                                                {quiz.externalLink
+                                                                    ? <LinkIcon className="w-4 h-4 text-purple-600" />
+                                                                    : <HelpCircle className="w-4 h-4 text-blue-600" />
+                                                                }
+                                                            </span>
+                                                            <div className="min-w-0">
+                                                                <p className="font-semibold text-gray-800 truncate text-sm">{quiz.title}</p>
+                                                                {quiz.externalLink
+                                                                    ? <p className="text-xs text-purple-500 truncate">{quiz.externalLink}</p>
+                                                                    : <p className="text-xs text-blue-500">Internal quiz</p>
+                                                                }
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex items-center gap-1 flex-shrink-0">
+                                                            {!quiz.externalLink && (
+                                                                <button onClick={() => setManagingQuestionsOf(quiz)} className="p-1.5 rounded text-gray-400 hover:text-blue-600 hover:bg-white transition-colors" title="Manage Questions"><Edit className="w-4 h-4" /></button>
+                                                            )}
+                                                            <button onClick={() => handleDeleteQuiz(quiz.id)} className="p-1.5 rounded text-gray-400 hover:text-red-600 hover:bg-white transition-colors" title="Delete Quiz"><Trash2 className="w-4 h-4" /></button>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                                {quizzes?.length === 0 && (
+                                                    <div className="text-center py-8 text-gray-400 border border-dashed border-gray-200 rounded-xl">
+                                                        <HelpCircle className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                                                        <p className="text-sm">No quizzes added yet.</p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* Add internal quiz */}
+                                        <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+                                            <h4 className="text-sm font-semibold text-gray-700 flex items-center gap-2 mb-1">
+                                                <HelpCircle className="w-4 h-4 text-blue-500" /> Add Internal Quiz
+                                            </h4>
+                                            <p className="text-xs text-gray-400 mb-3">Build a quiz with multiple-choice questions directly on the platform.</p>
+                                            <div className="flex flex-col sm:flex-row gap-2">
+                                                <input
+                                                    type="text"
+                                                    value={newQuizTitle}
+                                                    onChange={(e) => setNewQuizTitle(e.target.value)}
+                                                    placeholder="e.g., Week 1 Final Exam"
+                                                    className="w-full sm:flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+                                                />
+                                                <button onClick={handleCreateQuiz} disabled={createQuizMutation.isPending} className="btn-primary flex items-center justify-center gap-1.5 w-full sm:w-auto">
+                                                    <Plus className="w-4 h-4" />
+                                                    {createQuizMutation.isPending ? 'Adding...' : 'Add Quiz'}
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        {/* Add external quiz link */}
+                                        <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
+                                            <h4 className="text-sm font-semibold text-gray-700 flex items-center gap-2 mb-1">
+                                                <LinkIcon className="w-4 h-4 text-purple-500" /> Add External Quiz Link
+                                            </h4>
+                                            <p className="text-xs text-gray-400 mb-3">Link to a third-party quiz — Google Forms, Typeform, etc. Students will see an &ldquo;Open Quiz&rdquo; button.</p>
+                                            <div className="flex flex-col gap-2">
+                                                <input
+                                                    type="text"
+                                                    value={newExternalQuizTitle}
+                                                    onChange={(e) => setNewExternalQuizTitle(e.target.value)}
+                                                    placeholder="Quiz title, e.g., Chapter 5 MCQ"
+                                                    className="w-full px-3 py-2 text-sm border border-purple-200 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent bg-white"
+                                                />
+                                                <div className="flex flex-col sm:flex-row gap-2">
+                                                    <input
+                                                        type="url"
+                                                        value={newExternalQuizLink}
+                                                        onChange={(e) => setNewExternalQuizLink(e.target.value)}
+                                                        placeholder="https://forms.google.com/..."
+                                                        className="w-full sm:flex-1 px-3 py-2 text-sm border border-purple-200 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent bg-white"
+                                                    />
+                                                    <button onClick={handleCreateExternalQuiz} disabled={createExternalQuizMutation.isPending} className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg bg-purple-600 text-white text-sm font-semibold hover:bg-purple-700 disabled:opacity-50 transition-colors w-full sm:w-auto">
+                                                        <Plus className="w-4 h-4" />
+                                                        {createExternalQuizMutation.isPending ? 'Adding...' : 'Add Link'}
+                                                    </button>
                                                 </div>
                                             </div>
-                                        ))}
-                                        {questions?.length === 0 && !questionsLoading && <p className="text-center text-sm text-gray-500 py-4">No questions added yet.</p>}
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    ) : (
-                        <div>
-                            <h3 className="text-lg font-medium">Existing Quizzes</h3>
-                            <div className="space-y-3 mt-4">
-                                {quizzes?.map(quiz => (
-                                    <div key={quiz.id} className="p-3 border rounded-md flex justify-between items-center bg-gray-50">
-                                        <p className="font-medium text-gray-800">{quiz.title}</p>
-                                        <div className="flex-shrink-0 flex items-center space-x-2">
-                                            <button onClick={() => setManagingQuestionsOf(quiz)} className="p-2 text-gray-500 hover:text-blue-600" title="Manage Questions"><Edit className="w-4 h-4" /></button>
-                                            <button onClick={() => handleDeleteQuiz(quiz.id)} className="p-2 text-gray-500 hover:text-red-600" title="Delete Quiz"><Trash2 className="w-4 h-4" /></button>
                                         </div>
                                     </div>
-                                ))}
+                                )}
                             </div>
-                            <hr className="my-6" />
-                            <div>
-                                <h4 className="text-lg font-medium">Add New Quiz</h4>
-                                <div className="flex flex-col sm:flex-row gap-2 mt-2">
-                                    <input type="text" value={newQuizTitle} onChange={(e) => setNewQuizTitle(e.target.value)} placeholder="e.g., Week 1 Final Exam" className="w-full sm:flex-1 border-gray-300 rounded-md shadow-sm" />
-                                    <button onClick={handleCreateQuiz} disabled={createQuizMutation.isPending} className="btn-primary flex items-center w-full sm:w-auto justify-center">
-                                        <Plus className="w-5 h-5 mr-2" />
-                                        {createQuizMutation.isPending ? "Adding..." : "Add Quiz"}
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                  </div>
-                )}
+                        )}
             </div>
         </Modal>
     );

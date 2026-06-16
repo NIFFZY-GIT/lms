@@ -534,3 +534,6 @@ END $$;
 -- Add term column to PastPaper table
 ALTER TABLE "PastPaper" ADD COLUMN IF NOT EXISTS term VARCHAR(50) NOT NULL DEFAULT '1st Term';
 CREATE INDEX IF NOT EXISTS idx_pastpaper_term ON "PastPaper"(term);
+
+-- v1.3 — External quiz links
+ALTER TABLE "Quiz" ADD COLUMN IF NOT EXISTS "externalLink" TEXT;

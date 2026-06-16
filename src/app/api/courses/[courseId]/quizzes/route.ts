@@ -13,7 +13,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ courseId
     // --- THIS IS THE FIX ---
     // Select 'title' instead of the non-existent 'question' column
     const quizzesResult = await db.query(
-      'SELECT id, title FROM "Quiz" WHERE "courseId" = $1 ORDER BY "createdAt" ASC',
+      'SELECT id, title, "externalLink" FROM "Quiz" WHERE "courseId" = $1 ORDER BY "createdAt" ASC',
       [courseId]
     );
     
@@ -29,7 +29,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ courseI
   try {
     const user = await getServerUser([Role.ADMIN, Role.INSTRUCTOR]);
     const { courseId } = await params;
-    const { title } = await req.json();
+    const { title, externalLink } = await req.json();
 
     if (!title) {
       return NextResponse.json({ error: 'A title is required to create a quiz.' }, { status: 400 });
@@ -44,11 +44,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ courseI
 
     const quizId = uuidv4();
     const sql = `
-      INSERT INTO "Quiz" (id, title, "courseId")
-      VALUES ($1, $2, $3)
+      INSERT INTO "Quiz" (id, title, "courseId", "externalLink")
+      VALUES ($1, $2, $3, $4)
       RETURNING *;
     `;
-    const result = await db.query(sql, [quizId, title, courseId]);
+    const result = await db.query(sql, [quizId, title, courseId, externalLink?.trim() || null]);
     
     return NextResponse.json(result.rows[0], { status: 201 });
   } catch (error) {
