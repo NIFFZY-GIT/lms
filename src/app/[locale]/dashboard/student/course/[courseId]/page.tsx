@@ -6,7 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { Container } from '@/components/ui/Container';
 import { AdSenseBanner } from '@/components/ui/AdSenseBanner';
-import { Video, Mic, HelpCircle, AlertTriangle, ArrowLeft, LogOut, ExternalLink, BookOpen, FileText, Download, Clock } from 'lucide-react';
+import { Video, Mic, HelpCircle, AlertTriangle, ArrowLeft, LogOut, ExternalLink, BookOpen, FileText, Download, Clock, CalendarDays, MessageCircle } from 'lucide-react';
 import Link from 'next/link';
 import { Course, Recording, CourseTutorial } from '@/types';
 import { EnrollmentForm } from '@/components/student/EnrollmentForm';
@@ -22,6 +22,23 @@ const isFileVideoUrl = (url?: string) => {
 const isProtectedRecordingUrl = (url?: string) => {
   if (!url) return false;
   return url.startsWith('/api/recordings/');
+};
+
+const formatTime12h = (timeValue?: string | null): string => {
+  if (!timeValue) return '';
+  const [hourRaw, minuteRaw] = timeValue.split(':');
+  const hour = Number(hourRaw);
+  const minute = Number(minuteRaw);
+  if (Number.isNaN(hour) || Number.isNaN(minute)) return timeValue;
+
+  const meridiem = hour >= 12 ? 'PM' : 'AM';
+  const normalizedHour = hour % 12 || 12;
+  return `${normalizedHour}:${String(minute).padStart(2, '0')} ${meridiem}`;
+};
+
+const titleCaseDay = (day?: string | null): string => {
+  if (!day) return '';
+  return day.charAt(0).toUpperCase() + day.slice(1).toLowerCase();
 };
 
 const getEmbeddedRecordingUrl = (rawUrl?: string): { provider: 'youtube' | 'zoom' | 'external'; embedUrl: string } | null => {
@@ -274,6 +291,66 @@ export default function StudentCoursePage() {
             <AdSenseBanner slot={adSlot} className="mb-8 overflow-hidden rounded-2xl border border-blue-100 bg-white p-3 shadow-sm" />
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               <div className="lg:col-span-2 space-y-8">
+                {/* --- LIVE SESSION: schedule + Zoom + WhatsApp (shown at the top) --- */}
+                <section className="bg-white p-6 rounded-lg shadow-md border-t-4 border-blue-600">
+                  <h2 className="text-2xl font-bold text-gray-800 flex items-center mb-4"><Mic className="w-6 h-6 mr-3 text-blue-600" />Live Session</h2>
+
+                  {/* Class schedule */}
+                  {course.scheduleMode === 'WEEKLY' && course.weeklyDay && course.startTime && course.endTime ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
+                      <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                        <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-gray-500"><CalendarDays className="w-3.5 h-3.5" />Class Day</p>
+                        <p className="mt-1 text-base font-bold text-gray-800">{titleCaseDay(course.weeklyDay)}</p>
+                      </div>
+                      <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                        <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-gray-500"><Clock className="w-3.5 h-3.5" />Start Time</p>
+                        <p className="mt-1 text-base font-bold text-gray-800">{formatTime12h(course.startTime)}</p>
+                      </div>
+                      <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                        <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-gray-500"><Clock className="w-3.5 h-3.5" />End Time</p>
+                        <p className="mt-1 text-base font-bold text-gray-800">{formatTime12h(course.endTime)}</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="mb-5 inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-600">
+                      <CalendarDays className="w-4 h-4 text-gray-500" />Recorded / On-demand — no fixed live schedule.
+                    </p>
+                  )}
+
+                  {course.scheduleNote ? (
+                    <p className="mb-5 text-sm text-gray-600">{course.scheduleNote}</p>
+                  ) : null}
+
+                  {/* Live Session Link + WhatsApp group */}
+                  <div className="flex flex-wrap items-center gap-3">
+                    {course.zoomLink ? (
+                      <a
+                        href={course.zoomLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 px-5 py-3 rounded-lg bg-blue-600 text-white font-semibold text-sm hover:bg-blue-700 active:bg-blue-800 transition-colors shadow-sm"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                        Join the next live session on Zoom
+                      </a>
+                    ) : (
+                      <p className="text-gray-500">The Zoom link has not been posted yet.</p>
+                    )}
+
+                    {course.whatsappGroupLink ? (
+                      <a
+                        href={course.whatsappGroupLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 px-5 py-3 rounded-lg bg-green-600 text-white font-semibold text-sm hover:bg-green-700 active:bg-green-800 transition-colors shadow-sm"
+                      >
+                        <MessageCircle className="w-4 h-4" />
+                        Join the WhatsApp group
+                      </a>
+                    ) : null}
+                  </div>
+                </section>
+
                 <section className="bg-white p-6 rounded-lg shadow-md">
                   <h2 className="text-2xl font-bold text-gray-800 flex items-center mb-4"><Video className="w-6 h-6 mr-3 text-blue-600" />Course Recordings</h2>
                   {course.recordings && course.recordings.length > 0 ? (
@@ -337,23 +414,6 @@ export default function StudentCoursePage() {
                   ) : (<p className="text-gray-500">No recordings have been added yet.</p>)}
                 </section>
                 
-                <section className="bg-white p-6 rounded-lg shadow-md">
-                  <h2 className="text-2xl font-bold text-gray-800 flex items-center mb-4"><Mic className="w-6 h-6 mr-3 text-blue-600" />Live Session Link</h2>
-                  {course.zoomLink ? (
-                    <a
-                      href={course.zoomLink}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 px-5 py-3 rounded-lg bg-blue-600 text-white font-semibold text-sm hover:bg-blue-700 active:bg-blue-800 transition-colors shadow-sm"
-                    >
-                      <ExternalLink className="w-4 h-4" />
-                      Join the next live session on Zoom
-                    </a>
-                  ) : (
-                    <p className="text-gray-500">The Zoom link has not been posted yet.</p>
-                  )}
-                </section>
-
                 <section className="bg-white p-6 rounded-lg shadow-md">
                   <h2 className="text-2xl font-bold text-gray-800 flex items-center mb-4">
                     <BookOpen className="w-6 h-6 mr-3 text-indigo-600" />Course Tutorials
