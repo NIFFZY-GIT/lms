@@ -24,9 +24,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           strategy="afterInteractive"
         />
       </head>
-      <body className={`font-sans flex flex-col min-h-screen`}>
+      <body className="font-sans flex min-h-screen flex-col overflow-x-hidden">
         {/* Locale layout provides app-level providers and chrome. */}
-        <main id="main-content" className="flex-grow focus:outline-none">{children}</main>
+        <main id="main-content" className="flex-1 w-full focus:outline-none">{children}</main>
       </body>
     </html>
   );

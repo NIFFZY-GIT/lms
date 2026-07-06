@@ -9,7 +9,7 @@ import { ArrowRight } from 'lucide-react';
 export default function HeroSection() {
   const t = useTranslations('LandingPage.Hero');
   return (
-    <section className="relative h-[91vh] flex items-center justify-center text-white overflow-hidden">
+    <section className="relative flex min-h-[calc(100svh-5rem)] items-center justify-center overflow-hidden py-20 text-white sm:py-24">
       <Image 
         src="/images/p6.jpg" 
         alt="Hero background" 

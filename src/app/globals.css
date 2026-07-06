@@ -253,6 +253,12 @@ select {
 /* Prevent content jump when scrollbar appears/disappears */
 html {
   scrollbar-gutter: stable;
+  overflow-x: hidden;
+}
+
+body {
+  min-height: 100dvh;
+  overflow-x: hidden;
 }
 
 /* Sinhala-friendly input rendering in SI locale content */

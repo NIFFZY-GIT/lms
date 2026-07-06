@@ -126,13 +126,31 @@ export function Navbar() {
   }, []);
 
   useEffect(() => {
-    const originalOverflow = document.body.style.overflow;
+    const originalBodyOverflow = document.body.style.overflow;
+    const originalHtmlOverflow = document.documentElement.style.overflow;
+    const originalBodyPosition = document.body.style.position;
+
     if (isMenuOpen) {
       document.body.style.overflow = 'hidden';
+      document.documentElement.style.overflow = 'hidden';
+      document.body.style.position = 'fixed';
+      document.body.style.top = '0';
+      document.body.style.width = '100%';
     } else {
-      document.body.style.overflow = originalOverflow || '';
+      document.body.style.overflow = originalBodyOverflow || '';
+      document.documentElement.style.overflow = originalHtmlOverflow || '';
+      document.body.style.position = originalBodyPosition || '';
+      document.body.style.top = '';
+      document.body.style.width = '';
     }
-    return () => { document.body.style.overflow = originalOverflow || ''; };
+
+    return () => {
+      document.body.style.overflow = originalBodyOverflow || '';
+      document.documentElement.style.overflow = originalHtmlOverflow || '';
+      document.body.style.position = originalBodyPosition || '';
+      document.body.style.top = '';
+      document.body.style.width = '';
+    };
   }, [isMenuOpen]);
 
   useEffect(() => {
