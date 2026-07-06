@@ -49,6 +49,33 @@
 				}
 			]
 		},
+		"StudyPaths": {
+			"eyebrow": "Focused learning paths",
+			"title": "Study with a clear plan for exams and classroom success",
+			"subtitle": "Whether you are preparing for school tests, mock exams, or the O/Ls, our lessons and practice tools are organized to help you learn steadily.",
+			"paths": [
+				{
+					"title": "School subject support",
+					"description": "Follow structured lessons for the major subjects covered in the school curriculum, with topic-based study materials.",
+					"bullets": ["Lesson notes and guided explanations", "Topic revision for weekly study", "Support for exam preparation"]
+				},
+				{
+					"title": "Past paper practice",
+					"description": "Practice with past papers and model questions that help students become familiar with exam format and timing.",
+					"bullets": ["Past papers by grade and subject", "Question practice with answers", "Improved confidence before exams"]
+				},
+				{
+					"title": "Progress tracking",
+					"description": "Keep track of completed lessons, quiz scores, and areas that need more attention.",
+					"bullets": ["Simple progress checkpoints", "Performance review after quizzes", "Targeted revision suggestions"]
+				},
+				{
+					"title": "Teacher-guided learning",
+					"description": "Use the platform as a study companion with approachable resources and practical guidance from experienced educators.",
+					"bullets": ["Teacher-supported learning materials", "Clear explanations for difficult topics", "Encouragement for steady improvement"]
+				}
+			]
+		},
 		"Stats": {
 			"title": "Trusted by students across Sri Lanka",
 			"subtitle": "Join the growing Online Thakshila.lk community.",

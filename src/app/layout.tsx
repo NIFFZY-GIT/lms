@@ -8,8 +8,19 @@ const jakarta = Plus_Jakarta_Sans({ subsets: ["latin"], variable: '--font-jakart
 const sinhala = Noto_Sans_Sinhala({ subsets: ["sinhala"], variable: '--font-sinhala' });
 
 export const metadata: Metadata = {
-  title: "Online Thakshilawa",
-  description: "Sri Lanka’s First and Best Online Classes",
+  title: "Online Thakshilawa | Grade 10, O/L and school study resources",
+  description: "Online Thakshilawa offers structured learning for Grade 10, O/L, past papers, quizzes, and study support for Sri Lankan students.",
+  keywords: ["online classes", "Sri Lanka education", "Grade 10", "O/L", "past papers", "study resources"],
+  alternates: {
+    canonical: "https://onlinethakshilawa.lk"
+  },
+  openGraph: {
+    title: "Online Thakshilawa | Grade 10, O/L and school study resources",
+    description: "Structured online lessons, practice quizzes, and past papers for Sri Lankan students.",
+    url: "https://onlinethakshilawa.lk",
+    siteName: "Online Thakshilawa",
+    type: "website"
+  }
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
