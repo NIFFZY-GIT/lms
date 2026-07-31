@@ -99,6 +99,23 @@ select:-webkit-autofill:active {
 
 .btn-ghost:hover { background-color: #f3f4f6; }
 
+/* Full-width action row used by the dashboard side column */
+.btn-dashboard-action {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0.875rem 1rem;
+  border-radius: 0.75rem;
+  background-color: #ffffff;
+  color: #1f2937; /* gray-800 */
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  transition: box-shadow 150ms ease, background-color 150ms ease;
+}
+
+.btn-dashboard-action:hover { background-color: #f9fafb; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
+.btn-dashboard-action:focus-visible { outline: none; box-shadow: 0 0 0 2px rgb(37 99 235 / 0.6), 0 0 0 4px #ffffff; }
+
 /* Override any gradient utility used as brand separators to a solid blue */
 .gradient-brand { background-color: rgb(var(--brand)); }
 

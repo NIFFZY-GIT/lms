@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
-import { LayoutDashboard, BookOpen, Banknote, Users, Megaphone, Shield, Menu, X } from 'lucide-react';
+import { LayoutDashboard, BookOpen, Banknote, Users, Megaphone, Shield, Menu, X, TrendingUp } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { withAdminAuth } from '@/components/auth/withAdminAuth'; // Import the HOC
 
@@ -60,6 +60,7 @@ function AdminLayout({ children }: { children: React.ReactNode }) {
                     <NavLink href={`${base}/courses`} icon={BookOpen} onClick={() => setSidebarOpen(false)}>Courses</NavLink>
                     <NavLink href={`${base}/pastpapers`} icon={BookOpen} onClick={() => setSidebarOpen(false)}>Past Papers</NavLink>
                     <NavLink href={`${base}/payments`} icon={Banknote} onClick={() => setSidebarOpen(false)}>Payments</NavLink>
+                    <NavLink href={`${base}/revenue`} icon={TrendingUp} onClick={() => setSidebarOpen(false)}>Revenue</NavLink>
                     <NavLink href={`${base}/announcements`} icon={Megaphone} onClick={() => setSidebarOpen(false)}>Announcements</NavLink>
                     <NavLink href={`${base}/users`} icon={Users} onClick={() => setSidebarOpen(false)}>Students</NavLink>
                     <NavLink href={`${base}/admins`} icon={Shield} onClick={() => setSidebarOpen(false)}>Admins</NavLink>

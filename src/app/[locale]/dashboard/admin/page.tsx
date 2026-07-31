@@ -3,7 +3,8 @@
 import Link from 'next/link';
 import { getBaseUrl } from '@/lib/server-base-url';
 import { cookies } from 'next/headers';
-import { formatDistanceToNow } from 'date-fns';
+import { format, formatDistanceToNow } from 'date-fns';
+import { formatCurrency } from '@/lib/utils';
 import {
     ArrowRight,
     BookOpen,
@@ -12,17 +13,46 @@ import {
     Megaphone,
     Shield,
     UserCheck,
-    TrendingUp
+    TrendingUp,
+    Receipt
 } from 'lucide-react';
 
-// --- Type Definitions (No Changes) ---
+// --- Type Definitions ---
+interface PaidStudent {
+  paymentId: string;
+  studentId: string;
+  studentName: string;
+  studentEmail: string;
+  courseId: string;
+  courseTitle: string;
+  amount: number;
+  referenceNumber: string | null;
+  paidAt: string;
+}
+
+interface CourseRevenue {
+  courseId: string;
+  title: string;
+  periodRevenue: number;
+  periodPaidStudents: number;
+  totalRevenue: number;
+  totalPaidStudents: number;
+}
+
 interface DashboardStats {
   totalStudents: number;
   totalInstructors: number;
   totalCourses: number;
   pendingPayments: number;
   revenue: number;
-  recentPayments: { createdAt: string; studentName: string; courseTitle: string; }[];
+  totalPaidStudents: number;
+  month: string;
+  monthLabel: string;
+  monthRevenue: number;
+  monthPaidStudentsCount: number;
+  monthApprovedPayments: number;
+  monthPaidStudents: PaidStudent[];
+  courseRevenue: CourseRevenue[];
   recentCourses: { id: string; title: string; createdAt: string }[];
   recentUsers: { id: string; name: string; role: string; createdAt: string }[];
   enrollmentsTrend: { day: string; count: number }[];
@@ -68,7 +98,9 @@ const StatCard = ({ title, value, icon, href }: { title: string; value: string |
 
 
 // --- Main Page Component (Server Component with Responsive Enhancements) ---
-export default async function AdminDashboardPage() {
+export default async function AdminDashboardPage(props: { params: Promise<{ locale: string }> }) {
+  const { locale } = await props.params;
+  const base = `/${locale}/dashboard/admin`;
   const stats = await getDashboardStats();
 
   if (!stats) {
@@ -79,6 +111,8 @@ export default async function AdminDashboardPage() {
         </div>
     );
   }
+
+  const coursesWithRevenue = stats.courseRevenue.filter(c => c.periodPaidStudents > 0);
 
   return (
     <div className="space-y-6 md:space-y-8">
@@ -91,20 +125,50 @@ export default async function AdminDashboardPage() {
       <div className="sm:hidden">
         <div className="-mx-4 px-4 overflow-x-auto pb-2">
             <div className="flex w-max gap-2">
-                <Link href="/en/dashboard/admin/students" className="btn-tab-mobile">Students</Link>
-                <Link href="/en/dashboard/admin/instructors" className="btn-tab-mobile">Instructors</Link>
-                <Link href="/en/dashboard/admin/courses" className="btn-tab-mobile">Courses</Link>
-                <Link href="/en/dashboard/admin/payments" className="btn-tab-mobile">Payments</Link>
+                <Link href={`${base}/users`} className="btn-tab-mobile">Students</Link>
+                <Link href={`${base}/instructors`} className="btn-tab-mobile">Instructors</Link>
+                <Link href={`${base}/courses`} className="btn-tab-mobile">Courses</Link>
+                <Link href={`${base}/payments`} className="btn-tab-mobile">Payments</Link>
+                <Link href={`${base}/revenue`} className="btn-tab-mobile">Revenue</Link>
             </div>
         </div>
       </div>
 
       {/* --- Stat Cards Grid --- */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-        <StatCard title="Students" value={stats.totalStudents} icon={<Users className="w-7 h-7" />} href="/en/dashboard/admin/users" />
-        <StatCard title="Instructors" value={stats.totalInstructors} icon={<UserCheck className="w-7 h-7" />} href="/en/dashboard/admin/instructors" />
-        <StatCard title="Courses" value={stats.totalCourses} icon={<BookOpen className="w-7 h-7" />} href="/en/dashboard/admin/courses" />
-        <StatCard title="Pending Payments" value={stats.pendingPayments} icon={<Banknote className="w-7 h-7" />} href="/en/dashboard/admin/payments" />
+        <StatCard title="Students" value={stats.totalStudents} icon={<Users className="w-7 h-7" />} href={`${base}/users`} />
+        <StatCard title="Instructors" value={stats.totalInstructors} icon={<UserCheck className="w-7 h-7" />} href={`${base}/instructors`} />
+        <StatCard title="Courses" value={stats.totalCourses} icon={<BookOpen className="w-7 h-7" />} href={`${base}/courses`} />
+        <StatCard title="Pending Payments" value={stats.pendingPayments} icon={<Banknote className="w-7 h-7" />} href={`${base}/payments`} />
+      </div>
+
+      {/* --- This Month's Money --- */}
+      <div className="bg-white p-4 sm:p-6 rounded-xl shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+          <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+            <Banknote className="w-5 h-5 text-blue-600" />
+            {stats.monthLabel}
+          </h2>
+          <Link href={`${base}/revenue`} className="text-sm font-medium text-blue-600 hover:text-blue-700 inline-flex items-center gap-1">
+            Full revenue report <ArrowRight className="w-4 h-4" />
+          </Link>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="rounded-lg border border-emerald-100 bg-emerald-50 p-4">
+            <p className="text-sm font-medium text-emerald-700">Revenue This Month</p>
+            <p className="text-2xl md:text-3xl font-bold text-emerald-900 mt-1 break-words">{formatCurrency(stats.monthRevenue)}</p>
+          </div>
+          <div className="rounded-lg border border-blue-100 bg-blue-50 p-4">
+            <p className="text-sm font-medium text-blue-700">Students Who Paid</p>
+            <p className="text-2xl md:text-3xl font-bold text-blue-900 mt-1">{stats.monthPaidStudentsCount}</p>
+            <p className="text-xs text-blue-700 mt-0.5">Payments approved this month</p>
+          </div>
+          <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+            <p className="text-sm font-medium text-gray-600">Approved Payments</p>
+            <p className="text-2xl md:text-3xl font-bold text-gray-900 mt-1">{stats.monthApprovedPayments}</p>
+            <p className="text-xs text-gray-500 mt-0.5">Across {coursesWithRevenue.length} course{coursesWithRevenue.length === 1 ? '' : 's'}</p>
+          </div>
+        </div>
       </div>
 
       {/* --- Main Dashboard Grid (Stacks on mobile) --- */}
@@ -116,33 +180,82 @@ export default async function AdminDashboardPage() {
             <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2"><TrendingUp className="w-5 h-5 text-blue-600"/>Last 7 Days Enrollments</h2>
             <TrendBar data={stats.enrollmentsTrend} />
           </div>
+
           <div className="bg-white p-4 sm:p-6 rounded-xl shadow-sm">
-            <h2 className="text-lg font-bold text-gray-800 mb-4">Recent Approved Enrollments</h2>
-            <div className="space-y-4">
-              {stats.recentPayments.length > 0 ? (
-                stats.recentPayments.map((payment, index) => (
-                  <div key={index} className="flex items-center justify-between gap-4 border-b border-gray-100 pb-3 last:border-b-0">
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
+              <h2 className="text-lg font-bold text-gray-800">Students Who Paid — {stats.monthLabel}</h2>
+              <Link href={`${base}/revenue`} className="text-sm font-medium text-blue-600 hover:text-blue-700">View all</Link>
+            </div>
+            <p className="text-sm text-gray-500 mb-4">Approved payments only.</p>
+            <div className="divide-y divide-gray-100">
+              {stats.monthPaidStudents.length > 0 ? (
+                stats.monthPaidStudents.slice(0, 10).map((payment) => (
+                  <div key={payment.paymentId} className="flex items-start justify-between gap-4 py-3">
                     <div className="min-w-0 flex-1">
                       <p className="font-medium text-gray-800 truncate">{payment.studentName}</p>
-                      <p className="text-sm text-gray-500 truncate">Enrolled in &quot;{payment.courseTitle}&quot;</p>
+                      <p className="text-sm text-gray-500 truncate">{payment.courseTitle}</p>
+                      <p className="text-xs text-gray-400 truncate">{payment.studentEmail}</p>
                     </div>
-                    <p className="text-xs sm:text-sm text-gray-500 flex-shrink-0 whitespace-nowrap">
-                      {formatDistanceToNow(new Date(payment.createdAt), { addSuffix: true })}
-                    </p>
+                    <div className="text-right flex-shrink-0">
+                      <p className="font-semibold text-gray-900 whitespace-nowrap">{formatCurrency(payment.amount)}</p>
+                      <p className="text-xs text-gray-500 whitespace-nowrap">{format(new Date(payment.paidAt), 'PP')}</p>
+                      <p className="text-[11px] text-gray-400 whitespace-nowrap">{formatDistanceToNow(new Date(payment.paidAt), { addSuffix: true })}</p>
+                    </div>
                   </div>
                 ))
               ) : (
-                <p className="text-gray-500 text-center py-8">No recent activity.</p>
+                <p className="text-gray-500 text-center py-8">No approved payments yet this month.</p>
               )}
             </div>
+            {stats.monthPaidStudents.length > 10 && (
+              <Link href={`${base}/revenue`} className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-700">
+                See all {stats.monthPaidStudentsCount} students who paid <ArrowRight className="w-4 h-4" />
+              </Link>
+            )}
+          </div>
+
+          <div className="bg-white p-4 sm:p-6 rounded-xl shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+              <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2"><Receipt className="w-5 h-5 text-blue-600"/>Revenue by Course — {stats.monthLabel}</h2>
+              <Link href={`${base}/courses`} className="text-sm font-medium text-blue-600 hover:text-blue-700">Manage courses</Link>
+            </div>
+            {coursesWithRevenue.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead>
+                    <tr>
+                      <th className="py-2 pr-4 text-left text-xs font-medium text-gray-500 uppercase">Course</th>
+                      <th className="py-2 px-4 text-right text-xs font-medium text-gray-500 uppercase">Paid</th>
+                      <th className="py-2 pl-4 text-right text-xs font-medium text-gray-500 uppercase">Revenue</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {coursesWithRevenue.slice(0, 8).map((course) => (
+                      <tr key={course.courseId}>
+                        <td className="py-2.5 pr-4 text-sm text-gray-800">{course.title}</td>
+                        <td className="py-2.5 px-4 text-sm text-gray-700 text-right font-semibold">{course.periodPaidStudents}</td>
+                        <td className="py-2.5 pl-4 text-sm font-bold text-gray-900 text-right whitespace-nowrap">{formatCurrency(course.periodRevenue)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="text-gray-500 text-center py-8">No course has an approved payment this month yet.</p>
+            )}
           </div>
         </div>
 
         {/* --- Right Column (Side Content) --- */}
         <div className="space-y-6 md:space-y-8">
             <div className="bg-white p-5 rounded-xl shadow-sm">
+                <h3 className="text-sm font-semibold text-gray-600 mb-1">Revenue — {stats.monthLabel}</h3>
+                <p className="text-2xl md:text-3xl font-bold text-emerald-700 break-words">{formatCurrency(stats.monthRevenue)}</p>
+                <p className="text-xs text-gray-500 mt-1">{stats.monthPaidStudentsCount} student{stats.monthPaidStudentsCount === 1 ? '' : 's'} paid this month</p>
+                <hr className="my-4" />
                 <h3 className="text-sm font-semibold text-gray-600 mb-1">Total Revenue (Approved)</h3>
-                <p className="text-2xl md:text-3xl font-bold text-gray-800">LKR {stats.revenue.toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                <p className="text-xl md:text-2xl font-bold text-gray-800 break-words">{formatCurrency(stats.revenue)}</p>
+                <p className="text-xs text-gray-500 mt-1">{stats.totalPaidStudents} student{stats.totalPaidStudents === 1 ? '' : 's'} have paid in total</p>
             </div>
             <div className="bg-white p-4 sm:p-5 rounded-xl shadow-sm">
                 <h3 className="text-base font-semibold text-gray-800 mb-3">Recent Courses</h3>
@@ -167,11 +280,15 @@ export default async function AdminDashboardPage() {
                 </ul>
             </div>
             <div className="space-y-3">
-                <Link href="/en/dashboard/admin/announcements" className="btn-dashboard-action">
+                <Link href={`${base}/revenue`} className="btn-dashboard-action">
+                    <div className="flex items-center"><TrendingUp className="w-5 h-5 mr-3 text-blue-600"/><span className="font-medium">Revenue Report</span></div>
+                    <ArrowRight className="w-5 h-5 text-gray-400"/>
+                </Link>
+                <Link href={`${base}/announcements`} className="btn-dashboard-action">
                     <div className="flex items-center"><Megaphone className="w-5 h-5 mr-3 text-blue-600"/><span className="font-medium">Manage Announcements</span></div>
                     <ArrowRight className="w-5 h-5 text-gray-400"/>
                 </Link>
-                <Link href="/en/dashboard/admin/admins" className="btn-dashboard-action">
+                <Link href={`${base}/admins`} className="btn-dashboard-action">
                     <div className="flex items-center"><Shield className="w-5 h-5 mr-3 text-blue-600"/><span className="font-medium">Manage Admins</span></div>
                     <ArrowRight className="w-5 h-5 text-gray-400"/>
                 </Link>

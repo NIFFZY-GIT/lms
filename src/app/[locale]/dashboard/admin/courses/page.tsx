@@ -9,9 +9,11 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Course } from '@/types';
 import { Input } from '@/components/ui/Input';
-import { Plus, Edit, Trash2, BookCopy, RefreshCw, Loader2, AlertTriangle, Eye, EyeOff } from 'lucide-react';
+import { Plus, Edit, Trash2, BookCopy, RefreshCw, Loader2, AlertTriangle, Eye, EyeOff, Users } from 'lucide-react';
 import { ManageContentModal } from '@/components/admin/ManageContentModal';
+import { CoursePayersModal } from '@/components/admin/CoursePayersModal';
 import { formatCurrency } from '@/lib/utils';
+import { formatMonthLabel } from '@/lib/month-utils';
 import Image from 'next/image';
 import { toast } from '@/components/ui/toast';
 import { useConfirm } from '@/components/ui/confirm-dialog';
@@ -113,9 +115,28 @@ type ForceExtendConflict = {
   conflictExpiry: string;
 };
 
+type CourseRevenue = {
+  courseId: string;
+  periodRevenue: number;
+  periodPayments: number;
+  periodPaidStudents: number;
+  totalRevenue: number;
+  totalPayments: number;
+  totalPaidStudents: number;
+  pendingPayments: number;
+};
+
+type RevenueReport = {
+  month: string | null;
+  monthLabel: string;
+  availableMonths: string[];
+  courses: CourseRevenue[];
+};
+
 // --- API Functions ---
 const fetchCourses = async (): Promise<Course[]> => (await axios.get('/api/courses')).data;
 const fetchPayments = async (): Promise<Payment[]> => (await axios.get('/api/payments')).data;
+const fetchRevenue = async (): Promise<RevenueReport> => (await axios.get('/api/admin/revenue')).data;
 const createCourse = async (data: FormData): Promise<Course> => (await axios.post('/api/courses', data)).data;
 const updateCourse = async ({ id, data }: { id: string; data: FormData }): Promise<Course> => (await axios.patch(`/api/courses/${id}`, data)).data;
 const deleteCourse = async (id: string): Promise<void> => (await axios.delete(`/api/courses/${id}`)).data;
@@ -137,9 +158,11 @@ export default function AdminCoursesPage() {
   const [scheduleMode, setScheduleMode] = useState<'WEEKLY' | 'RECORDED'>('RECORDED');
   const [confirmForceExtendPaymentId, setConfirmForceExtendPaymentId] = useState<string | null>(null);
   const [forceExtendConflict, setForceExtendConflict] = useState<ForceExtendConflict | null>(null);
+  const [payersCourse, setPayersCourse] = useState<Course | null>(null);
   const queryClient = useQueryClient();
-  
+
   const { data: courses, isLoading } = useQuery<Course[]>({ queryKey: ['courses'], queryFn: fetchCourses });
+  const { data: revenue } = useQuery<RevenueReport>({ queryKey: ['adminRevenue', 'currentMonth'], queryFn: fetchRevenue });
   const { data: payments, isLoading: isPaymentsLoading } = useQuery<Payment[]>({
     queryKey: ['payments'],
     queryFn: fetchPayments,
@@ -297,6 +320,9 @@ export default function AdminCoursesPage() {
     forceExtendMutation.mutate({ paymentId: confirmForceExtendPaymentId, force: true });
   };
 
+  const revenueByCourseId = new Map((revenue?.courses ?? []).map((entry) => [entry.courseId, entry]));
+  const revenueMonthLabel = revenue?.monthLabel ?? formatMonthLabel(revenue?.month ?? null);
+
   const subscriptionPayments = payments?.filter((payment) =>
     payment.courseId === subscriptionCourse?.id &&
     payment.courseType === 'SUBSCRIPTION' &&
@@ -313,7 +339,9 @@ export default function AdminCoursesPage() {
       <div className="bg-white p-6 rounded-lg shadow-md">
         {isLoading ? <p>Loading courses...</p> : (
           <div className="space-y-4">
-            {courses?.map((course) => (
+            {courses?.map((course) => {
+              const stats = revenueByCourseId.get(course.id);
+              return (
               <div key={course.id} className="p-4 border rounded-md hover:bg-gray-50">
                 <div className="flex items-start sm:items-center justify-between gap-4 flex-wrap sm:flex-nowrap">
                   <div className="flex items-center gap-4 min-w-0">
@@ -354,6 +382,14 @@ export default function AdminCoursesPage() {
                         <EyeOff className="w-5 h-5 mx-auto" />
                       )}
                     </button>
+                    <button
+                      onClick={() => setPayersCourse(course)}
+                      className="btn-secondary p-2 w-full sm:w-auto text-emerald-700 border-emerald-300 hover:bg-emerald-50"
+                      title="See who paid for this course"
+                      type="button"
+                    >
+                      <Users className="w-5 h-5 mx-auto" />
+                    </button>
                     <button onClick={() => openContentManager(course)} className="btn-secondary p-2 w-full sm:w-auto" title="Manage Content"><BookCopy className="w-5 h-5 mx-auto" /></button>
                     {course.courseType === 'SUBSCRIPTION' && (
                       <button
@@ -369,8 +405,44 @@ export default function AdminCoursesPage() {
                     <button onClick={() => handleDelete(course.id)} className="btn-danger p-2 w-full sm:w-auto" title="Delete Course"><Trash2 className="w-5 h-5 mx-auto" /></button>
                   </div>
                 </div>
+
+                {/* --- Who paid & what this course earned --- */}
+                <div className="mt-4 pt-3 border-t border-gray-100 flex flex-wrap items-center gap-x-6 gap-y-2">
+                  <div>
+                    <p className="text-[11px] uppercase tracking-wide text-gray-500">Paid · {revenueMonthLabel}</p>
+                    <p className="text-sm font-semibold text-gray-900">
+                      {stats ? `${stats.periodPaidStudents} student${stats.periodPaidStudents === 1 ? '' : 's'}` : '—'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[11px] uppercase tracking-wide text-gray-500">Revenue · {revenueMonthLabel}</p>
+                    <p className="text-sm font-bold text-emerald-700">{formatCurrency(stats?.periodRevenue ?? 0)}</p>
+                  </div>
+                  <div>
+                    <p className="text-[11px] uppercase tracking-wide text-gray-500">All-time revenue</p>
+                    <p className="text-sm font-semibold text-gray-800">
+                      {formatCurrency(stats?.totalRevenue ?? 0)}
+                      <span className="ml-1 text-xs font-normal text-gray-500">
+                        ({stats?.totalPaidStudents ?? 0} student{stats?.totalPaidStudents === 1 ? '' : 's'})
+                      </span>
+                    </p>
+                  </div>
+                  {stats && stats.pendingPayments > 0 && (
+                    <span className="inline-flex items-center rounded-full bg-yellow-100 text-yellow-800 px-2.5 py-0.5 text-[11px] font-semibold">
+                      {stats.pendingPayments} pending approval{stats.pendingPayments === 1 ? '' : 's'}
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setPayersCourse(course)}
+                    className="ml-auto text-sm font-medium text-blue-600 hover:text-blue-700"
+                  >
+                    See who paid →
+                  </button>
+                </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -563,6 +635,17 @@ export default function AdminCoursesPage() {
             </div>
           </div>
         </Modal>
+      )}
+
+      {payersCourse && (
+        <CoursePayersModal
+          isOpen={!!payersCourse}
+          onClose={() => setPayersCourse(null)}
+          courseId={payersCourse.id}
+          courseTitle={payersCourse.title}
+          month={revenue?.month ?? ''}
+          availableMonths={revenue?.availableMonths ?? []}
+        />
       )}
 
       {selectedCourse && (<ManageContentModal isOpen={isContentModalOpen} onClose={() => setIsContentModalOpen(false)} course={selectedCourse}/>)}

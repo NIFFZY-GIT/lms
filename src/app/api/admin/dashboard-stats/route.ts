@@ -2,27 +2,37 @@ import { NextResponse } from 'next/server';
 import { db } from '../../../../lib/db';
 import { getServerUser } from '../../../../lib/auth';
 import { Role } from '../../../../types';
+import {
+  currentMonth,
+  formatMonthLabel,
+  getCourseRevenue,
+  getPaidStudents,
+  getRevenueSummary,
+} from '../../../../lib/revenue';
 
 export async function GET() {
   try {
     await getServerUser(Role.ADMIN);
 
+    const month = currentMonth();
+
     // Run multiple queries in parallel for efficiency
-    const [studentCountResult, instructorCountResult, courseCountResult, pendingPaymentsResult, revenueResult, recentPaymentsResult, recentCoursesResult, recentUsersResult, enrollmentsTrendResult] = await Promise.all([
+    const [
+      studentCountResult,
+      instructorCountResult,
+      courseCountResult,
+      pendingPaymentsResult,
+      recentCoursesResult,
+      recentUsersResult,
+      enrollmentsTrendResult,
+      monthSummary,
+      monthPaidStudents,
+      courseRevenue,
+    ] = await Promise.all([
       db.query("SELECT COUNT(*) FROM \"User\" WHERE role = 'STUDENT'"),
       db.query("SELECT COUNT(*) FROM \"User\" WHERE role = 'INSTRUCTOR'"),
       db.query("SELECT COUNT(*) FROM \"Course\""),
       db.query("SELECT COUNT(*) FROM \"Payment\" WHERE status = 'PENDING'"),
-      db.query("SELECT COALESCE(SUM(c.price),0) AS revenue FROM \"Payment\" p JOIN \"Course\" c ON p.\"courseId\" = c.id WHERE p.status='APPROVED'"),
-      db.query(`
-        SELECT p."createdAt", u.name as "studentName", c.title as "courseTitle"
-        FROM "Payment" p
-        JOIN "User" u ON p."studentId" = u.id
-        JOIN "Course" c ON p."courseId" = c.id
-        WHERE p.status='APPROVED'
-        ORDER BY p."createdAt" DESC
-        LIMIT 5;
-      `),
       db.query(`
         SELECT id, title, "createdAt" FROM "Course" ORDER BY "createdAt" DESC LIMIT 5;
       `),
@@ -36,7 +46,10 @@ export async function GET() {
         LEFT JOIN "Payment" p ON date(p."createdAt") = d::date
         GROUP BY day
         ORDER BY day;
-      `)
+      `),
+      getRevenueSummary(month),
+      getPaidStudents({ month, limit: 25 }),
+      getCourseRevenue(month),
     ]);
 
     const stats = {
@@ -44,8 +57,18 @@ export async function GET() {
       totalInstructors: parseInt(instructorCountResult.rows[0].count, 10),
       totalCourses: parseInt(courseCountResult.rows[0].count, 10),
       pendingPayments: parseInt(pendingPaymentsResult.rows[0].count, 10),
-      revenue: parseFloat(revenueResult.rows[0].revenue),
-      recentPayments: recentPaymentsResult.rows,
+      // All-time approved revenue (kept for the "Total Revenue" card)
+      revenue: monthSummary.totalRevenue,
+      totalPaidStudents: monthSummary.totalPaidStudents,
+      // Current month
+      month,
+      monthLabel: formatMonthLabel(month),
+      monthRevenue: monthSummary.periodRevenue,
+      monthPaidStudentsCount: monthSummary.periodPaidStudents,
+      monthApprovedPayments: monthSummary.periodPayments,
+      monthPaidStudents,
+      // Per-course paid students + revenue for the current month
+      courseRevenue,
       recentCourses: recentCoursesResult.rows,
       recentUsers: recentUsersResult.rows,
       enrollmentsTrend: enrollmentsTrendResult.rows, // [{day, count}]
