@@ -6,8 +6,10 @@ import StudyPathsSection from '@/components/landing/StudyPathsSection';
 // import { FAQSection } from '@/components/layout/FAQSection';
 
 export default function LandingPage() {
+  // Sections alternate white / slate-50 and close on the dark band, so the page
+  // has one consistent rhythm instead of each section carrying its own gradient.
   return (
-    <main className="bg-gradient-to-br from-sky-50 via-white to-blue-100 min-h-screen font-sans text-slate-800">
+    <main className="bg-white font-sans text-slate-800">
       <HeroSection />
       <FeatureGridSection />
       <HowItWorksSection />
@@ -17,4 +19,3 @@ export default function LandingPage() {
     </main>
   );
 }
-

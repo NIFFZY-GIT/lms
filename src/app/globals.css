@@ -1,5 +1,43 @@
 @import "tailwindcss";
 
+/****************************
+ Design tokens
+*****************************/
+@theme {
+  /* Display face for headings — Plus Jakarta Sans, loaded in the root layout.
+     Without this the `font-display` utility silently does nothing. */
+  --font-display: var(--font-jakarta), var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+
+  /* Entrance animations used by the landing sections */
+  --animate-fade-in: fade-in 700ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-fade-up: fade-up 800ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-slow-zoom: slow-zoom 20s ease-out forwards;
+
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes fade-up {
+    from { opacity: 0; transform: translateY(1.25rem); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes slow-zoom {
+    from { transform: scale(1.08); }
+    to { transform: scale(1); }
+  }
+}
+
+/* Entrance motion is decoration — never make it a barrier. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in,
+  .animate-fade-up,
+  .animate-slow-zoom {
+    animation: none !important;
+  }
+}
+
 :root {
   /* Primary brand color set to blue-600 */
   --brand: 37 99 235; /* blue-600 */
@@ -49,6 +87,73 @@ select:-webkit-autofill:active {
   font-weight: 700;
   letter-spacing: -0.01em;
   color: #111827;
+}
+
+/****************************
+ Landing page typography scale
+*****************************/
+/* One scale shared by every marketing section so headings, body copy and
+   eyebrows stay consistent from section to section. */
+.landing-eyebrow {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgb(37 99 235); /* blue-600 */
+}
+
+.landing-heading {
+  font-size: clamp(1.875rem, 1.25rem + 2vw, 2.75rem);
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+  color: #0f172a; /* slate-900 */
+}
+
+.landing-sub {
+  font-size: clamp(1rem, 0.95rem + 0.25vw, 1.125rem);
+  line-height: 1.7;
+  text-wrap: pretty;
+  color: #475569; /* slate-600 */
+}
+
+/* Elevated card used across the feature / path grids.
+   The ::before layer is a soft brand bloom that fades in on hover. */
+.landing-card {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background-color: #ffffff;
+  border: 1px solid rgb(226 232 240); /* slate-200 */
+  border-radius: 1.25rem;
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.04);
+  transition: border-color 300ms ease, box-shadow 300ms ease, transform 300ms ease;
+}
+.landing-card::before {
+  content: "";
+  position: absolute;
+  inset: -40% 40% 60% -40%;
+  z-index: -1;
+  background: radial-gradient(circle at 30% 30%, rgb(59 130 246 / 0.16), transparent 70%);
+  opacity: 0;
+  transition: opacity 350ms ease;
+}
+.landing-card:hover {
+  border-color: rgb(191 219 254); /* blue-200 */
+  box-shadow: 0 24px 45px -20px rgb(30 64 175 / 0.35);
+  transform: translateY(-4px);
+}
+.landing-card:hover::before { opacity: 1; }
+
+/* Decorative blurred colour bloom */
+.landing-orb {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(90px);
+  pointer-events: none;
 }
 
 /****************************

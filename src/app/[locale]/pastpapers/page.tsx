@@ -1,11 +1,25 @@
 import { Container } from '@/components/ui/Container';
+import { PageHero } from '@/components/ui/PageHero';
 import { AdSenseBanner } from '@/components/ui/AdSenseBanner';
 import { fetchPastPapersTree } from '@/lib/pastpapers';
 import { FileDown, Eye, GraduationCap, BookOpen, FileText, Sparkles, Filter, X, Calendar, Globe, Layers, AlertTriangle } from 'lucide-react';
 
 type SearchParams = { grade?: string; subject?: string; term?: string; year?: string; medium?: string };
 
-const paperColors = ['bg-cyan-500', 'bg-green-500', 'bg-amber-500', 'bg-rose-500', 'bg-purple-500', 'bg-teal-500'];
+// One hue per facet, so a filter button and the matching chip on a paper always
+// agree. Colour tracks the facet, never the row's position in the list.
+const FACET = {
+  grade:   { on: 'bg-violet-600 text-white',  off: 'bg-violet-50 text-violet-700 hover:bg-violet-100',    chip: 'bg-violet-100 text-violet-700',   count: 'text-violet-200',  countOff: 'text-violet-500' },
+  subject: { on: 'bg-blue-600 text-white',    off: 'bg-blue-50 text-blue-700 hover:bg-blue-100',          chip: 'bg-blue-100 text-blue-700',       count: 'text-blue-200',    countOff: 'text-blue-500' },
+  term:    { on: 'bg-rose-600 text-white',    off: 'bg-rose-50 text-rose-700 hover:bg-rose-100',          chip: 'bg-rose-100 text-rose-700',       count: 'text-rose-200',    countOff: 'text-rose-500' },
+  year:    { on: 'bg-emerald-600 text-white', off: 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100', chip: 'bg-emerald-100 text-emerald-700', count: 'text-emerald-200', countOff: 'text-emerald-500' },
+  medium:  { on: 'bg-amber-500 text-white',   off: 'bg-amber-50 text-amber-700 hover:bg-amber-100',       chip: 'bg-amber-100 text-amber-800',     count: 'text-amber-100',   countOff: 'text-amber-600' },
+} as const;
+
+const facetButton = (isActive: boolean, facet: keyof typeof FACET) =>
+  `inline-flex items-center justify-between gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition ${
+    isActive ? FACET[facet].on : FACET[facet].off
+  }`;
 
 export default async function PastPapersPage({
   searchParams,
@@ -114,33 +128,30 @@ export default async function PastPapersPage({
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <Container className="py-12 md:py-20">
-        {/* Header */}
-        <div className="mb-10 text-center">
-          <div className="inline-flex items-center gap-2 rounded-full bg-violet-100 px-4 py-2 text-sm font-semibold text-violet-700">
-            <Sparkles className="h-4 w-4" />
-            Past Papers Library
-          </div>
-          <h1 className="mt-4 text-4xl font-bold text-slate-900 md:text-5xl">Past Papers</h1>
-          <p className="mt-3 text-lg text-slate-600">Browse and download past examination papers</p>
-        </div>
+      <PageHero
+        eyebrow="Past Papers Library"
+        eyebrowIcon={Sparkles}
+        title="Past papers"
+        subtitle="Browse and download past examination papers by grade, subject, term, year and medium."
+      />
 
-        <AdSenseBanner slot={adSlot} className="mx-auto mb-8 max-w-6xl overflow-hidden rounded-2xl border border-violet-100 bg-white p-3 shadow-sm" />
+      <Container className="py-12 md:py-16">
+        <AdSenseBanner slot={adSlot} className="mx-auto mb-8 max-w-6xl overflow-hidden rounded-2xl border border-slate-200 bg-white p-3 shadow-sm" />
 
         {grades.length === 0 ? (
-          <div className="mx-auto max-w-lg rounded-3xl bg-white p-16 text-center shadow-xl">
-            <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-violet-100">
-              <BookOpen className="h-10 w-10 text-violet-600" />
-            </div>
-            <p className="text-xl font-semibold text-slate-900">No past papers available</p>
-            <p className="mt-2 text-slate-500">Check back soon for updates.</p>
+          <div className="landing-card mx-auto max-w-lg p-16 text-center">
+            <span className="mx-auto inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 ring-1 ring-inset ring-blue-100">
+              <BookOpen className="h-8 w-8" />
+            </span>
+            <p className="mt-5 font-display text-2xl font-bold text-slate-900">No past papers available</p>
+            <p className="landing-sub mt-2">Check back soon for updates.</p>
           </div>
         ) : (
           <div className="grid gap-8 lg:grid-cols-[300px_1fr]">
             {/* Left Sidebar - Filters */}
-            <aside className="rounded-2xl bg-white p-6 shadow-lg h-fit lg:sticky lg:top-8">
+            <aside className="h-fit rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:sticky lg:top-24">
               <div className="flex items-center gap-2 text-lg font-bold text-slate-900">
-                <Filter className="h-5 w-5 text-violet-600" />
+                <Filter className="h-5 w-5 text-blue-600" />
                 Filters
               </div>
 
@@ -167,14 +178,10 @@ export default async function PastPapersPage({
                       <a
                         key={grade.id}
                         href={sp.grade === grade.id ? clearFilterUrl('grade') : buildUrl({ grade: grade.id, subject: undefined })}
-                        className={`inline-flex items-center justify-between gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition ${
-                          sp.grade === grade.id
-                            ? 'bg-violet-600 text-white'
-                            : 'bg-violet-50 text-violet-700 hover:bg-violet-100'
-                        }`}
+                        className={facetButton(sp.grade === grade.id, 'grade')}
                       >
                         <span className="truncate">{grade.name}</span>
-                        <span className={`text-xs ${sp.grade === grade.id ? 'text-violet-200' : 'text-violet-500'}`}>
+                        <span className={`text-xs ${sp.grade === grade.id ? FACET.grade.count : FACET.grade.countOff}`}>
                           {paperCount}
                         </span>
                       </a>
@@ -198,14 +205,10 @@ export default async function PastPapersPage({
                           ? buildUrl({ subject: undefined })
                           : buildUrl({ subject: subject.id })
                         }
-                        className={`inline-flex items-center justify-between gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition ${
-                          sp.subject === subject.id
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
-                        }`}
+                        className={facetButton(sp.subject === subject.id, 'subject')}
                       >
                         <span className="truncate">{subject.name}</span>
-                        <span className={`text-xs ${sp.subject === subject.id ? 'text-blue-200' : 'text-blue-500'}`}>
+                        <span className={`text-xs ${sp.subject === subject.id ? FACET.subject.count : FACET.subject.countOff}`}>
                           {subject.papers.length}
                         </span>
                       </a>
@@ -229,11 +232,7 @@ export default async function PastPapersPage({
                           ? clearFilterUrl('term')
                           : buildUrl({ term: t })
                         }
-                        className={`inline-flex items-center justify-between gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition ${
-                          sp.term === t
-                            ? 'bg-pink-600 text-white'
-                            : 'bg-pink-50 text-pink-700 hover:bg-pink-100'
-                        }`}
+                        className={facetButton(sp.term === t, 'term')}
                       >
                         {t}
                         {sp.term === t && <X className="h-3.5 w-3.5" />}
@@ -258,11 +257,7 @@ export default async function PastPapersPage({
                           ? clearFilterUrl('year')
                           : buildUrl({ year: String(year) })
                         }
-                        className={`inline-flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-semibold transition ${
-                          sp.year === String(year)
-                            ? 'bg-emerald-600 text-white'
-                            : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-                        }`}
+                        className={facetButton(sp.year === String(year), 'year')}
                       >
                         {year}
                         {sp.year === String(year) && <X className="h-3.5 w-3.5" />}
@@ -287,11 +282,7 @@ export default async function PastPapersPage({
                           ? clearFilterUrl('medium')
                           : buildUrl({ medium: medium! })
                         }
-                        className={`inline-flex items-center justify-between gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition ${
-                          sp.medium === medium
-                            ? 'bg-orange-600 text-white'
-                            : 'bg-orange-50 text-orange-700 hover:bg-orange-100'
-                        }`}
+                        className={facetButton(sp.medium === medium, 'medium')}
                       >
                         {medium}
                         {sp.medium === medium && <X className="h-3.5 w-3.5" />}
@@ -313,45 +304,47 @@ export default async function PastPapersPage({
             {/* Right Side - Papers */}
             <div>
               {filteredPapers.length === 0 ? (
-                <div className="rounded-2xl bg-white p-12 text-center shadow-lg">
-                  <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-100">
-                    <FileText className="h-8 w-8 text-slate-400" />
-                  </div>
-                  <p className="text-lg font-semibold text-slate-900">No papers match your filters</p>
-                  <p className="mt-2 text-slate-500">Try adjusting your filters or clear them.</p>
+                <div className="landing-card p-12 text-center">
+                  <span className="mx-auto inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
+                    <FileText className="h-8 w-8" />
+                  </span>
+                  <p className="mt-5 font-display text-xl font-bold text-slate-900">No papers match your filters</p>
+                  <p className="landing-sub mt-2">Try adjusting your filters or clear them.</p>
                   <a
                     href="?"
-                    className="mt-4 inline-flex items-center gap-2 rounded-full bg-violet-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-700"
+                    className="mt-6 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
                   >
                     Clear filters
                   </a>
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {filteredPapers.map((paper, idx) => (
+                  {filteredPapers.map((paper) => (
                     <div
                       key={paper.id}
-                      className="flex flex-col gap-5 rounded-2xl bg-white p-6 shadow-lg transition-shadow hover:shadow-xl sm:flex-row sm:items-center"
+                      className="landing-card flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:p-6"
                     >
-                      <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl ${paperColors[idx % paperColors.length]} text-white shadow-lg`}>
+                      {/* Single brand tile — the icon colour carried no meaning when it
+                          cycled through a palette by list position. */}
+                      <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-cyan-500 text-white shadow-lg shadow-blue-500/25">
                         <FileText className="h-7 w-7" />
-                      </div>
+                      </span>
                       <div className="min-w-0 flex-1">
-                        <h3 className="text-lg font-bold text-slate-900">{paper.title}</h3>
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          <span className="inline-flex items-center rounded-full bg-violet-100 px-3 py-1 text-xs font-semibold text-violet-700">
+                        <h3 className="text-lg font-bold leading-snug text-slate-900">{paper.title}</h3>
+                        <div className="mt-2.5 flex flex-wrap gap-2">
+                          <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${FACET.grade.chip}`}>
                             {paper.gradeName}
                           </span>
-                          <span className="inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700">
+                          <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${FACET.subject.chip}`}>
                             {paper.subjectName}
                           </span>
-                          <span className="inline-flex items-center rounded-full bg-pink-100 px-3 py-1 text-xs font-semibold text-pink-700">
+                          <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${FACET.term.chip}`}>
                             {paper.term}
                           </span>
-                          <span className="inline-flex items-center rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
+                          <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${FACET.year.chip}`}>
                             {paper.year}
                           </span>
-                          <span className="inline-flex items-center rounded-full bg-orange-100 px-3 py-1 text-xs font-semibold text-orange-700">
+                          <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${FACET.medium.chip}`}>
                             {paper.medium}
                           </span>
                         </div>
@@ -361,14 +354,14 @@ export default async function PastPapersPage({
                           href={paper.fileUrl}
                           target="_blank"
                           rel="noreferrer"
-                          className="inline-flex items-center gap-2 rounded-xl bg-slate-100 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-200"
+                          className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
                         >
                           <Eye className="h-4 w-4" />
                           Preview
                         </a>
                         <a
                           href={`${paper.fileUrl}?download=1`}
-                          className="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-5 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-violet-700"
+                          className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 px-5 py-3 text-sm font-semibold text-white shadow-md shadow-blue-500/25 transition hover:brightness-110"
                         >
                           <FileDown className="h-4 w-4" />
                           Download

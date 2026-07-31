@@ -95,12 +95,14 @@ export function Footer() {
             {/* Brand & Mission Column */}
             <div className="lg:col-span-4">
               <Link href={`/${locale}`} className="inline-block mb-6 group">
-                <Image 
-                  src="/logo.png" 
-                  alt="Online Thakshilawa Logo" 
-                  width={180} 
-                  height={50}
-                  className="transition-transform duration-300 group-hover:scale-105"
+                {/* Intrinsic size is 1485x611 (2.43:1) — see Navbar. */}
+                <Image
+                  src="/logo.png"
+                  alt="Online Thakshilawa"
+                  width={1485}
+                  height={611}
+                  sizes="200px"
+                  className="h-12 w-auto transition-transform duration-300 group-hover:scale-105"
                 />
               </Link>
               <p className="text-slate-400 text-base leading-relaxed mb-6 max-w-sm">

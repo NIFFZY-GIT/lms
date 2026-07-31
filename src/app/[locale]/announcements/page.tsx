@@ -1,4 +1,5 @@
 import { Container } from '@/components/ui/Container';
+import { PageHero } from '@/components/ui/PageHero';
 import { Announcement } from '@/types';
 import { format } from 'date-fns';
 import { Megaphone } from 'lucide-react';
@@ -10,25 +11,28 @@ import { AdSenseBanner } from '@/components/ui/AdSenseBanner';
 export const revalidate = 300;
 
 // --- Helper Component for a single announcement post ---
-function AnnouncementPost({ announcement }: { announcement: Announcement }) {
+function AnnouncementPost({ announcement, priority }: { announcement: Announcement; priority: boolean }) {
   return (
-    <article className="bg-white rounded-2xl shadow-xl overflow-hidden group transition-shadow duration-300 hover:shadow-2xl">
-      <div className="bg-gray-100 relative w-full max-h-[600px] flex items-center justify-center">
-        {announcement.imageUrl && (
+    <article className="landing-card overflow-hidden">
+      {announcement.imageUrl && (
+        <div className="relative flex max-h-[600px] w-full items-center justify-center bg-slate-100">
           <Image
             src={announcement.imageUrl}
             alt={announcement.title}
             width={1200}
             height={600}
-            className="w-full h-auto object-contain max-h-[600px]"
-            priority
+            sizes="(min-width: 1024px) 56rem, 100vw"
+            className="h-auto max-h-[600px] w-full object-contain"
+            priority={priority}
           />
-        )}
-      </div>
-      <div className="p-8 md:p-10">
-        <p className="text-sm text-indigo-600 font-semibold uppercase tracking-wider">{format(new Date(announcement.createdAt), 'MMMM d, yyyy')}</p>
-        <h2 className="font-extrabold text-3xl md:text-4xl text-gray-900 mt-2 mb-4 leading-tight">{announcement.title}</h2>
-        <p className="text-gray-600 text-lg leading-relaxed">{announcement.description}</p>
+        </div>
+      )}
+      <div className="p-6 sm:p-8 md:p-10">
+        <p className="landing-eyebrow">{format(new Date(announcement.createdAt), 'MMMM d, yyyy')}</p>
+        <h2 className="mt-3 font-display text-2xl font-bold leading-snug tracking-tight text-slate-900 sm:text-3xl">
+          {announcement.title}
+        </h2>
+        <p className="landing-sub mt-4">{announcement.description}</p>
       </div>
     </article>
   );
@@ -39,33 +43,32 @@ export default async function AnnouncementsPage() {
   const adSlot = process.env.NEXT_PUBLIC_ADSENSE_IN_CONTENT_SLOT ?? '';
 
   return (
-    <div className="bg-gray-50 min-h-screen">
-      <Container className="py-20 md:py-28">
-        <div className="text-center max-w-3xl mx-auto">
-          <div className="inline-flex items-center bg-indigo-100 text-indigo-800 text-sm font-semibold px-4 py-1 rounded-full mb-4">
-            <Megaphone className="w-4 h-4 mr-2" />
-            Official Announcements
-          </div>
-          <h1 className="text-4xl font-extrabold text-gray-900 sm:text-5xl md:text-6xl tracking-tighter">
-            Stay Up to Date
-          </h1>
-          <p className="mt-4 text-xl text-gray-600">
-            The latest news, updates, and important notices from our platform.
-          </p>
-        </div>
-        <AdSenseBanner slot={adSlot} className="mx-auto mt-10 max-w-4xl overflow-hidden rounded-2xl border border-indigo-100 bg-white p-3 shadow-sm" />
-        <div className="mt-16 max-w-4xl mx-auto">
+    <div className="min-h-screen bg-slate-50">
+      <PageHero
+        eyebrow="Official Announcements"
+        eyebrowIcon={Megaphone}
+        title="Stay up to date"
+        subtitle="The latest news, updates, and important notices from our platform."
+      />
+
+      <Container className="py-14 md:py-20">
+        <AdSenseBanner slot={adSlot} className="mx-auto mb-12 max-w-4xl overflow-hidden rounded-2xl border border-slate-200 bg-white p-3 shadow-sm" />
+
+        <div className="mx-auto max-w-4xl">
           {announcements.length > 0 ? (
-            <div className="space-y-12">
-              {announcements.map(ann => (
-                <AnnouncementPost key={ann.id} announcement={ann} />
+            <div className="space-y-10">
+              {announcements.map((ann, index) => (
+                // Only the first post is above the fold.
+                <AnnouncementPost key={ann.id} announcement={ann} priority={index === 0} />
               ))}
             </div>
           ) : (
-            <div className="text-center py-20 px-6 bg-white rounded-lg shadow-md">
-              <Megaphone className="w-16 h-16 mx-auto text-gray-300" />
-              <h2 className="mt-4 text-2xl font-bold text-gray-800">No Announcements Yet</h2>
-              <p className="mt-2 text-gray-500">Check back soon for the latest news and updates!</p>
+            <div className="landing-card px-6 py-20 text-center">
+              <span className="mx-auto inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 ring-1 ring-inset ring-blue-100">
+                <Megaphone className="h-8 w-8" />
+              </span>
+              <h2 className="mt-5 font-display text-2xl font-bold text-slate-900">No announcements yet</h2>
+              <p className="landing-sub mt-2">Check back soon for the latest news and updates.</p>
             </div>
           )}
         </div>

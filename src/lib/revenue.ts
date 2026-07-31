@@ -14,10 +14,11 @@
 
 import { db } from './db';
 import { ALL_TIME, formatMonthLabel } from './month-utils';
+import { APP_TIMEZONE } from './timezone';
 
 export { formatMonthLabel };
 
-export const REPORT_TIMEZONE = process.env.REPORT_TIMEZONE || 'Asia/Colombo';
+export const REPORT_TIMEZONE = process.env.REPORT_TIMEZONE || APP_TIMEZONE;
 
 /** A month key in `YYYY-MM` form, or `null` meaning "all time". */
 export type MonthFilter = string | null;

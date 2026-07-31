@@ -4,41 +4,52 @@ import { useTranslations } from 'next-intl';
 import { Container } from '@/components/ui/Container';
 import { BookMarked, FileText, GraduationCap, MessagesSquare } from 'lucide-react';
 
+// A fixed hue per card slot — assigned in order, never cycled.
+const ACCENTS = [
+  { tile: 'from-blue-500 to-indigo-600', dot: 'bg-blue-500', glow: 'shadow-blue-500/30' },
+  { tile: 'from-cyan-500 to-blue-500', dot: 'bg-cyan-500', glow: 'shadow-cyan-500/30' },
+  { tile: 'from-violet-500 to-purple-600', dot: 'bg-violet-500', glow: 'shadow-violet-500/30' },
+  { tile: 'from-amber-500 to-orange-500', dot: 'bg-amber-500', glow: 'shadow-amber-500/30' },
+];
+
 export default function StudyPathsSection() {
   const t = useTranslations('LandingPage.StudyPaths');
   const paths = t.raw('paths') as { title: string; description: string; bullets: string[] }[];
   const icons = [BookMarked, FileText, GraduationCap, MessagesSquare];
 
   return (
-    <section className="bg-white py-24 sm:py-32">
-      <Container>
+    <section className="relative isolate overflow-hidden bg-white py-20 sm:py-28">
+      <div aria-hidden className="landing-orb -left-32 bottom-10 h-96 w-96 bg-violet-200/40" />
+
+      <Container className="relative">
         <div className="mx-auto max-w-3xl text-center">
-          <p className="text-sm font-semibold uppercase tracking-[0.3em] text-blue-600">{t('eyebrow')}</p>
-          <h2 className="mt-4 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
-            {t('title')}
-          </h2>
-          <p className="mt-5 text-xl leading-8 text-slate-700">
-            {t('subtitle')}
-          </p>
+          <p className="landing-eyebrow">{t('eyebrow')}</p>
+          <h2 className="landing-heading font-display mt-4">{t('title')}</h2>
+          <p className="landing-sub mt-5">{t('subtitle')}</p>
         </div>
 
-        <div className="mt-16 grid gap-8 lg:grid-cols-2">
+        <div className="mt-16 grid gap-6 lg:grid-cols-2">
           {paths.map((path, index) => {
             const Icon = icons[index];
+            const accent = ACCENTS[index % ACCENTS.length];
             return (
-              <article
-                key={path.title}
-                className="rounded-3xl border border-slate-200 bg-slate-50/80 p-8 shadow-sm transition-transform duration-200 hover:-translate-y-1 hover:shadow-lg"
-              >
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-100 text-blue-700">
-                  <Icon className="h-6 w-6" />
+              <article key={path.title} className="landing-card group p-8">
+                <div className="flex items-start gap-5">
+                  <span
+                    className={`inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br ${accent.tile} text-white shadow-lg ${accent.glow} transition-transform duration-300 group-hover:-rotate-6 group-hover:scale-110`}
+                  >
+                    <Icon className="h-7 w-7" />
+                  </span>
+                  <div>
+                    <h3 className="text-xl font-bold leading-snug text-slate-900">{path.title}</h3>
+                    <p className="mt-3 text-[15px] leading-relaxed text-slate-600">{path.description}</p>
+                  </div>
                 </div>
-                <h3 className="mt-6 text-2xl font-semibold text-slate-900">{path.title}</h3>
-                <p className="mt-4 text-base leading-7 text-slate-700">{path.description}</p>
-                <ul className="mt-6 space-y-3 text-sm leading-6 text-slate-700">
+
+                <ul className="mt-7 space-y-3 border-t border-slate-100 pt-6">
                   {path.bullets.map((bullet) => (
-                    <li key={bullet} className="flex items-start gap-2">
-                      <span className="mt-1 h-2.5 w-2.5 rounded-full bg-blue-500" />
+                    <li key={bullet} className="flex items-start gap-3 text-[15px] leading-relaxed text-slate-700">
+                      <span className={`mt-2 h-1.5 w-1.5 shrink-0 rounded-full ${accent.dot}`} />
                       <span>{bullet}</span>
                     </li>
                   ))}
