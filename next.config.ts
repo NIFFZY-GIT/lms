@@ -31,6 +31,19 @@ const nextConfig: NextConfig = {
           { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
         ],
       },
+      // The admin payment review previews PDF receipts in an <iframe>. The rule
+      // above applies to every path, and X-Frame-Options: DENY blocks framing
+      // even by the same site, so a PDF receipt renders as "refused to
+      // connect". Uploaded files are relaxed to SAMEORIGIN: the app can frame
+      // its own receipts, other sites still cannot. Listed after the catch-all
+      // because a later matching rule overrides an earlier one for the same key.
+      {
+        source: '/api/uploads/:path*',
+        headers: [
+          { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+          { key: 'Content-Security-Policy', value: "frame-ancestors 'self'" },
+        ],
+      },
     ];
   },
 };
