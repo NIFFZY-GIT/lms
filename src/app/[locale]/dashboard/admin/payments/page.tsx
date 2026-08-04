@@ -5,12 +5,13 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios, { AxiosError } from 'axios';
 import { Modal } from '@/components/ui/Modal';
 import { format, isPast } from 'date-fns';
-import { Eye, CheckCircle, XCircle, Clock, Search, ShieldCheck, ShieldAlert, Loader2, RefreshCw, AlertTriangle } from 'lucide-react';
+import { Eye, CheckCircle, XCircle, Clock, Search, ShieldCheck, ShieldAlert, Loader2, RefreshCw, AlertTriangle, Copy, ScanSearch } from 'lucide-react';
 import Image from 'next/image';
 import { toast } from '@/components/ui/toast';
 
 // --- Type Definitions ---
 type PaymentStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+type DuplicateMatchType = 'EXACT';
 interface Payment {
   id: string;
   status: PaymentStatus;
@@ -22,6 +23,30 @@ interface Payment {
   courseId: string;
   courseType: 'ONE_TIME_PURCHASE' | 'SUBSCRIPTION';
   subscriptionExpiryDate: string | null;
+  coursePrice: string;
+  // Receipt-reuse detection (null when no earlier receipt matched)
+  duplicateMatchType: DuplicateMatchType | null;
+  duplicateOfPaymentId: string | null;
+  duplicateReceiptUrl: string | null;
+  duplicateCreatedAt: string | null;
+  duplicateStatus: PaymentStatus | null;
+  duplicateStudentName: string | null;
+  duplicateStudentEmail: string | null;
+  duplicateCourseTitle: string | null;
+  // Cached OCR read of the receipt (null until the receipt has been scanned)
+  ocrReference: string | null;
+  ocrAmount: string | null;
+  ocrSource: 'PDF_TEXT' | 'IMAGE_OCR' | null;
+  ocrConfidence: number | null;
+  ocrScannedAt: string | null;
+  rejectionReason: string | null;
+}
+interface ScanResult {
+  cached: boolean;
+  referenceNumber: string | null;
+  amount: number | null;
+  source: 'PDF_TEXT' | 'IMAGE_OCR' | null;
+  confidence: number | null;
 }
 interface VerificationResult {
     isDuplicate: boolean;
@@ -44,10 +69,23 @@ interface ForceExtendConflict {
 
 // --- API Functions ---
 const fetchPayments = async (): Promise<Payment[]> => (await axios.get('/api/payments')).data;
-const approvePayment = ({ paymentId, referenceNumber }: { paymentId: string, referenceNumber: string }) => 
-  axios.patch(`/api/payments/${paymentId}/approve`, { referenceNumber });
-const rejectPayment = (paymentId: string) => 
-  axios.patch(`/api/payments/${paymentId}/reject`);
+const approvePayment = ({ paymentId, referenceNumber, paidAmount }: { paymentId: string, referenceNumber: string, paidAmount?: number | null }) =>
+  axios.patch(`/api/payments/${paymentId}/approve`, { referenceNumber, paidAmount });
+const scanReceipt = async ({ paymentId, force }: { paymentId: string; force?: boolean }): Promise<ScanResult> =>
+  (await axios.post(`/api/payments/${paymentId}/scan${force ? '?force=1' : ''}`)).data;
+const rejectPayment = ({ paymentId, reason }: { paymentId: string; reason: string }) =>
+  axios.patch(`/api/payments/${paymentId}/reject`, { reason });
+
+// Offered as one-click choices so a reason is quick to give; each is written to
+// be read by the student, who sees it verbatim on the course page.
+const REJECTION_PRESETS = [
+  'The receipt image is unclear — please upload a sharper photo showing the full slip.',
+  'The amount paid does not match the course fee.',
+  'This receipt has already been used for another enrolment.',
+  'The receipt is for a different course or account.',
+  'We could not verify this payment with the bank.',
+  'The receipt is incomplete — the reference number is not visible.',
+];
 const verifyRefNumber = async (refNumber: string): Promise<VerificationResult> => {
     if (!refNumber.trim()) return { isDuplicate: false };
     const { data } = await axios.get(`/api/payments/verify/${refNumber.trim()}`);
@@ -55,6 +93,8 @@ const verifyRefNumber = async (refNumber: string): Promise<VerificationResult> =
 };
 const forceExtendSubscription = ({ paymentId, force }: { paymentId: string; force?: boolean }) =>
   axios.patch(`/api/payments/${paymentId}/force-extend`, { force: force ?? false });
+const rescanReceipts = async (): Promise<{ scanned: number; flagged: number; skipped: number; remaining: number }> =>
+  (await axios.post('/api/admin/receipts/rescan')).data;
 
 // --- Helper Components ---
 const StatusBadge = ({ status }: { status: PaymentStatus }) => {
@@ -73,6 +113,58 @@ const StatusBadge = ({ status }: { status: PaymentStatus }) => {
       {icons[status]}
       {status}
     </span>
+  );
+};
+
+const DuplicateChip = ({ payment }: { payment: Payment }) => {
+  if (!payment.duplicateMatchType) return null;
+  return (
+    <span
+      className="inline-flex items-center text-xs px-1.5 py-0.5 rounded font-semibold bg-red-100 text-red-700"
+      title="Byte-for-byte the same file as an earlier receipt"
+    >
+      <Copy className="w-3 h-3 mr-1" />
+      Same receipt file
+    </span>
+  );
+};
+
+/** Renders a receipt inline, handling both the PDF and image cases. */
+const ReceiptPreview = ({ url, label, heightClass }: { url: string; label: string; heightClass: string }) => {
+  const isPdf = url.toLowerCase().includes('.pdf');
+
+  if (isPdf) {
+    return (
+      <div className="border rounded-lg bg-gray-50 overflow-hidden">
+        <div className="flex items-center justify-between px-4 py-2 bg-red-50 border-b border-red-200">
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-red-600 text-white tracking-wide">PDF</span>
+            <span className="text-sm font-medium text-gray-700 truncate max-w-[180px]">
+              {url.split('/').pop()?.split('%').shift() ?? 'receipt.pdf'}
+            </span>
+          </div>
+          <a
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-red-600 text-white text-xs font-semibold hover:bg-red-700 transition-colors"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+            Open PDF
+          </a>
+        </div>
+        <iframe src={url} title={label} className={`w-full rounded-b-lg ${heightClass}`} />
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className={`relative border rounded-lg p-2 bg-gray-100 w-full overflow-hidden ${heightClass}`}>
+        <Image src={url} alt={label} fill style={{ objectFit: 'contain' }} className="rounded-md" />
+      </div>
+      <a href={url} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline">Open image in new tab</a>
+    </>
   );
 };
 
@@ -96,6 +188,12 @@ export default function AdminPaymentsPage() {
     const [verificationResult, setVerificationResult] = useState<VerificationResult | null>(null);
     const [forceExtendConflict, setForceExtendConflict] = useState<ForceExtendConflict | null>(null);
     const [confirmForceExtendPaymentId, setConfirmForceExtendPaymentId] = useState<string | null>(null);
+    const [acknowledgedDuplicate, setAcknowledgedDuplicate] = useState(false);
+    const [paidAmount, setPaidAmount] = useState('');
+    const [scanResult, setScanResult] = useState<ScanResult | null>(null);
+    const [scanError, setScanError] = useState<string | null>(null);
+    const [showRejectDialog, setShowRejectDialog] = useState(false);
+    const [rejectReason, setRejectReason] = useState('');
     const queryClient = useQueryClient();
 
     const { data: payments, isLoading } = useQuery<Payment[]>({
@@ -140,14 +238,105 @@ export default function AdminPaymentsPage() {
       },
     });
 
-    const handleApprove = () => { if (!selectedPayment || verificationResult?.isDuplicate) return; approveMutation.mutate({ paymentId: selectedPayment.id, referenceNumber: refNumber }); };
-    const handleReject = () => { if (!selectedPayment) return; if (window.confirm('Are you sure you want to reject this payment?')) rejectMutation.mutate(selectedPayment.id); };
+    const rescanMutation = useMutation({
+      mutationFn: rescanReceipts,
+      onSuccess: (data) => {
+        queryClient.invalidateQueries({ queryKey: ['payments'] });
+        const remaining = data.remaining > 0 ? ` ${data.remaining} still queued — run again.` : '';
+        toast.success(`Checked ${data.scanned} receipts, flagged ${data.flagged}.${remaining}`);
+      },
+      onError: (error: AxiosError<{ error?: string }>) => { toast.error(error.response?.data?.error || error.message); },
+    });
+
+    const scanMutation = useMutation({
+      mutationFn: scanReceipt,
+      onSuccess: (data) => {
+        setScanResult(data);
+        setScanError(null);
+        // The read is a suggestion: only fill blank fields so it never
+        // overwrites something the admin already typed.
+        if (data.referenceNumber) setRefNumber((current) => current || data.referenceNumber!);
+        if (data.amount != null) setPaidAmount((current) => current || String(data.amount));
+        queryClient.invalidateQueries({ queryKey: ['payments'] });
+      },
+      onError: (error: AxiosError<{ error?: string }>) => {
+        setScanResult(null);
+        setScanError(error.response?.data?.error || 'Could not read this receipt — enter the details manually.');
+      },
+    });
+
+    // --- Approval gates -------------------------------------------------
+    // Each check is a warning the admin must acknowledge, never a hard block:
+    // legitimate cases exist for all three (a family paying together, a
+    // resubmission, a student who overpaid).
+    const expectedAmount = selectedPayment ? Number(selectedPayment.coursePrice) : 0;
+    const enteredAmount = paidAmount.trim() === '' ? null : Number(paidAmount);
+    const amountIsValid = enteredAmount !== null && Number.isFinite(enteredAmount) && enteredAmount > 0;
+    // Tolerate rounding: bank slips and course prices differ by cents.
+    const amountMismatch = amountIsValid && Math.abs(enteredAmount - expectedAmount) > 0.5;
+
+    const duplicateFileFlag = selectedPayment?.duplicateMatchType === 'EXACT';
+    const duplicateRefFlag = verificationResult?.isDuplicate === true;
+    const needsAcknowledgement = duplicateFileFlag || duplicateRefFlag || amountMismatch;
+    const blockedByFlags = needsAcknowledgement && !acknowledgedDuplicate;
+
+    const handleApprove = () => {
+      if (!selectedPayment || blockedByFlags) return;
+      approveMutation.mutate({
+        paymentId: selectedPayment.id,
+        referenceNumber: refNumber,
+        paidAmount: amountIsValid ? enteredAmount : null,
+      });
+    };
+
+    const openReview = (payment: Payment) => {
+      setSelectedPayment(payment);
+      setVerificationResult(null);
+      setAcknowledgedDuplicate(false);
+      setScanError(null);
+      // Reuse the cached read if this receipt was scanned before; otherwise
+      // kick off a scan and let onSuccess fill the fields in.
+      setRefNumber(payment.ocrReference ?? '');
+      setPaidAmount(payment.ocrAmount != null ? String(Number(payment.ocrAmount)) : '');
+      setScanResult(
+        payment.ocrScannedAt
+          ? {
+              cached: true,
+              referenceNumber: payment.ocrReference,
+              amount: payment.ocrAmount != null ? Number(payment.ocrAmount) : null,
+              source: payment.ocrSource,
+              confidence: payment.ocrConfidence,
+            }
+          : null
+      );
+      if (!payment.ocrScannedAt) scanMutation.mutate({ paymentId: payment.id });
+    };
+    const handleReject = () => {
+      if (!selectedPayment) return;
+      setRejectReason('');
+      setShowRejectDialog(true);
+    };
+
+    const handleRejectConfirmed = () => {
+      if (!selectedPayment || !rejectReason.trim()) return;
+      rejectMutation.mutate({ paymentId: selectedPayment.id, reason: rejectReason.trim() });
+    };
     const handleVerify = () => {
       if (!refNumber) return;
       setVerificationResult(null); // always clear stale result before a new check
       verifyMutation.mutate(refNumber);
     };
-    const closeModal = () => { setSelectedPayment(null); setRefNumber(''); setVerificationResult(null); };
+    const closeModal = () => {
+      setSelectedPayment(null);
+      setRefNumber('');
+      setVerificationResult(null);
+      setAcknowledgedDuplicate(false);
+      setPaidAmount('');
+      setScanResult(null);
+      setScanError(null);
+      setShowRejectDialog(false);
+      setRejectReason('');
+    };
 
     const handleForceExtend = (paymentId: string) => {
       setForceExtendConflict(null);
@@ -160,6 +349,7 @@ export default function AdminPaymentsPage() {
     };
 
     const filteredPayments = payments?.filter(p => filter === 'ALL' || p.status === filter);
+    const duplicateCount = payments?.filter(p => p.status === 'PENDING' && p.duplicateMatchType).length ?? 0;
 
     const isSubscriptionExpired = (payment: Payment) =>
       payment.courseType === 'SUBSCRIPTION' &&
@@ -171,7 +361,30 @@ export default function AdminPaymentsPage() {
         <div className="space-y-8">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
                 <h1 className="text-3xl font-bold text-gray-800">Payment Management</h1>
+                <button
+                  type="button"
+                  onClick={() => rescanMutation.mutate()}
+                  disabled={rescanMutation.isPending}
+                  className="btn-secondary flex items-center justify-center"
+                  title="Fingerprint receipts uploaded before duplicate detection was enabled"
+                >
+                  {rescanMutation.isPending
+                    ? <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    : <ScanSearch className="w-4 h-4 mr-2" />}
+                  Scan old receipts
+                </button>
             </div>
+
+            {duplicateCount > 0 && (
+              <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-lg">
+                <ShieldAlert className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-red-900">
+                  <strong>{duplicateCount}</strong>{' '}
+                  {duplicateCount === 1 ? 'payment has a receipt that matches' : 'payments have receipts that match'}{' '}
+                  an earlier submission. Open each one to compare the two receipts side by side.
+                </p>
+              </div>
+            )}
 
             {/* Filter Pills */}
             <div className="flex gap-2 overflow-x-auto border-b border-gray-200 pb-2 -mx-2 px-2">
@@ -203,7 +416,7 @@ export default function AdminPaymentsPage() {
                                 Array.from({ length: 3 }).map((_, i) => <PaymentRowSkeleton key={i} />)
                             ) : (
                                 filteredPayments?.map(payment => (
-                                    <tr key={payment.id} className={`hover:bg-gray-50 transition-colors ${isSubscriptionExpired(payment) ? 'bg-orange-50' : ''}`}>
+                                    <tr key={payment.id} className={`hover:bg-gray-50 transition-colors ${payment.duplicateMatchType ? 'bg-red-50' : isSubscriptionExpired(payment) ? 'bg-orange-50' : ''}`}>
                     <td className="px-4 sm:px-6 py-4 whitespace-normal break-words">
                                             <div className="text-sm font-medium text-gray-900">{payment.studentName}</div>
                                             <div className="text-sm text-gray-500">{payment.courseTitle}</div>
@@ -217,14 +430,20 @@ export default function AdminPaymentsPage() {
                                                   {format(new Date(payment.subscriptionExpiryDate), 'MMM d, yyyy')}
                                                 </span>
                                               )}
+                                              <DuplicateChip payment={payment} />
                                             </div>
+                                            {payment.status === 'REJECTED' && payment.rejectionReason && (
+                                              <p className="mt-1 text-xs text-red-700 whitespace-pre-line">
+                                                <span className="font-medium">Rejected:</span> {payment.rejectionReason}
+                                              </p>
+                                            )}
                                         </td>
                     <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500">{format(new Date(payment.createdAt), 'PP')}</td>
                     <td className="px-4 sm:px-6 py-4 whitespace-nowrap"><StatusBadge status={payment.status} /></td>
                     <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex items-center justify-end gap-2">
                                             {payment.status === 'PENDING' && (
-                        <button type="button" onClick={() => setSelectedPayment(payment)} className="btn-secondary flex items-center"><Eye className="w-4 h-4 mr-2" /> Review</button>
+                        <button type="button" onClick={() => openReview(payment)} className="btn-secondary flex items-center"><Eye className="w-4 h-4 mr-2" /> Review</button>
                                             )}
                                             {payment.courseType === 'SUBSCRIPTION' && payment.status === 'APPROVED' && (
                                               <button
@@ -261,43 +480,53 @@ export default function AdminPaymentsPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
                         <div className="space-y-2">
                            <h3 className="text-lg font-medium text-gray-900">Uploaded Receipt</h3>
-                           {selectedPayment.receiptUrl.toLowerCase().includes('.pdf') ? (
-                             <div className="border rounded-lg bg-gray-50 overflow-hidden">
-                               {/* PDF header bar */}
-                               <div className="flex items-center justify-between px-4 py-2 bg-red-50 border-b border-red-200">
-                                 <div className="flex items-center gap-2">
-                                   <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-red-600 text-white tracking-wide">PDF</span>
-                                   <span className="text-sm font-medium text-gray-700 truncate max-w-[180px]">
-                                     {selectedPayment.receiptUrl.split('/').pop()?.split('%').shift() ?? 'receipt.pdf'}
-                                   </span>
-                                 </div>
-                                 <a
-                                   href={selectedPayment.receiptUrl}
-                                   target="_blank"
-                                   rel="noopener noreferrer"
-                                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-red-600 text-white text-xs font-semibold hover:bg-red-700 transition-colors"
-                                 >
-                                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
-                                   Open PDF
-                                 </a>
-                               </div>
-                               <iframe
-                                 src={selectedPayment.receiptUrl}
-                                 title="Payment Receipt PDF"
-                                 className="w-full rounded-b-lg"
-                                 style={{ height: '420px' }}
+                           <ReceiptPreview
+                             url={selectedPayment.receiptUrl}
+                             label="Payment Receipt"
+                             heightClass={selectedPayment.duplicateReceiptUrl ? 'h-64' : 'h-72 md:h-96'}
+                           />
+
+                           {selectedPayment.duplicateReceiptUrl && (
+                             <div className="pt-4">
+                               <h3 className="text-lg font-medium text-red-800 flex items-center gap-2">
+                                 <Copy className="w-4 h-4" />
+                                 Earlier matching receipt
+                               </h3>
+                               <p className="text-xs text-gray-500 mb-2">
+                                 Submitted {format(new Date(selectedPayment.duplicateCreatedAt!), 'PP')} by{' '}
+                                 {selectedPayment.duplicateStudentName ?? 'unknown student'}
+                               </p>
+                               <ReceiptPreview
+                                 url={selectedPayment.duplicateReceiptUrl}
+                                 label="Earlier matching receipt"
+                                 heightClass="h-64"
                                />
                              </div>
-                           ) : (
-                             <>
-                               <div className="relative border rounded-lg p-2 bg-gray-100 h-72 md:h-96 w-full overflow-hidden">
-                                 <Image src={selectedPayment.receiptUrl} alt="Payment Receipt" fill style={{ objectFit: 'contain' }} className="rounded-md" />
-                               </div>
-                               <a href={selectedPayment.receiptUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline">Open image in new tab</a>
-                             </>
                            )}
                         </div>
                         <div className="space-y-6 flex flex-col">
+                            {selectedPayment.duplicateMatchType && (
+                              <div className="p-4 rounded-lg border bg-red-50 border-red-200">
+                                <div className="flex items-start gap-3">
+                                  <ShieldAlert className="w-6 h-6 flex-shrink-0 text-red-600" />
+                                  <div className="text-sm">
+                                    <p className="font-bold text-base text-red-900">
+                                      This is the exact same receipt file as an earlier upload
+                                    </p>
+                                    <div className="mt-2 text-xs p-2 rounded space-y-1 bg-red-100 text-red-900">
+                                      <p><strong>Originally by:</strong> {selectedPayment.duplicateStudentName ?? 'Unknown'}</p>
+                                      <p><strong>Email:</strong> {selectedPayment.duplicateStudentEmail ?? 'N/A'}</p>
+                                      <p><strong>Course:</strong> {selectedPayment.duplicateCourseTitle ?? 'N/A'}</p>
+                                      <p><strong>Submitted:</strong> {selectedPayment.duplicateCreatedAt ? format(new Date(selectedPayment.duplicateCreatedAt), 'PPpp') : 'N/A'}</p>
+                                      <p><strong>That payment:</strong> {selectedPayment.duplicateStatus ?? 'N/A'}</p>
+                                    </div>
+                                    <p className="mt-2 text-xs text-gray-600">
+                                      Compare both receipts on the left before deciding.
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
                             <div>
                                 <h3 className="text-lg font-medium text-gray-900">Submission Details</h3>
                                 <dl className="mt-2 text-sm text-gray-600">
@@ -308,7 +537,37 @@ export default function AdminPaymentsPage() {
                                 </dl>
                             </div>
                             <hr />
-                            <div className="flex-grow">
+                            <div className="flex-grow space-y-4">
+                                {/* Receipt read status — the values below are pre-filled from it */}
+                                <div className="flex items-center gap-2 text-xs">
+                                  {scanMutation.isPending ? (
+                                    <span className="inline-flex items-center gap-1.5 text-blue-700">
+                                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                      Reading the receipt…
+                                    </span>
+                                  ) : scanError ? (
+                                    <span className="text-amber-700">{scanError}</span>
+                                  ) : scanResult ? (
+                                    <span className="inline-flex items-center gap-1.5 text-gray-600">
+                                      <ScanSearch className="w-3.5 h-3.5" />
+                                      {scanResult.source === 'PDF_TEXT'
+                                        ? 'Read from PDF text (exact)'
+                                        : `Read by OCR${scanResult.confidence != null ? ` · ${scanResult.confidence}% confidence` : ''}`}
+                                      {' — always check against the receipt.'}
+                                    </span>
+                                  ) : null}
+                                  {selectedPayment.receiptUrl && !scanMutation.isPending && (
+                                    <button
+                                      type="button"
+                                      onClick={() => scanMutation.mutate({ paymentId: selectedPayment.id, force: true })}
+                                      className="text-blue-600 hover:underline ml-auto"
+                                    >
+                                      Re-read
+                                    </button>
+                                  )}
+                                </div>
+
+                                <div>
                                 <label htmlFor="refNumber" className="block text-sm font-medium text-gray-700">Bank Reference Number</label>
                                 <div className="mt-1 flex rounded-md shadow-sm">
                                     <input id="refNumber" type="text" value={refNumber} onChange={(e) => {setRefNumber(e.target.value); setVerificationResult(null);}} className="flex-1 block w-full rounded-none rounded-l-md border-gray-300 focus:ring-blue-500 focus:border-blue-500" placeholder="Enter Ref# from receipt" />
@@ -340,14 +599,130 @@ export default function AdminPaymentsPage() {
                                         </div>
                                     </div>
                                 )}
+                                </div>
+
+                                <div>
+                                  <label htmlFor="paidAmount" className="block text-sm font-medium text-gray-700">
+                                    Amount Paid (LKR)
+                                  </label>
+                                  <input
+                                    id="paidAmount"
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    value={paidAmount}
+                                    onChange={(e) => setPaidAmount(e.target.value)}
+                                    className="mt-1 block w-full rounded-md border-gray-300 focus:ring-blue-500 focus:border-blue-500"
+                                    placeholder="Amount shown on the receipt"
+                                  />
+                                  <p className="mt-1 text-xs text-gray-500">
+                                    Course price: <strong>LKR {expectedAmount.toLocaleString()}</strong>
+                                  </p>
+                                  {amountMismatch && (
+                                    <div className="mt-2 p-3 rounded-lg text-sm bg-amber-50 border border-amber-200 text-amber-900 flex items-start gap-2">
+                                      <AlertTriangle className="w-5 h-5 flex-shrink-0 text-amber-600" />
+                                      <span>
+                                        Receipt shows <strong>LKR {enteredAmount!.toLocaleString()}</strong> but the course
+                                        costs <strong>LKR {expectedAmount.toLocaleString()}</strong> —
+                                        a difference of <strong>LKR {Math.abs(enteredAmount! - expectedAmount).toLocaleString()}</strong>.
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
                             </div>
+
+                            {needsAcknowledgement && (
+                              <label className="flex items-start gap-2 p-3 rounded-lg border border-red-200 bg-red-50 text-sm font-medium text-red-900 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={acknowledgedDuplicate}
+                                  onChange={(e) => setAcknowledgedDuplicate(e.target.checked)}
+                                  className="mt-0.5 flex-shrink-0"
+                                />
+                                <span>
+                                  I have checked{' '}
+                                  {[
+                                    duplicateFileFlag && 'the reused receipt file',
+                                    duplicateRefFlag && 'the duplicate reference number',
+                                    amountMismatch && 'the amount difference',
+                                  ]
+                                    .filter(Boolean)
+                                    .join(', ')}{' '}
+                                  and this payment is legitimate.
+                                </span>
+                              </label>
+                            )}
+
                             <div className="flex flex-col sm:flex-row justify-end gap-2 pt-4">
                                 <button type="button" onClick={handleReject} disabled={rejectMutation.isPending} className="btn-danger w-full sm:w-auto">{rejectMutation.isPending ? 'Rejecting...' : 'Reject'}</button>
-                                <button type="button" onClick={handleApprove} disabled={!refNumber || approveMutation.isPending || verifyMutation.isPending || !verificationResult || verificationResult.isDuplicate} className="btn-primary w-full sm:w-auto">{approveMutation.isPending ? 'Approving...' : 'Approve Payment'}</button>
+                                <button type="button" onClick={handleApprove} disabled={!refNumber || approveMutation.isPending || verifyMutation.isPending || !verificationResult || blockedByFlags} className="btn-primary w-full sm:w-auto">{approveMutation.isPending ? 'Approving...' : 'Approve Payment'}</button>
                             </div>
                         </div>
                     </div>
                 </Modal>
+            )}
+
+            {/* Reject Payment Modal — a reason is required, the student sees it verbatim */}
+            {selectedPayment && showRejectDialog && (
+              <Modal isOpen={showRejectDialog} onClose={() => setShowRejectDialog(false)} title="Reject Payment" size="lg">
+                <div className="space-y-5">
+                  <p className="text-sm text-gray-600">
+                    <strong>{selectedPayment.studentName}</strong> will see this reason on the course page
+                    and in their rejection email, so write it for them.
+                  </p>
+
+                  <div>
+                    <p className="text-sm font-medium text-gray-700 mb-2">Common reasons</p>
+                    <div className="flex flex-col gap-2">
+                      {REJECTION_PRESETS.map((preset) => (
+                        <button
+                          key={preset}
+                          type="button"
+                          onClick={() => setRejectReason(preset)}
+                          className={`text-left text-sm px-3 py-2 rounded-md border transition-colors ${
+                            rejectReason === preset
+                              ? 'border-red-400 bg-red-50 text-red-900'
+                              : 'border-gray-200 hover:bg-gray-50 text-gray-700'
+                          }`}
+                        >
+                          {preset}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label htmlFor="rejectReason" className="block text-sm font-medium text-gray-700">
+                      Reason <span className="text-red-600">*</span>
+                    </label>
+                    <textarea
+                      id="rejectReason"
+                      rows={3}
+                      maxLength={500}
+                      value={rejectReason}
+                      onChange={(e) => setRejectReason(e.target.value)}
+                      className="mt-1 block w-full rounded-md border-gray-300 focus:ring-red-500 focus:border-red-500 text-sm"
+                      placeholder="Pick one above, or write your own explanation."
+                    />
+                    <p className="mt-1 text-xs text-gray-500">{rejectReason.length}/500 characters</p>
+                  </div>
+
+                  <div className="flex justify-end gap-3">
+                    <button type="button" className="btn-secondary" onClick={() => setShowRejectDialog(false)}>
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-danger"
+                      onClick={handleRejectConfirmed}
+                      disabled={!rejectReason.trim() || rejectMutation.isPending}
+                    >
+                      {rejectMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2 inline" /> : null}
+                      Reject Payment
+                    </button>
+                  </div>
+                </div>
+              </Modal>
             )}
 
             {/* Force-Extend Conflict Confirmation Modal */}

@@ -39,3 +39,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# tesseract.js OCR language models (downloaded on first use, ~5MB each)
+/.tesseract-cache/
+*.traineddata

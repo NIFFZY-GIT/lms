@@ -10,6 +10,20 @@ const appName = process.env.APP_NAME || 'LMS';
 
 let cachedTransporter: Transporter | null = null;
 
+/**
+ * Escapes free text before it goes into an email body. Anything typed by a
+ * person — a rejection reason, for instance — must go through this, or a stray
+ * angle bracket breaks the markup and injected tags reach the recipient.
+ */
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function assertSmtpConfig() {
   if (!smtpHost || !smtpPort || !smtpUser || !smtpPass || !smtpFrom) {
     throw new Error('SMTP is not configured. Set SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM.');
@@ -348,13 +362,19 @@ export async function sendEnrollmentSubmittedEmail(to: string, payload: { name: 
   await sendEmail({ to, subject, text, html });
 }
 
-export async function sendPaymentRejectedEmail(to: string, payload: { name: string; courseTitle: string }) {
+export async function sendPaymentRejectedEmail(to: string, payload: { name: string; courseTitle: string; reason?: string | null }) {
   const baseUrl = getBaseUrl();
   const subject = `${appName}: Payment update for ${payload.courseTitle}`;
-  const text = `Hi ${payload.name}, your payment for ${payload.courseTitle} was rejected. Please upload a new receipt and try again.`;
+  const reason = payload.reason?.trim();
+
+  const text = reason
+    ? `Hi ${payload.name}, your payment for ${payload.courseTitle} was rejected.\n\nReason: ${reason}\n\nPlease upload a new receipt and try again.`
+    : `Hi ${payload.name}, your payment for ${payload.courseTitle} was rejected. Please upload a new receipt and try again.`;
+
   const html = wrapHtmlContent('Payment needs attention', `
     <p>Hi ${payload.name},</p>
     <p>Your payment for <strong>${payload.courseTitle}</strong> was marked as <strong>rejected</strong>.</p>
+    ${reason ? `<p><strong>Reason given:</strong><br/>${escapeHtml(reason).replace(/\n/g, '<br/>')}</p>` : ''}
     <p>Please check your receipt details and submit a new payment proof to continue enrollment.</p>
     <a class="btn" href="${baseUrl}/courses">Retry enrollment</a>
   `);

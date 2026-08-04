@@ -6,6 +6,7 @@ import { IMAGE_5MB, assertFile } from '@/lib/security';
 import { saveUploadFile, removeUploadByUrl } from '@/lib/uploads';
 import { ensureCourseVisibilityColumn } from '@/lib/course-visibility';
 import { ensureCourseScheduleColumns, hasCourseScheduleColumns } from '@/lib/course-schedule';
+import { ensurePaymentColumns, hasPaymentColumns } from '@/lib/receipt-duplicates';
 import { sendCourseUpdatedEmail } from '@/lib/notify';
 
 const VALID_WEEK_DAYS = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'] as const;
@@ -39,14 +40,21 @@ export async function GET(req: Request, { params }: { params: Promise<{ courseId
     course.price = parseFloat(course.price);
 
         let enrollmentStatus: 'APPROVED' | 'PENDING' | 'REJECTED' | null = null;
+        let rejectionReason: string | null = null;
         if (isAdminViewer) {
             enrollmentStatus = 'APPROVED';
         } else {
+            // Older databases may predate the rejection-reason column; select it
+            // only once it exists so the course page cannot 500 on a missing one.
+            await ensurePaymentColumns();
+            const withReason = await hasPaymentColumns();
+
             const paymentResult = await db.query<{
                 status: 'APPROVED' | 'PENDING' | 'REJECTED';
                 subscriptionExpiryDate: string | null;
+                rejectionReason: string | null;
             }>(
-                `SELECT status, "subscriptionExpiryDate"
+                `SELECT status, "subscriptionExpiryDate"${withReason ? ', "rejectionReason"' : ', NULL AS "rejectionReason"'}
                  FROM "Payment"
                  WHERE "studentId" = $1 AND "courseId" = $2
                  ORDER BY "createdAt" DESC
@@ -55,6 +63,9 @@ export async function GET(req: Request, { params }: { params: Promise<{ courseId
             );
 
             const latestPayment = paymentResult.rows[0];
+            if (latestPayment?.status === 'REJECTED') {
+                rejectionReason = latestPayment.rejectionReason;
+            }
             if (latestPayment) {
                 if (course.courseType === 'SUBSCRIPTION' && latestPayment.status === 'APPROVED') {
                     const isStillActive = latestPayment.subscriptionExpiryDate
@@ -95,6 +106,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ courseId
         return NextResponse.json({
             ...course,
             enrollmentStatus,
+            rejectionReason,
             canUnenroll: !isAdminViewer && enrollmentStatus === 'APPROVED',
         });
   } catch (error) {

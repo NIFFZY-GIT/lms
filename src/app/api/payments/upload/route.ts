@@ -13,6 +13,7 @@ import {
 } from '@/lib/notify';
 import { lastDayOfMonth } from 'date-fns';
 import { ensureCourseVisibilityColumn } from '@/lib/course-visibility';
+import { fingerprintPaymentReceipt } from '@/lib/receipt-duplicates';
 
 // Helper: Get the last day of the current month (end of day)
 function getSubscriptionExpiryDate(): Date {
@@ -189,6 +190,19 @@ export async function POST(req: Request) {
          VALUES ($1, $2, $3, $4, 'PENDING') RETURNING *;`;
     
     const result = await db.query(sql, [paymentId, user.id, courseId, publicUrl]);
+    const payment = result.rows[0];
+
+    // Fingerprint the receipt so the admin sees a re-used-receipt flag on review.
+    // Deliberately awaited (the flag must be ready before an admin opens the row)
+    // but never allowed to fail the upload.
+    const fingerprint = await fingerprintPaymentReceipt(paymentId, publicUrl, payment.createdAt);
+    if (fingerprint?.matches.length) {
+      const best = fingerprint.matches[0];
+      console.warn(
+        `[receipt-duplicate] Payment ${paymentId} (${user.email}) uploaded the same receipt file ` +
+        `as payment ${best.paymentId} (${best.studentEmail})`
+      );
+    }
 
     try {
       await sendEnrollmentSubmittedEmail(user.email, {

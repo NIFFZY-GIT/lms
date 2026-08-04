@@ -4,6 +4,7 @@ import { getServerUser } from '../../../../../lib/auth';
 import { Role } from '../../../../../types';
 import { sendEnrollmentStatusToStaff, sendPaymentApprovedEmail } from '../../../../../lib/notify';
 import { lastDayOfMonth } from 'date-fns';
+import { ensurePaymentColumns } from '@/lib/receipt-duplicates';
 
 interface PostgresError { code?: string; }
 
@@ -19,6 +20,7 @@ export async function PATCH(req: Request, props: { params: Promise<{ paymentId: 
   let referenceNumber: string | undefined;
   try {
     await getServerUser(Role.ADMIN);
+    await ensurePaymentColumns();
     const resolvedParams = await props.params;
     const paymentId: string = resolvedParams.paymentId;
     const body = await req.json();
@@ -29,6 +31,11 @@ export async function PATCH(req: Request, props: { params: Promise<{ paymentId: 
     }
 
     const sanitizedRef = referenceNumber.trim();
+
+    // The amount the admin confirmed against the receipt. Optional so an
+    // approval never fails on it, but recorded when supplied.
+    const rawAmount = Number(body.paidAmount);
+    const paidAmount = Number.isFinite(rawAmount) && rawAmount > 0 ? rawAmount : null;
 
     // First, get the course type for this payment
     const courseCheckSql = `
@@ -48,24 +55,28 @@ export async function PATCH(req: Request, props: { params: Promise<{ paymentId: 
 
     const sql = isSubscription
       ? `UPDATE "Payment"
-         SET 
-           status = 'APPROVED', 
+         SET
+           status = 'APPROVED',
            "referenceNumber" = $1,
+           "paidAmount" = COALESCE($4, "paidAmount"),
            "subscriptionExpiryDate" = $3,
            "updatedAt" = CURRENT_TIMESTAMP
-         WHERE 
+         WHERE
            id = $2 AND status = 'PENDING'
          RETURNING *;`
       : `UPDATE "Payment"
-         SET 
-           status = 'APPROVED', 
+         SET
+           status = 'APPROVED',
            "referenceNumber" = $1,
+           "paidAmount" = COALESCE($3, "paidAmount"),
            "updatedAt" = CURRENT_TIMESTAMP
-         WHERE 
+         WHERE
            id = $2 AND status = 'PENDING'
          RETURNING *;`;
 
-    const params = isSubscription ? [sanitizedRef, paymentId, subscriptionExpiryDate] : [sanitizedRef, paymentId];
+    const params = isSubscription
+      ? [sanitizedRef, paymentId, subscriptionExpiryDate, paidAmount]
+      : [sanitizedRef, paymentId, paidAmount];
     const result = await db.query(sql, params);
 
     if (result.rows.length === 0) {

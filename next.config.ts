@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Receipt scanning loads WASM and worker files at runtime; bundling these
+  // rewrites the paths they resolve against, so keep them external.
+  serverExternalPackages: ['tesseract.js', 'pdf-parse', 'sharp'],
   // Add this 'images' block
   images: {
     remotePatterns: [

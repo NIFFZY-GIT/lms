@@ -187,6 +187,21 @@ CREATE TABLE IF NOT EXISTS "Payment" (
     "referenceNumber" VARCHAR(100) UNIQUE,  -- Reference number for approved payments
     status payment_status NOT NULL DEFAULT 'PENDING',
     "subscriptionExpiryDate" TIMESTAMP WITH TIME ZONE,  -- For subscription courses: when the monthly access expires
+    -- Receipt-reuse detection (see src/lib/receipt-duplicates.ts)
+    "receiptFileHash" CHAR(64),              -- SHA-256 of the uploaded bytes: catches re-uploads of the identical file
+    "duplicateOfPaymentId" VARCHAR(36) REFERENCES "Payment"(id) ON DELETE SET NULL,
+    "duplicateMatchType" VARCHAR(16),        -- 'EXACT' (byte-identical receipt file)
+    "receiptCheckedAt" TIMESTAMP WITH TIME ZONE,
+    -- Cached read of the receipt (see src/lib/receipt-ocr.ts). Suggestions for
+    -- the admin review screen, not authoritative values.
+    "ocrReference" VARCHAR(64),              -- Reference number read off the receipt
+    "ocrAmount" NUMERIC(12, 2),              -- Amount read off the receipt
+    "ocrText" TEXT,                          -- Full extracted text, kept for troubleshooting
+    "ocrSource" VARCHAR(16),                 -- 'PDF_TEXT' (exact) or 'IMAGE_OCR' (best effort)
+    "ocrConfidence" SMALLINT,                -- Mean OCR confidence 0-100; NULL for PDF text
+    "ocrScannedAt" TIMESTAMP WITH TIME ZONE,
+    "paidAmount" NUMERIC(12, 2),             -- Amount the admin confirmed at approval
+    "rejectionReason" TEXT,                  -- Shown verbatim to the student when a payment is rejected
     "createdAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -195,6 +210,8 @@ CREATE TABLE IF NOT EXISTS "Payment" (
 CREATE INDEX IF NOT EXISTS idx_payment_student ON "Payment"("studentId");
 CREATE INDEX IF NOT EXISTS idx_payment_course ON "Payment"("courseId");
 CREATE INDEX IF NOT EXISTS idx_payment_status ON "Payment"(status);
+CREATE INDEX IF NOT EXISTS idx_payment_receipt_file_hash ON "Payment"("receiptFileHash");
+CREATE INDEX IF NOT EXISTS idx_payment_duplicate_of ON "Payment"("duplicateOfPaymentId");
 
 -- ============================================
 -- ClassReminderLog Table

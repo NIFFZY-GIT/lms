@@ -115,6 +115,7 @@ const getEmbeddedRecordingUrl = (rawUrl?: string): { provider: 'youtube' | 'zoom
 // --- Type Definition for this page's data ---
 interface CourseDetails extends Course {
   enrollmentStatus: 'APPROVED' | 'PENDING' | 'REJECTED' | null;
+  rejectionReason?: string | null;
   recordings: Recording[];
   tutorials: CourseTutorial[];
   canUnenroll?: boolean;
@@ -533,7 +534,17 @@ export default function StudentCoursePage() {
               <div>
                 <div className="p-4 mb-6 bg-red-50 text-red-800 rounded-lg border border-red-200">
                     <h2 className="font-bold text-lg">Your Previous Payment was Rejected</h2>
-                    <p>An administrator has reviewed your submission and it could not be approved. Please upload a new, correct receipt below to try again.</p>
+                    {course?.rejectionReason ? (
+                      <>
+                        <p className="mt-1 font-semibold">Reason given:</p>
+                        <p className="mt-1 whitespace-pre-line bg-red-100 border border-red-200 rounded-md p-3">
+                          {course.rejectionReason}
+                        </p>
+                        <p className="mt-3">Please fix the issue above and upload a new receipt below to try again.</p>
+                      </>
+                    ) : (
+                      <p>An administrator has reviewed your submission and it could not be approved. Please upload a new, correct receipt below to try again.</p>
+                    )}
                 </div>
                 <h2 className="text-xl font-bold mb-4">Re-submit for Enrollment</h2>
                 {course && <EnrollmentForm courseId={course.id} isFree={course.price === 0} />}
