@@ -39,7 +39,7 @@ export function sha256(buffer: Buffer): string {
 }
 
 let ensureColumnsPromise: Promise<void> | null = null;
-let hasColumnsPromise: Promise<boolean> | null = null;
+let presentColumnsPromise: Promise<Set<string>> | null = null;
 
 /**
  * Every column these payment features read. The check below requires all of
@@ -62,32 +62,66 @@ const PAYMENT_COLUMNS = [
   'rejectionReason',
 ];
 
+/** The six columns that cache a receipt read. Checked as a group by the scan route. */
+const OCR_COLUMNS = [
+  'ocrReference',
+  'ocrAmount',
+  'ocrText',
+  'ocrSource',
+  'ocrConfidence',
+  'ocrScannedAt',
+];
+
 /**
- * Whether *all* the payment feature columns exist. Callers must branch on this:
- * some production DB users cannot run DDL, and the payments list must keep
- * working without these features rather than erroring on missing columns.
+ * Every column "Payment" actually has, cached for the life of the process.
+ *
+ * Deliberately selects the names rather than counting a match, so a caller can
+ * ask about one column instead of all twelve. A half-migrated database is the
+ * normal case on a server whose DB user cannot run DDL: approving a payment
+ * must not fail just because the OCR cache columns are absent.
  */
-export async function hasPaymentColumns(): Promise<boolean> {
-  if (!hasColumnsPromise) {
-    hasColumnsPromise = (async () => {
+export async function presentPaymentColumns(): Promise<Set<string>> {
+  if (!presentColumnsPromise) {
+    presentColumnsPromise = (async () => {
       try {
-        const result = await db.query<{ present: string }>(
-          `SELECT count(*)::text AS present
+        const result = await db.query<{ column_name: string }>(
+          `SELECT column_name
              FROM information_schema.columns
             WHERE table_schema = 'public'
-              AND table_name = 'Payment'
-              AND column_name = ANY($1)`,
-          [PAYMENT_COLUMNS]
+              AND table_name = 'Payment'`
         );
-        return Number(result.rows[0]?.present ?? 0) === PAYMENT_COLUMNS.length;
+        return new Set(result.rows.map((row) => row.column_name));
       } catch (error) {
-        console.error('[hasPaymentColumns] Failed to inspect schema:', error);
-        return false;
+        console.error('[presentPaymentColumns] Failed to inspect schema:', error);
+        // An empty set disables every optional feature, which is the safe
+        // direction: queries then avoid the columns entirely.
+        return new Set<string>();
       }
     })();
   }
 
-  return hasColumnsPromise;
+  return presentColumnsPromise;
+}
+
+/** Whether one named column exists. */
+export async function hasPaymentColumn(column: string): Promise<boolean> {
+  return (await presentPaymentColumns()).has(column);
+}
+
+/** Whether the receipt-read cache columns all exist. */
+export async function hasOcrColumns(): Promise<boolean> {
+  const present = await presentPaymentColumns();
+  return OCR_COLUMNS.every((column) => present.has(column));
+}
+
+/**
+ * Whether *all* the payment feature columns exist. The payments list branches
+ * on this: some production DB users cannot run DDL, and the list must keep
+ * working without these features rather than erroring on missing columns.
+ */
+export async function hasPaymentColumns(): Promise<boolean> {
+  const present = await presentPaymentColumns();
+  return PAYMENT_COLUMNS.every((column) => present.has(column));
 }
 
 /**
@@ -130,9 +164,12 @@ export async function ensurePaymentColumns(): Promise<void> {
               FOREIGN KEY ("duplicateOfPaymentId") REFERENCES "Payment"(id) ON DELETE SET NULL;
           EXCEPTION WHEN duplicate_object THEN NULL; END $$;
         `);
-        hasColumnsPromise = Promise.resolve(true);
       } catch (error) {
         console.warn('[ensurePaymentColumns] Unable to run schema update:', error);
+      } finally {
+        // Re-read the schema either way. On success the new columns must become
+        // visible; on failure the cache must not keep claiming they exist.
+        presentColumnsPromise = null;
       }
     })().catch((error) => {
       ensureColumnsPromise = null;

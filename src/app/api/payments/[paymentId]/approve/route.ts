@@ -4,7 +4,7 @@ import { getServerUser } from '../../../../../lib/auth';
 import { Role } from '../../../../../types';
 import { sendEnrollmentStatusToStaff, sendPaymentApprovedEmail } from '../../../../../lib/notify';
 import { lastDayOfMonth } from 'date-fns';
-import { ensurePaymentColumns } from '@/lib/receipt-duplicates';
+import { ensurePaymentColumns, hasPaymentColumn } from '@/lib/receipt-duplicates';
 
 interface PostgresError { code?: string; }
 
@@ -53,30 +53,33 @@ export async function PATCH(req: Request, props: { params: Promise<{ paymentId: 
     const isSubscription = courseCheckResult.rows[0].courseType === 'SUBSCRIPTION';
     const subscriptionExpiryDate = isSubscription ? getSubscriptionExpiryDate() : null;
 
-    const sql = isSubscription
-      ? `UPDATE "Payment"
+    // Recording the amount is a nice-to-have; approving the payment is not.
+    // Referencing this column unconditionally is what made approval fail
+    // outright on a database where the migration had not been applied.
+    const withPaidAmount = await hasPaymentColumn('paidAmount');
+
+    // $1 reference, $2 payment id, then the optional extras in order.
+    const params: unknown[] = [sanitizedRef, paymentId];
+    const extraSets: string[] = [];
+
+    if (isSubscription) {
+      params.push(subscriptionExpiryDate);
+      extraSets.push(`"subscriptionExpiryDate" = $${params.length}`);
+    }
+    if (withPaidAmount) {
+      params.push(paidAmount);
+      extraSets.push(`"paidAmount" = COALESCE($${params.length}, "paidAmount")`);
+    }
+
+    const sql = `UPDATE "Payment"
          SET
            status = 'APPROVED',
-           "referenceNumber" = $1,
-           "paidAmount" = COALESCE($4, "paidAmount"),
-           "subscriptionExpiryDate" = $3,
-           "updatedAt" = CURRENT_TIMESTAMP
-         WHERE
-           id = $2 AND status = 'PENDING'
-         RETURNING *;`
-      : `UPDATE "Payment"
-         SET
-           status = 'APPROVED',
-           "referenceNumber" = $1,
-           "paidAmount" = COALESCE($3, "paidAmount"),
+           "referenceNumber" = $1,${extraSets.map((set) => `\n           ${set},`).join('')}
            "updatedAt" = CURRENT_TIMESTAMP
          WHERE
            id = $2 AND status = 'PENDING'
          RETURNING *;`;
 
-    const params = isSubscription
-      ? [sanitizedRef, paymentId, subscriptionExpiryDate, paidAmount]
-      : [sanitizedRef, paymentId, paidAmount];
     const result = await db.query(sql, params);
 
     if (result.rows.length === 0) {

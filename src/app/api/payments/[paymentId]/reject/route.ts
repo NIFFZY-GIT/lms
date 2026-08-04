@@ -3,7 +3,7 @@ import { db } from '@/lib/db';
 import { getServerUser } from '@/lib/auth';
 import { Role } from '@/types';
 import { sendEnrollmentStatusToStaff, sendPaymentRejectedEmail } from '@/lib/notify';
-import { ensurePaymentColumns } from '@/lib/receipt-duplicates';
+import { ensurePaymentColumns, hasPaymentColumn } from '@/lib/receipt-duplicates';
 
 const MAX_REASON_LENGTH = 500;
 
@@ -32,12 +32,23 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ paymen
       );
     }
 
-    const sql = `
+    // Where the column is missing the reason still reaches the student by
+    // email; only the copy shown on their course page is lost. Failing the
+    // rejection outright over it would be far worse.
+    const withReason = await hasPaymentColumn('rejectionReason');
+
+    const sql = withReason
+      ? `
       UPDATE "Payment"
       SET status = 'REJECTED', "rejectionReason" = $2, "updatedAt" = CURRENT_TIMESTAMP
       WHERE id = $1 AND status = 'PENDING' RETURNING *;
+    `
+      : `
+      UPDATE "Payment"
+      SET status = 'REJECTED', "updatedAt" = CURRENT_TIMESTAMP
+      WHERE id = $1 AND status = 'PENDING' RETURNING *;
     `;
-    const result = await db.query(sql, [paymentId, reason]);
+    const result = await db.query(sql, withReason ? [paymentId, reason] : [paymentId]);
 
     if (result.rows.length === 0) {
       return NextResponse.json({ error: 'Payment not found or already processed' }, { status: 404 });

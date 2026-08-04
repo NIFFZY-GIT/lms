@@ -5,7 +5,7 @@ import { getServerUser } from '@/lib/auth';
 import { Role } from '@/types';
 import { resolveUploadDiskPath } from '@/lib/uploads';
 import { scanReceipt } from '@/lib/receipt-ocr';
-import { ensurePaymentColumns } from '@/lib/receipt-duplicates';
+import { ensurePaymentColumns, hasOcrColumns } from '@/lib/receipt-duplicates';
 
 type ScanRow = {
   receiptUrl: string | null;
@@ -32,9 +32,18 @@ export async function POST(req: Request, props: { params: Promise<{ paymentId: s
     const { paymentId } = await props.params;
     const force = new URL(req.url).searchParams.get('force') === '1';
 
+    // Without these columns the read cannot be cached — but it can still be
+    // performed. Selecting them unconditionally is what made this route fail
+    // with "Failed to scan the receipt" on a half-migrated database.
+    const withCache = await hasOcrColumns();
+
     const result = await db.query<ScanRow>(
-      `SELECT "receiptUrl", "ocrReference", "ocrAmount", "ocrSource", "ocrConfidence", "ocrScannedAt"
-         FROM "Payment" WHERE id = $1`,
+      withCache
+        ? `SELECT "receiptUrl", "ocrReference", "ocrAmount", "ocrSource", "ocrConfidence", "ocrScannedAt"
+             FROM "Payment" WHERE id = $1`
+        : `SELECT "receiptUrl", NULL AS "ocrReference", NULL AS "ocrAmount", NULL AS "ocrSource",
+                  NULL::int AS "ocrConfidence", NULL AS "ocrScannedAt"
+             FROM "Payment" WHERE id = $1`,
       [paymentId]
     );
 
@@ -74,17 +83,19 @@ export async function POST(req: Request, props: { params: Promise<{ paymentId: s
       return NextResponse.json({ error: 'Could not read this receipt. Enter the details manually.' }, { status: 422 });
     }
 
-    await db.query(
-      `UPDATE "Payment" SET
-         "ocrReference" = $2,
-         "ocrAmount" = $3,
-         "ocrText" = $4,
-         "ocrSource" = $5,
-         "ocrConfidence" = $6,
-         "ocrScannedAt" = CURRENT_TIMESTAMP
-       WHERE id = $1`,
-      [paymentId, scan.referenceNumber, scan.amount, scan.text, scan.source, scan.confidence]
-    );
+    if (withCache) {
+      await db.query(
+        `UPDATE "Payment" SET
+           "ocrReference" = $2,
+           "ocrAmount" = $3,
+           "ocrText" = $4,
+           "ocrSource" = $5,
+           "ocrConfidence" = $6,
+           "ocrScannedAt" = CURRENT_TIMESTAMP
+         WHERE id = $1`,
+        [paymentId, scan.referenceNumber, scan.amount, scan.text, scan.source, scan.confidence]
+      );
+    }
 
     return NextResponse.json({
       cached: false,

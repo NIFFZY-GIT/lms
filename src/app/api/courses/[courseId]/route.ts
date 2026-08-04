@@ -6,7 +6,7 @@ import { IMAGE_5MB, assertFile } from '@/lib/security';
 import { saveUploadFile, removeUploadByUrl } from '@/lib/uploads';
 import { ensureCourseVisibilityColumn } from '@/lib/course-visibility';
 import { ensureCourseScheduleColumns, hasCourseScheduleColumns } from '@/lib/course-schedule';
-import { ensurePaymentColumns, hasPaymentColumns } from '@/lib/receipt-duplicates';
+import { ensurePaymentColumns, hasPaymentColumn } from '@/lib/receipt-duplicates';
 import { sendCourseUpdatedEmail } from '@/lib/notify';
 
 const VALID_WEEK_DAYS = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'] as const;
@@ -47,7 +47,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ courseId
             // Older databases may predate the rejection-reason column; select it
             // only once it exists so the course page cannot 500 on a missing one.
             await ensurePaymentColumns();
-            const withReason = await hasPaymentColumns();
+            const withReason = await hasPaymentColumn('rejectionReason');
 
             const paymentResult = await db.query<{
                 status: 'APPROVED' | 'PENDING' | 'REJECTED';
