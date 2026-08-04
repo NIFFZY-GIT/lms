@@ -2,9 +2,31 @@
 
 This folder contains the PostgreSQL database schema for the LMS application.
 
-> **`schema.sql` is the single canonical file.** It is fully idempotent — safe to
-> run on a fresh database *and* safe to re-run on an existing production server to
-> pick up any schema changes. `update_schema.sql` is superseded and no longer needed.
+> **`schema.sql` is the canonical file for a *fresh* database.** It is idempotent
+> and safe to re-run anywhere. `update_schema.sql` is superseded and no longer needed.
+>
+> ⚠️ **Re-running `schema.sql` on an existing server does *not* add new columns.**
+> Columns are declared inside `CREATE TABLE IF NOT EXISTS`, which does nothing when
+> the table already exists. Only the `ALTER TABLE` statements in its "Migration
+> Cleanup" section apply to an existing database. To add columns to a live server,
+> run the matching migration file below.
+
+## Files in this folder
+
+| File | Purpose | Safe to re-run |
+|------|---------|----------------|
+| `schema.sql` | Full schema for a **fresh** database | Yes |
+| `migrate-payment-features.sql` | Adds the 12 `Payment` columns for receipt duplicate-detection, OCR, paid amounts and rejection reasons **to an existing database** | Yes — additive only |
+| `diagnose-payments.sql` | Read-only. Reports which payment columns are missing and whether receipts are still present. Run this first when the admin payments page misbehaves | Yes — SELECTs only |
+| `rollback-receipt-detection.sql` | Removes the 12 columns added above | Yes, but see the warnings inside |
+
+Typical upgrade of a live server:
+
+```bash
+pg_dump -U <user> <database> > backup.sql              # 1. back up
+psql -U <user> -d <database> -f diagnose-payments.sql  # 2. see what's missing
+psql -U <user> -d <database> -f migrate-payment-features.sql   # 3. apply
+```
 
 ## Prerequisites
 
