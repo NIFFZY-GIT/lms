@@ -196,7 +196,7 @@ export default function AdminPaymentsPage() {
     const [rejectReason, setRejectReason] = useState('');
     const queryClient = useQueryClient();
 
-    const { data: payments, isLoading } = useQuery<Payment[]>({
+    const { data: payments, isLoading, isError, error, refetch, isRefetching } = useQuery<Payment[]>({
         queryKey: ['payments'],
         queryFn: fetchPayments,
     });
@@ -467,7 +467,33 @@ export default function AdminPaymentsPage() {
                         </tbody>
                     </table>
                 </div>
-                 {!isLoading && filteredPayments?.length === 0 && (
+                 {/* Without this the table just renders empty when the request
+                     fails, which is indistinguishable from "no payments yet". */}
+                 {isError && (
+                    <div className="py-10 px-6 text-center">
+                        <p className="text-sm font-medium text-red-700">Could not load payments.</p>
+                        <p className="mt-1 text-sm text-gray-500">
+                            The receipts are still safe in the database — only this list failed to load.
+                        </p>
+                        <p className="mt-2 text-xs text-gray-400 break-words">
+                            {(error as AxiosError<{ error?: string }>)?.response?.data?.error
+                                ?? (error as Error)?.message
+                                ?? 'Unknown error'}
+                        </p>
+                        <button
+                            type="button"
+                            onClick={() => refetch()}
+                            disabled={isRefetching}
+                            className="btn-secondary mt-4 inline-flex items-center"
+                        >
+                            {isRefetching
+                                ? <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                : <RefreshCw className="w-4 h-4 mr-2" />}
+                            Try again
+                        </button>
+                    </div>
+                )}
+                 {!isLoading && !isError && filteredPayments?.length === 0 && (
                     <div className="text-center py-12 text-gray-500">
                         <p>{`No payments found for the "${filter.toLowerCase()}" filter.`}</p>
                     </div>
