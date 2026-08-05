@@ -28,7 +28,7 @@ export async function POST(req: Request) {
 
       try {
         console.log(`Attempting to send reset email to ${user.email} with code ${code}...`);
-        console.log(`SMTP Config: host=${process.env.SMTP_HOST}, port=${process.env.SMTP_PORT}, user=${process.env.SMTP_USER}, from=${process.env.SMTP_FROM}`);
+        console.log(`SMTP Config: host=${process.env.SMTP_HOST}, port=${process.env.SMTP_PORT}, from=${process.env.SMTP_FROM}`);
         await sendResetEmail(user.email, code);
         console.log(`✅ Reset email sent successfully to ${user.email}`);
       } catch (emailError) {

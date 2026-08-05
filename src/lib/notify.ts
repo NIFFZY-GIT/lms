@@ -1,14 +1,73 @@
 ﻿import nodemailer, { Transporter } from 'nodemailer';
 import { Role } from '@/types';
 
+// --- CONFIGURATION ---
 const smtpHost = process.env.SMTP_HOST;
 const smtpPort = process.env.SMTP_PORT ? parseInt(process.env.SMTP_PORT, 10) : undefined;
 const smtpUser = process.env.SMTP_USER;
 const smtpPass = process.env.SMTP_PASS;
 const smtpFrom = process.env.SMTP_FROM || process.env.SMTP_USER;
-const appName = process.env.APP_NAME || 'LMS';
+const appName = process.env.APP_NAME || 'Online Thakshilawa';
+const brandUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://onlinethakshilawa.lk';
+
+
+
 
 let cachedTransporter: Transporter | null = null;
+
+// --- BRANDING & STYLES ---
+const colors = {
+  primaryGradient: 'linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%)', // Deep modern blue
+  primary: '#2563eb',
+  success: '#059669',
+  warning: '#d97706',
+  error: '#dc2626',
+  textMain: '#1e293b',
+  textMuted: '#64748b',
+  bgLight: '#f1f5f9',
+  white: '#ffffff',
+  border: '#e2e8f0'
+};
+
+const emailStyles = `
+  body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: ${colors.bgLight}; margin: 0; padding: 0; }
+  .wrapper { width: 100%; background-color: ${colors.bgLight}; padding: 40px 10px; }
+  .container { max-width: 600px; margin: 0 auto; background-color: ${colors.white}; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1); border: 1px solid ${colors.border}; }
+  .header { padding: 32px; text-align: center; background: ${colors.primaryGradient}; color: ${colors.white}; }
+  .logo { display: block; height: 44px; width: 107px; border: 0; }
+  .logo-plate { display: inline-block; background: ${colors.white}; padding: 14px 22px; border-radius: 14px; text-decoration: none; }
+  .header h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -0.02em; opacity: 0.9; }
+  .content { padding: 40px 32px; color: ${colors.textMain}; line-height: 1.7; font-size: 16px; }
+  .badge { display: inline-block; padding: 6px 14px; border-radius: 50px; font-size: 11px; font-weight: 700; text-transform: uppercase; margin-bottom: 20px; letter-spacing: 0.05em; }
+  .badge-success { background-color: #ecfdf5; color: #065f46; }
+  .badge-info { background-color: #eff6ff; color: #1e40af; }
+  .badge-warning { background-color: #fffbeb; color: #92400e; }
+  .btn-wrapper { text-align: center; padding: 24px 0; }
+  .btn { background-color: ${colors.primary}; color: ${colors.white} !important; padding: 14px 35px; text-decoration: none; border-radius: 12px; font-weight: 600; font-size: 16px; display: inline-block; box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2); }
+  .info-box { background-color: #f8fafc; border-radius: 14px; padding: 20px; margin: 24px 0; border: 1px solid ${colors.border}; }
+  .footer { padding: 32px; text-align: center; background-color: #ffffff; border-top: 1px solid ${colors.border}; font-size: 13px; color: ${colors.textMuted}; }
+  .footer a { color: ${colors.primary}; text-decoration: none; font-weight: 600; }
+  .powered-by { margin-top: 15px; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; opacity: 0.8; }
+  /* The Zevarone mark is white on transparent, so it needs a dark plate to be
+     visible against the white footer. The anchor is white too, so that clients
+     blocking remote images still show the alt text legibly on that plate. */
+  .zev-chip { display: inline-block; margin-top: 10px; background: #0f172a; padding: 12px 20px; border-radius: 12px; text-decoration: none; color: #ffffff !important; font-size: 12px; }
+  .zev-logo { display: block; width: 152px; height: 18px; border: 0; }
+`;
+
+// --- HELPERS ---
+
+function getBaseUrl(): string {
+  const url = process.env.NEXT_PUBLIC_APP_URL;
+  return (!url || url === '#') ? brandUrl : (url.startsWith('http') ? url : `https://${url}`);
+}
+
+function getAbsoluteImageUrl(imageUrl: string | null | undefined): string | null {
+  if (!imageUrl) return null;
+  if (imageUrl.startsWith('http')) return imageUrl;
+  const baseUrl = getBaseUrl();
+  return `${baseUrl}${imageUrl.startsWith('/') ? '' : '/'}${imageUrl}`;
+}
 
 /**
  * Escapes free text before it goes into an email body. Anything typed by a
@@ -24,477 +83,251 @@ function escapeHtml(value: string): string {
     .replace(/'/g, '&#39;');
 }
 
-function assertSmtpConfig() {
-  if (!smtpHost || !smtpPort || !smtpUser || !smtpPass || !smtpFrom) {
-    throw new Error('SMTP is not configured. Set SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM.');
-  }
+function wrapHtmlContent(title: string, content: string, badge?: { label: string, type: 'success' | 'info' | 'warning' }) {
+  const badgeHtml = badge ? `<div class="badge badge-${badge.type}">${badge.label}</div>` : '';
+  // Next serves public/ from the site root, so "public" must not appear in the
+  // path. Forward slashes matter too: in a JS string "\l" and "\i" collapse to
+  // "l" and "i", which is what silently mangled these URLs.
+  const logoUrl = getAbsoluteImageUrl('/logo.png');
+  const zevaroneLogoUrl = getAbsoluteImageUrl('/images/zevaronelogo/zevaronelogo.png');
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <style>${emailStyles}</style>
+    </head>
+    <body>
+      <div class="wrapper">
+        <div class="container">
+          <div class="header">
+            ${logoUrl
+              ? `<a href="${brandUrl}" target="_blank" class="logo-plate" style="display:inline-block;background:#ffffff;padding:14px 22px;border-radius:14px;text-decoration:none;"><img src="${logoUrl}" alt="${appName}" width="107" height="44" class="logo" style="display:block;height:44px;width:107px;border:0;outline:none;" /></a>`
+              : `<h1>${appName}</h1>`}
+          </div>
+          <div class="content">
+            ${badgeHtml}
+            <h2 style="margin: 0 0 16px 0; font-size: 24px; color: #0f172a; letter-spacing: -0.02em;">${title}</h2>
+            ${content}
+            <p style="margin-top: 35px; font-size: 14px;">Regards,<br><strong>The ${appName} Team</strong></p>
+          </div>
+          <div class="footer">
+            <p style="margin: 0;">© ${new Date().getFullYear()} ${appName}. All rights reserved.</p>
+            <div class="powered-by">Powered by</div>
+            ${zevaroneLogoUrl
+              ? `<a href="https://zevarone.com" target="_blank" class="zev-chip" style="display:inline-block;margin-top:10px;background:#0f172a;padding:12px 20px;border-radius:12px;text-decoration:none;color:#ffffff;font-size:12px;"><img src="${zevaroneLogoUrl}" alt="Zevarone" width="152" height="18" class="zev-logo" style="display:block;width:152px;height:18px;border:0;outline:none;" /></a>`
+              : `<a href="https://zevarone.com" target="_blank" style="font-weight:600;color:${colors.primary};text-decoration:none;">Zevarone</a>`}
+          </div>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
 }
 
+// --- SMTP LOGIC ---
+
 function getTransporter(): Transporter {
-  assertSmtpConfig();
+  if (!smtpHost || !smtpPort || !smtpUser || !smtpPass) {
+    throw new Error('SMTP credentials missing.');
+  }
   if (!cachedTransporter) {
-    const isSecure = smtpPort === 465;
     cachedTransporter = nodemailer.createTransport({
       host: smtpHost,
       port: smtpPort,
-      secure: isSecure,
-      auth: { 
-        user: smtpUser, 
-        pass: smtpPass 
-      },
-      // Zoho Mail specific settings
-      tls: {
-        // Do not fail on invalid certs (useful for self-signed certs in dev)
-        rejectUnauthorized: process.env.NODE_ENV === 'production',
-        // Minimum TLS version
-        minVersion: 'TLSv1.2'
-      },
-      // Connection timeout (30 seconds)
-      connectionTimeout: 30000,
-      // Greeting timeout (30 seconds)
-      greetingTimeout: 30000,
-      // Socket timeout (60 seconds)
-      socketTimeout: 60000,
+      secure: smtpPort === 465,
+      auth: { user: smtpUser, pass: smtpPass },
     });
   }
   return cachedTransporter;
 }
 
-/**
- * Verify the SMTP connection is working.
- * Call this on server startup or when debugging email issues.
- */
-export async function verifyEmailConnection(): Promise<{ success: boolean; error?: string }> {
+export async function sendEmail({ to, subject, html, text }: { to: string | string[]; subject: string; html: string; text?: string }) {
   try {
-    assertSmtpConfig();
     const transporter = getTransporter();
-    await transporter.verify();
-    console.log('SMTP connection verified successfully');
+    await transporter.sendMail({
+      from: `"${appName}" <${smtpFrom}>`,
+      to: Array.isArray(to) ? to.join(', ') : to,
+      subject,
+      html,
+      text
+    });
     return { success: true };
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('SMTP connection verification failed:', errorMessage);
-    return { success: false, error: errorMessage };
+    console.error('Email Error:', error);
+    throw error;
   }
 }
 
-/**
- * Get the base URL for the application with proper protocol.
- */
-function getBaseUrl(): string {
-  const url = process.env.NEXT_PUBLIC_APP_URL;
-  if (!url || url === '#') return '#';
-  // Ensure URL has protocol
-  if (url.startsWith('http://') || url.startsWith('https://')) {
-    return url;
-  }
-  // Default to https for production
-  return `https://${url}`;
-}
-
-/**
- * Get full URL for images, ensuring they have absolute paths.
- */
-function getAbsoluteImageUrl(imageUrl: string | null | undefined): string | null {
-  if (!imageUrl) return null;
-  // If already absolute URL, return as-is
-  if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
-    return imageUrl;
-  }
-  // Otherwise, prepend base URL
-  const baseUrl = getBaseUrl();
-  if (baseUrl === '#') return null;
-  // Ensure no double slashes
-  const cleanPath = imageUrl.startsWith('/') ? imageUrl : `/${imageUrl}`;
-  return `${baseUrl}${cleanPath}`;
-}
-
-interface EmailPayload {
-  to: string | string[];
-  subject: string;
-  html: string;
-  text?: string;
-}
+// --- TEMPLATES & EXPORTS ---
 
 const roleLabels: Record<Role, string> = {
-  [Role.ADMIN]: 'Admin',
+  [Role.ADMIN]: 'Administrator',
   [Role.INSTRUCTOR]: 'Instructor',
   [Role.STUDENT]: 'Student',
 };
 
-const emailStyles = `
-  body { font-family: 'Segoe UI', Arial, sans-serif; background: #f3f4f6; padding: 32px; }
-  .card { max-width: 560px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 20px 45px rgba(15, 23, 42, 0.12); }
-  .header { background: linear-gradient(135deg, #2563eb, #1d4ed8); color: #fff; padding: 28px; }
-  .header h1 { margin: 0; font-size: 24px; }
-  .content { padding: 28px; color: #1f2937; line-height: 1.6; }
-  .content p { margin: 0 0 16px; }
-  .btn { display: inline-block; padding: 12px 20px; border-radius: 999px; background: linear-gradient(135deg, #2563eb, #1d4ed8); color: #fff !important; text-decoration: none; font-weight: 600; }
-  .footer { padding: 20px 28px; font-size: 12px; color: #6b7280; background: #f9fafb; text-align: center; }
-`;
-
-function wrapHtmlContent(title: string, content: string) {
-  return `
-    <html lang="en">
-      <head>
-        <meta charSet="utf-8" />
-        <style>${emailStyles}</style>
-      </head>
-      <body>
-        <div class="card">
-          <div class="header">
-            <h1>${title}</h1>
-          </div>
-          <div class="content">
-            ${content}
-            <p style="margin-top: 32px; font-size: 14px; color: #4b5563;">Cheers,<br><strong>${appName} Team</strong></p>
-          </div>
-          <div class="footer">
-            You received this email because your account is registered with ${appName}.
-          </div>
-        </div>
-      </body>
-    </html>
-  `;
-}
-
-export async function sendEmail({ to, subject, html, text }: EmailPayload): Promise<{ success: boolean; messageId?: string; error?: string }> {
-  try {
-    const transporter = getTransporter();
-    const recipients = Array.isArray(to) ? to.join(', ') : to;
-    
-    const info = await transporter.sendMail({ 
-      from: `"${appName}" <${smtpFrom}>`, 
-      to: recipients, 
-      subject, 
-      html, 
-      text 
-    });
-    
-    console.log(`Email sent successfully to ${recipients}. Message ID: ${info.messageId}`);
-    return { success: true, messageId: info.messageId };
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown email error';
-    console.error(`Failed to send email to ${Array.isArray(to) ? to.join(', ') : to}:`, errorMessage);
-    throw error; // Re-throw to let callers handle it
-  }
-}
-
 export async function sendResetEmail(to: string, code: string) {
-  const brandName = 'Online Thakshilawa';
-  const brandUrl = 'https://onlinethakshilawa.lk';
-  const subject = `${brandName} - Password Reset Code`;
-  const text = `Your ${brandName} password reset code is ${code}. It expires in 10 minutes.`;
-  const html = `
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    </head>
-    <body style="margin:0;padding:0;background-color:#f0f4f8;font-family:'Segoe UI',Roboto,Arial,sans-serif;">
-      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#f0f4f8;padding:40px 20px;">
-        <tr>
-          <td align="center">
-            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:480px;background-color:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
-              <!-- Header -->
-              <tr>
-                <td style="background:linear-gradient(135deg,#2563eb 0%,#1d4ed8 50%,#1e40af 100%);padding:32px 24px;text-align:center;">
-                  <h1 style="margin:0;font-size:24px;font-weight:700;color:#ffffff;letter-spacing:-0.5px;">${brandName}</h1>
-                  <p style="margin:8px 0 0;font-size:13px;color:rgba(255,255,255,0.85);">onlinethakshilawa.lk</p>
-                </td>
-              </tr>
-              
-              <!-- Content -->
-              <tr>
-                <td style="padding:40px 32px;">
-                  <h2 style="margin:0 0 8px;font-size:20px;font-weight:600;color:#1e293b;">Password Reset Request</h2>
-                  <p style="margin:0 0 24px;font-size:14px;color:#64748b;line-height:1.5;">Use the verification code below to reset your password. This code is valid for 10 minutes.</p>
-                  
-                  <!-- Code Box -->
-                  <div style="background:linear-gradient(135deg,#eff6ff 0%,#dbeafe 100%);border:2px solid #bfdbfe;border-radius:12px;padding:24px;text-align:center;margin:0 0 24px;">
-                    <p style="margin:0 0 8px;font-size:12px;font-weight:600;color:#3b82f6;text-transform:uppercase;letter-spacing:1px;">Your Verification Code</p>
-                    <p style="margin:0;font-size:36px;font-weight:700;color:#1d4ed8;letter-spacing:8px;font-family:'Courier New',monospace;">${code}</p>
-                  </div>
-                  
-                  <!-- Warning -->
-                  <div style="background:#fef3c7;border-left:4px solid #f59e0b;border-radius:0 8px 8px 0;padding:12px 16px;margin:0 0 24px;">
-                    <p style="margin:0;font-size:13px;color:#92400e;line-height:1.5;">
-                      <strong>⚠️ Security Notice:</strong> If you didn't request this password reset, please ignore this email. Your account is safe.
-                    </p>
-                  </div>
-                  
-                  <p style="margin:0;font-size:14px;color:#64748b;line-height:1.6;">
-                    Need help? Contact us at <a href="mailto:contactus@zevarone.com" style="color:#2563eb;text-decoration:none;font-weight:500;">contactus@zevarone.com</a>
-                  </p>
-                </td>
-              </tr>
-              
-              <!-- Footer -->
-              <tr>
-                <td style="background:#f8fafc;padding:24px 32px;border-top:1px solid #e2e8f0;text-align:center;">
-                  <p style="margin:0 0 8px;font-size:13px;color:#64748b;">
-                    © ${new Date().getFullYear()} ${brandName}. All rights reserved.
-                  </p>
-                  <a href="${brandUrl}" style="font-size:12px;color:#2563eb;text-decoration:none;">onlinethakshilawa.lk</a>
-                </td>
-              </tr>
-            </table>
-          </td>
-        </tr>
-      </table>
-    </body>
-    </html>
-  `;
-
-  await sendEmail({ to, subject, text, html });
+  const html = wrapHtmlContent('Reset Your Password', `
+    <p>Use the verification code below to reset your password. For security, this code expires in 10 minutes.</p>
+    <div style="background: #f8fafc; border: 2px dashed #cbd5e1; border-radius: 16px; padding: 30px; text-align: center; margin: 25px 0;">
+      <div style="font-size: 48px; font-weight: 800; color: ${colors.primary}; letter-spacing: 10px; font-family: monospace;">${code}</div>
+    </div>
+  `, { label: 'Security', type: 'info' });
+  await sendEmail({ to, subject: `Reset Code: ${code}`, html });
 }
 
-export async function sendRoleChangeEmail(to: string, name: string, oldRole: Role, newRole: Role) {
-  const subject = `${appName} role update: ${roleLabels[newRole]}`;
-  const text = `Hi ${name}, your role has been updated from ${roleLabels[oldRole]} to ${roleLabels[newRole]} in ${appName}. You now have access to the features available for ${roleLabels[newRole]}s.`;
-  const html = wrapHtmlContent('Your role has been updated', `
-    <p>Hi ${name},</p>
-    <p>Your account role has been updated from <strong>${roleLabels[oldRole]}</strong> to <strong>${roleLabels[newRole]}</strong>.</p>
-    <p>You now have access to the tools and dashboards available to ${roleLabels[newRole]}s. If this was unexpected, please contact support.</p>
-  `);
-  await sendEmail({ to, subject, text, html });
+export async function sendAccountCreatedEmail(to: string, payload: { name: string; role: Role }) {
+  const baseUrl = getBaseUrl();
+  const html = wrapHtmlContent('Welcome to the Platform!', `
+    <p>Hi ${payload.name}, your <strong>${roleLabels[payload.role]}</strong> account has been created. We are excited to have you join ${appName}.</p>
+    <div class="btn-wrapper"><a href="${baseUrl}/auth/login" class="btn">Sign In to Dashboard</a></div>
+  `, { label: 'Welcome', type: 'success' });
+  await sendEmail({ to, subject: `Account Created - ${appName}`, html });
 }
 
 export async function sendPaymentApprovedEmail(to: string, name: string, courseTitle: string, referenceNumber: string) {
   const baseUrl = getBaseUrl();
-  const subject = `${appName}: Enrollment confirmed for ${courseTitle}`;
-  const text = `Hi ${name}, your payment has been approved and you are now enrolled in ${courseTitle}. Reference number: ${referenceNumber}.`;
-  const html = wrapHtmlContent('Your enrollment is confirmed', `
-    <p>Hi ${name},</p>
-    <p>Great news! Your payment has been approved and your enrollment in <strong>${courseTitle}</strong> is now active.</p>
-    <p><strong>Reference number:</strong> ${referenceNumber}</p>
-    <p>You can now access all course materials and begin learning right away.</p>
-    <a class="btn" href="${baseUrl}/dashboard/student">Go to dashboard</a>
-  `);
-  await sendEmail({ to, subject, text, html });
+  const html = wrapHtmlContent('Payment Approved!', `
+    <p>Hi ${name}, your payment was successful. You are now enrolled in <strong>${courseTitle}</strong>.</p>
+    <div class="info-box"><strong>Ref:</strong> ${referenceNumber}</div>
+    <div class="btn-wrapper"><a href="${baseUrl}/dashboard/student" class="btn">Start Learning Now</a></div>
+  `, { label: 'Success', type: 'success' });
+  await sendEmail({ to, subject: `Enrollment Confirmed: ${courseTitle}`, html });
+}
+
+// --- COURSE & CONTENT EXPORTS (FIXES BUILD ERRORS) ---
+
+export async function sendCoursePublishedEmail(recipients: string[], payload: { courseTitle: string; description: string; courseId: string }) {
+  if (!recipients.length) return;
+  const baseUrl = getBaseUrl();
+  const html = wrapHtmlContent('New Course Published', `
+    <p>A new course is now available: <strong>${payload.courseTitle}</strong></p>
+    <p style="color: ${colors.textMuted};">${payload.description.slice(0, 160)}...</p>
+    <div class="btn-wrapper"><a href="${baseUrl}/courses/${payload.courseId}" class="btn">Explore Course</a></div>
+  `, { label: 'New', type: 'success' });
+  await sendEmail({ to: recipients, subject: `New Course: ${payload.courseTitle}`, html });
+}
+
+export async function sendCourseContentUpdateEmail(recipients: string[], payload: { courseTitle: string; contentType: string; contentTitle: string; courseId: string }) {
+  if (!recipients.length) return;
+  const baseUrl = getBaseUrl();
+  const html = wrapHtmlContent('New Course Material', `
+    <p>New <strong>${payload.contentType.toLowerCase()}</strong> added to <strong>${payload.courseTitle}</strong>:</p>
+    <div class="info-box"><strong>${payload.contentTitle}</strong></div>
+    <div class="btn-wrapper"><a href="${baseUrl}/courses/${payload.courseId}" class="btn">View Content</a></div>
+  `, { label: 'Update', type: 'info' });
+  await sendEmail({ to: recipients, subject: `Update in ${payload.courseTitle}`, html });
+}
+
+export async function sendCourseUpdatedEmail(recipients: string[], payload: { courseTitle: string; highlights: string; courseId: string }) {
+  if (!recipients.length) return;
+  const baseUrl = getBaseUrl();
+  const html = wrapHtmlContent('Course Update', `
+    <p>The course <strong>${payload.courseTitle}</strong> has been updated.</p>
+    <div class="info-box">${payload.highlights}</div>
+    <div class="btn-wrapper"><a href="${baseUrl}/courses/${payload.courseId}" class="btn">Open Dashboard</a></div>
+  `, { label: 'Update', type: 'info' });
+  await sendEmail({ to: recipients, subject: `Updated: ${payload.courseTitle}`, html });
+}
+
+// --- OTHER REQUIRED EXPORTS ---
+
+export async function sendPaymentRejectedEmail(to: string, payload: { name: string; courseTitle: string; reason?: string | null }) {
+  const baseUrl = getBaseUrl();
+  const html = wrapHtmlContent('Payment Update', `
+    <p>Hi ${payload.name}, we could not verify your payment for <strong>${payload.courseTitle}</strong>.</p>
+    ${payload.reason ? `<div class="info-box" style="border-left: 4px solid ${colors.error};"><strong>Reason:</strong> ${escapeHtml(payload.reason).replace(/\n/g, '<br/>')}</div>` : ''}
+    <div class="btn-wrapper"><a href="${baseUrl}/courses" class="btn">Retry Enrollment</a></div>
+  `, { label: 'Action Required', type: 'warning' });
+  await sendEmail({ to, subject: `Payment Declined: ${payload.courseTitle}`, html });
+}
+
+export async function sendAnnouncementPublishedEmail(recipients: string[], payload: { title: string; summary: string; imageUrl?: string | null; announcementId: string }) {
+  if (!recipients.length) return;
+  const baseUrl = getBaseUrl();
+  const absoluteImageUrl = getAbsoluteImageUrl(payload.imageUrl);
+  const html = wrapHtmlContent('New Announcement', `
+    <p><strong>${payload.title}</strong></p>
+    <p>${payload.summary}</p>
+    ${absoluteImageUrl ? `<img src="${absoluteImageUrl}" style="width:100%; border-radius:15px; margin: 20px 0;">` : ''}
+    <div class="btn-wrapper"><a href="${baseUrl}/announcements/${payload.announcementId}" class="btn">Read Full Story</a></div>
+  `, { label: 'Announcement', type: 'info' });
+  await sendEmail({ to: recipients, subject: `Announcement: ${payload.title}`, html });
+}
+
+export async function sendAnnouncementUpdatedEmail(recipients: string[], payload: { title: string; summary: string; announcementId: string }) {
+  if (!recipients.length) return;
+  const baseUrl = getBaseUrl();
+  const html = wrapHtmlContent('Announcement Updated', `
+    <p>The announcement <strong>${payload.title}</strong> was updated.</p>
+    <div class="btn-wrapper"><a href="${baseUrl}/announcements/${payload.announcementId}" class="btn">View Update</a></div>
+  `, { label: 'Update', type: 'info' });
+  await sendEmail({ to: recipients, subject: `Update: ${payload.title}`, html });
+}
+
+export async function sendEnrollmentSubmittedEmail(to: string, payload: { name: string; courseTitle: string; isSubscription?: boolean }) {
+  const html = wrapHtmlContent('Request Received', `
+    <p>Hi ${payload.name}, we are reviewing your enrollment request for <strong>${payload.courseTitle}</strong>.</p>
+  `, { label: 'Pending', type: 'info' });
+  await sendEmail({ to, subject: `Processing: ${payload.courseTitle}`, html });
+}
+
+export async function sendRoleChangeEmail(to: string, name: string, oldRole: Role, newRole: Role) {
+  const html = wrapHtmlContent('Role Updated', `
+    <p>Hi ${name}, your role changed from <strong>${roleLabels[oldRole]}</strong> to <strong>${roleLabels[newRole]}</strong>.</p>
+  `, { label: 'Update', type: 'info' });
+  await sendEmail({ to, subject: `Role Updated`, html });
 }
 
 export async function sendReceiptUploadedEmailToAdmins(adminEmails: string[], payload: { studentName: string; studentEmail: string; courseTitle: string; }) {
   if (!adminEmails.length) return;
   const baseUrl = getBaseUrl();
-  const subject = `${appName}: New receipt uploaded by ${payload.studentName}`;
-  const text = `${payload.studentName} (${payload.studentEmail}) uploaded a payment receipt for ${payload.courseTitle}. Please review and approve it.`;
-  const html = wrapHtmlContent('New payment receipt awaiting review', `
-    <p>Hello team,</p>
-    <p><strong>${payload.studentName}</strong> (<a href="mailto:${payload.studentEmail}">${payload.studentEmail}</a>) uploaded a new payment receipt for the course <strong>${payload.courseTitle}</strong>.</p>
-    <p>Please review and process the payment approval at your earliest convenience.</p>
-    <a class="btn" href="${baseUrl}/dashboard/admin/payments">Review payments</a>
-  `);
-  await sendEmail({ to: adminEmails, subject, text, html });
+  const html = wrapHtmlContent('New Receipt', `
+    <p><strong>${payload.studentName}</strong> uploaded a receipt for <strong>${payload.courseTitle}</strong>.</p>
+    <div class="btn-wrapper"><a href="${baseUrl}/dashboard/admin/payments" class="btn">Review Payment</a></div>
+  `, { label: 'Admin', type: 'info' });
+  await sendEmail({ to: adminEmails, subject: `Receipt: ${payload.studentName}`, html });
 }
 
-export async function sendAnnouncementPublishedEmail(recipients: string[], payload: { title: string; summary: string; imageUrl?: string | null; announcementId: string }) {
-  if (!recipients.length) return;
+export async function sendEnrollmentStatusToStaff(staffEmails: string[], payload: { studentName: string; studentEmail: string; courseTitle: string; status: string }) {
+  if (!staffEmails.length) return;
+  const html = wrapHtmlContent(`Status: ${payload.status}`, `
+    <p>Student <strong>${payload.studentName}</strong> enrollment in <strong>${payload.courseTitle}</strong> is now <strong>${payload.status}</strong>.</p>
+  `);
+  await sendEmail({ to: staffEmails, subject: `Enrollment Update: ${payload.studentName}`, html });
+}
 
+export async function sendClassStartingReminderEmail(to: string, payload: { studentName: string; courseTitle: string; classDay: string; classStartTime: string; startsInMinutes: number; courseId: string; scheduleNote?: string | null; }) {
   const baseUrl = getBaseUrl();
-  const subject = `${appName}: New announcement - ${payload.title}`;
-  const text = `A new announcement "${payload.title}" has been posted. Log in to ${appName} to read the full update.`;
-
-  const announcementLink = `${baseUrl}/announcements/${payload.announcementId}`;
-  const absoluteImageUrl = getAbsoluteImageUrl(payload.imageUrl);
-
-  const imageMarkup = absoluteImageUrl
-    ? `<div style="margin: 24px 0;"><img src="${absoluteImageUrl}" alt="${payload.title}" style="max-width:100%;border-radius:12px" /></div>`
+  const noteLine = payload.scheduleNote
+    ? `<div style="margin-top:10px;"><strong>Class note:</strong> ${escapeHtml(payload.scheduleNote)}</div>`
     : '';
-
-  const html = wrapHtmlContent('A new announcement awaits', `
-    <p>Hello,</p>
-    <p>We have just published a new announcement titled <strong>${payload.title}</strong>.</p>
-    <p>${payload.summary}</p>
-    ${imageMarkup}
-    <a class="btn" href="${announcementLink}">Read the full announcement</a>
-  `);
-
-  await sendEmail({ to: recipients, subject, text, html });
+  const html = wrapHtmlContent('Class Starts Soon!', `
+    <p>Hi ${payload.studentName}, <strong>${payload.courseTitle}</strong> starts in ${payload.startsInMinutes} minutes.</p>
+    <div class="info-box">${payload.classDay} at ${payload.classStartTime}${noteLine}</div>
+    <div class="btn-wrapper"><a href="${baseUrl}/dashboard/student/course/${payload.courseId}" class="btn">Join Session</a></div>
+  `, { label: 'Reminder', type: 'info' });
+  await sendEmail({ to, subject: `Reminder: ${payload.courseTitle}`, html });
 }
 
-/**
- * Send a test email to verify the email configuration is working.
- */
+export async function verifyEmailConnection() {
+  try {
+    const t = getTransporter();
+    await t.verify();
+    return { success: true };
+  } catch (e: any) {
+    return { success: false, error: e.message };
+  }
+}
+
 export async function sendTestEmail(to: string): Promise<{ success: boolean; error?: string }> {
   try {
-    const subject = `${appName} - Email Test`;
-    const text = `This is a test email from ${appName}. If you received this, your email configuration is working correctly.`;
-    const html = wrapHtmlContent('Email Test Successful', `
-      <p>Hello,</p>
-      <p>This is a test email from <strong>${appName}</strong>.</p>
-      <p>If you received this message, your email configuration is working correctly!</p>
-      <p><strong>Sent at:</strong> ${new Date().toISOString()}</p>
-    `);
-
-    await sendEmail({ to, subject, text, html });
+    const html = wrapHtmlContent('System Test', `<p>Email delivery is active.</p>`, { label: 'Test', type: 'success' });
+    await sendEmail({ to, subject: `Test Email`, html });
     return { success: true };
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    return { success: false, error: errorMessage };
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
   }
 }
-
-export async function sendAccountCreatedEmail(to: string, payload: { name: string; role: Role }) {
-  const baseUrl = getBaseUrl();
-  const roleLabel = roleLabels[payload.role];
-  const subject = `${appName}: Your ${roleLabel} account is ready`;
-  const text = `Hi ${payload.name}, your ${roleLabel} account has been created in ${appName}. You can now log in and start using the platform.`;
-  const html = wrapHtmlContent('Your account is ready', `
-    <p>Hi ${payload.name},</p>
-    <p>Your <strong>${roleLabel}</strong> account has been created successfully in <strong>${appName}</strong>.</p>
-    <p>You can now sign in and start using your dashboard features.</p>
-    <a class="btn" href="${baseUrl}/auth/login">Sign in now</a>
-  `);
-  await sendEmail({ to, subject, text, html });
-}
-
-export async function sendEnrollmentSubmittedEmail(to: string, payload: { name: string; courseTitle: string; isSubscription?: boolean }) {
-  const isSubscription = Boolean(payload.isSubscription);
-  const subject = `${appName}: Enrollment request received for ${payload.courseTitle}`;
-  const text = `Hi ${payload.name}, we received your ${isSubscription ? 'subscription' : 'enrollment'} request for ${payload.courseTitle}. We will notify you once it is reviewed.`;
-  const html = wrapHtmlContent('Enrollment request received', `
-    <p>Hi ${payload.name},</p>
-    <p>We received your ${isSubscription ? '<strong>subscription</strong>' : '<strong>enrollment</strong>'} request for <strong>${payload.courseTitle}</strong>.</p>
-    <p>Your request is currently pending review. You will receive another email as soon as it is approved or rejected.</p>
-  `);
-  await sendEmail({ to, subject, text, html });
-}
-
-export async function sendPaymentRejectedEmail(to: string, payload: { name: string; courseTitle: string; reason?: string | null }) {
-  const baseUrl = getBaseUrl();
-  const subject = `${appName}: Payment update for ${payload.courseTitle}`;
-  const reason = payload.reason?.trim();
-
-  const text = reason
-    ? `Hi ${payload.name}, your payment for ${payload.courseTitle} was rejected.\n\nReason: ${reason}\n\nPlease upload a new receipt and try again.`
-    : `Hi ${payload.name}, your payment for ${payload.courseTitle} was rejected. Please upload a new receipt and try again.`;
-
-  const html = wrapHtmlContent('Payment needs attention', `
-    <p>Hi ${payload.name},</p>
-    <p>Your payment for <strong>${payload.courseTitle}</strong> was marked as <strong>rejected</strong>.</p>
-    ${reason ? `<p><strong>Reason given:</strong><br/>${escapeHtml(reason).replace(/\n/g, '<br/>')}</p>` : ''}
-    <p>Please check your receipt details and submit a new payment proof to continue enrollment.</p>
-    <a class="btn" href="${baseUrl}/courses">Retry enrollment</a>
-  `);
-  await sendEmail({ to, subject, text, html });
-}
-
-export async function sendEnrollmentStatusToStaff(staffEmails: string[], payload: { studentName: string; studentEmail: string; courseTitle: string; status: 'APPROVED' | 'REJECTED' }) {
-  if (!staffEmails.length) return;
-
-  const baseUrl = getBaseUrl();
-  const statusLabel = payload.status === 'APPROVED' ? 'approved' : 'rejected';
-  const subject = `${appName}: Enrollment ${statusLabel} for ${payload.courseTitle}`;
-  const text = `${payload.studentName} (${payload.studentEmail}) enrollment for ${payload.courseTitle} was ${statusLabel}.`;
-  const html = wrapHtmlContent(`Enrollment ${statusLabel}`, `
-    <p>Hello team,</p>
-    <p>The enrollment for <strong>${payload.courseTitle}</strong> has been <strong>${statusLabel}</strong>.</p>
-    <p><strong>Student:</strong> ${payload.studentName} (<a href="mailto:${payload.studentEmail}">${payload.studentEmail}</a>)</p>
-    <a class="btn" href="${baseUrl}/dashboard/admin/payments">Open payments</a>
-  `);
-
-  await sendEmail({ to: staffEmails, subject, text, html });
-}
-
-export async function sendCoursePublishedEmail(recipients: string[], payload: { courseTitle: string; description: string; courseId: string }) {
-  if (!recipients.length) return;
-
-  const baseUrl = getBaseUrl();
-  const subject = `${appName}: New course published - ${payload.courseTitle}`;
-  const text = `A new course, ${payload.courseTitle}, is now available on ${appName}.`;
-  const summary = payload.description.length > 220 ? `${payload.description.slice(0, 217)}...` : payload.description;
-  const html = wrapHtmlContent('A new course is now available', `
-    <p>Hello,</p>
-    <p>We just published a new course: <strong>${payload.courseTitle}</strong>.</p>
-    <p>${summary}</p>
-    <a class="btn" href="${baseUrl}/courses/${payload.courseId}">View course</a>
-  `);
-
-  await sendEmail({ to: recipients, subject, text, html });
-}
-
-export async function sendCourseUpdatedEmail(recipients: string[], payload: { courseTitle: string; highlights: string; courseId: string }) {
-  if (!recipients.length) return;
-
-  const baseUrl = getBaseUrl();
-  const subject = `${appName}: Course updated - ${payload.courseTitle}`;
-  const text = `${payload.courseTitle} has been updated. ${payload.highlights}`;
-  const html = wrapHtmlContent('Course updated', `
-    <p>Hello,</p>
-    <p>The course <strong>${payload.courseTitle}</strong> has new updates.</p>
-    <p>${payload.highlights}</p>
-    <a class="btn" href="${baseUrl}/courses/${payload.courseId}">Open course</a>
-  `);
-
-  await sendEmail({ to: recipients, subject, text, html });
-}
-
-export async function sendCourseContentUpdateEmail(recipients: string[], payload: { courseTitle: string; contentType: 'RECORDING' | 'TUTORIAL' | 'MATERIAL'; contentTitle: string; courseId: string }) {
-  if (!recipients.length) return;
-
-  const baseUrl = getBaseUrl();
-  const labels: Record<'RECORDING' | 'TUTORIAL' | 'MATERIAL', string> = {
-    RECORDING: 'recording',
-    TUTORIAL: 'tutorial',
-    MATERIAL: 'course material',
-  };
-  const contentLabel = labels[payload.contentType];
-  const subject = `${appName}: New ${contentLabel} in ${payload.courseTitle}`;
-  const text = `A new ${contentLabel} (${payload.contentTitle}) was added to ${payload.courseTitle}.`;
-  const html = wrapHtmlContent(`New ${contentLabel} available`, `
-    <p>Hello,</p>
-    <p>A new ${contentLabel} has been added to <strong>${payload.courseTitle}</strong>.</p>
-    <p><strong>Title:</strong> ${payload.contentTitle}</p>
-    <a class="btn" href="${baseUrl}/courses/${payload.courseId}">Open course</a>
-  `);
-
-  await sendEmail({ to: recipients, subject, text, html });
-}
-
-export async function sendClassStartingReminderEmail(
-  to: string,
-  payload: {
-    studentName: string;
-    courseTitle: string;
-    classDay: string;
-    classStartTime: string;
-    startsInMinutes: number;
-    courseId: string;
-    scheduleNote?: string | null;
-  }
-) {
-  const baseUrl = getBaseUrl();
-  const subject = `${appName}: ${payload.courseTitle} starts in ${payload.startsInMinutes} minutes`;
-  const text = `Hi ${payload.studentName}, your class ${payload.courseTitle} starts in ${payload.startsInMinutes} minutes (${payload.classDay} at ${payload.classStartTime}).`;
-  const noteLine = payload.scheduleNote ? `<p><strong>Class note:</strong> ${payload.scheduleNote}</p>` : '';
-  const html = wrapHtmlContent('Class starts soon', `
-    <p>Hi ${payload.studentName},</p>
-    <p>Your class <strong>${payload.courseTitle}</strong> starts in <strong>${payload.startsInMinutes} minutes</strong>.</p>
-    <p><strong>Schedule:</strong> ${payload.classDay} at ${payload.classStartTime}</p>
-    ${noteLine}
-    <a class="btn" href="${baseUrl}/dashboard/student/course/${payload.courseId}">Open course</a>
-  `);
-
-  await sendEmail({ to, subject, text, html });
-}
-
-export async function sendAnnouncementUpdatedEmail(recipients: string[], payload: { title: string; summary: string; announcementId: string }) {
-  if (!recipients.length) return;
-
-  const baseUrl = getBaseUrl();
-  const subject = `${appName}: Announcement updated - ${payload.title}`;
-  const text = `The announcement \"${payload.title}\" was updated. Check the latest details on ${appName}.`;
-  const html = wrapHtmlContent('Announcement updated', `
-    <p>Hello,</p>
-    <p>The announcement <strong>${payload.title}</strong> has been updated.</p>
-    <p>${payload.summary}</p>
-    <a class="btn" href="${baseUrl}/announcements/${payload.announcementId}">Read update</a>
-  `);
-
-  await sendEmail({ to: recipients, subject, text, html });
-}
-
-
-
