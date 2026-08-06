@@ -55,8 +55,16 @@ export async function POST(req: Request, props: { params: Promise<{ paymentId: s
       return NextResponse.json({ error: 'This payment has no receipt to scan.' }, { status: 400 });
     }
 
+    // Earlier versions of the reader could return the label instead of its
+    // value ("NUMBER", "DETAILS") when a slip put the two on separate lines.
+    // A cached reference with no digits in it is one of those, so re-read it
+    // rather than showing the admin a word. A cached *null* is left alone —
+    // that is a real "nothing found", and re-running OCR costs seconds.
+    const cachedIsJunk =
+      payment.ocrReference !== null && !/\d/.test(payment.ocrReference);
+
     // Serve the cached read unless a re-scan was explicitly requested.
-    if (payment.ocrScannedAt && !force) {
+    if (payment.ocrScannedAt && !force && !cachedIsJunk) {
       return NextResponse.json({
         cached: true,
         referenceNumber: payment.ocrReference,

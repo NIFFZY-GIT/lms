@@ -84,9 +84,15 @@ function coerceDigits(token: string): string {
  * A *leading* alphabetic run is a real prefix banks use ("TX8845120") and is
  * preserved; letters appearing inside the digit run are OCR errors and get
  * coerced to their digit lookalikes.
+ *
+ * `exact` turns the coercion off. PDF text is read, not guessed, so a letter
+ * inside it is genuinely a letter — coercing a digitally generated reference
+ * like "FT24012ABC123" would silently corrupt it.
  */
-function normaliseReference(token: string): string {
+function normaliseReference(token: string, exact: boolean): string {
   const cleaned = token.replace(/[^A-Za-z0-9]/g, '');
+  if (exact) return cleaned.toUpperCase();
+
   const split = cleaned.match(/^([A-Za-z]*)(.*)$/);
   if (!split) return cleaned.toUpperCase();
 
@@ -95,27 +101,89 @@ function normaliseReference(token: string): string {
   return digits.length >= 4 ? `${prefix.toUpperCase()}${digits}` : cleaned.toUpperCase();
 }
 
-const REFERENCE_LABELS =
-  /(?:reference|referance|refrence|ref(?:erence)?\s*(?:no|num|number|#)?|transaction\s*(?:id|no|number|ref)?|txn\s*(?:id|no)?|receipt\s*(?:no|number)|slip\s*(?:no|number)|journal\s*(?:no)?|trace\s*(?:no)?)/i;
+// Banks label the one number that identifies a transfer in a dozen different
+// ways — all of these name the same field. A qualifier ("no", "id", "code") is
+// required after the noun-style labels: bare "Transaction" also heads
+// "Transaction Date" and "Transaction Successful", which carry no reference.
+const REFERENCE_LABELS = new RegExp(
+  '\\b(?:' +
+    // Reference No. / Ref # / Payment Reference / Beneficiary Ref, plus the
+    // misspellings OCR produces. Here the qualifier is optional: the word
+    // "reference" on its own already means this field.
+    'ref(?:erence|erance|rence|erenc)?\\s*(?:no\\.?|num(?:ber)?|code|id|#)?' +
+    // Transaction ID / Txn No / Trx Ref / Transfer Reference
+    '|(?:transaction|transfer|txn|trx|tran|trans)\\s*(?:id|no\\.?|num(?:ber)?|code|ref(?:erence)?)' +
+    // The names printed on counter and ATM slips
+    '|(?:receipt|slip|voucher|journal|trace|audit|sequence|seq|serial|document|doc|' +
+    'confirmation|approval|auth(?:orisation|orization)?)\\s*(?:no\\.?|num(?:ber)?|code|id|#)' +
+    // Acronyms that are never anything but the reference
+    '|utr|rrn|arn' +
+    '|(?:payment|order|instruction)\\s*id' +
+  ')\\b',
+  'i'
+);
+
+// A labelled line that is really about *when* the transfer happened. "Value
+// Date" and "Transaction Date" otherwise hand back the date as a reference.
+const NOT_A_REFERENCE_LINE = /\b(?:date|time|balance)\b/i;
+
+const DATE_OR_TIME_TOKEN = /^\d{1,4}[-/.]\d{1,2}[-/.]\d{1,4}$|^\d{1,2}:\d{2}(?::\d{2})?$/;
+
+/**
+ * Pulls a reference-shaped value out of the text following a label.
+ *
+ * Requires four digits in the result: it is what separates a real reference
+ * from the free-text a "Reference" field often carries instead ("Reference:
+ * School Fees"), and a wrong suggestion is worse than none.
+ */
+function matchReferenceToken(segment: string | null, exact: boolean): string | null {
+  if (!segment) return null;
+
+  // Allow letter-prefixed refs (e.g. "TX8845120"), then normalise OCR slips.
+  const token = segment.match(/[:\s.#-]*([A-Za-z0-9][A-Za-z0-9/-]{5,29})/);
+  if (!token || DATE_OR_TIME_TOKEN.test(token[1])) return null;
+
+  const normalised = normaliseReference(token[1], exact);
+  const digitCount = normalised.replace(/\D/g, '').length;
+  return normalised.length >= 6 && digitCount >= 4 ? normalised : null;
+}
+
+function nextNonEmptyLine(lines: string[], from: number): string | null {
+  for (let i = from + 1; i < lines.length && i <= from + 2; i++) {
+    if (lines[i].trim()) return lines[i];
+  }
+  return null;
+}
 
 /**
  * Prefers a number that sits next to a "Reference No." style label; falls back
  * to the longest standalone digit run, which is what most slips use.
  */
-export function extractReferenceNumber(text: string): string | null {
+export function extractReferenceNumber(text: string, exact = false): string | null {
   const lines = text.split(/\r?\n/);
 
-  for (const line of lines) {
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (NOT_A_REFERENCE_LINE.test(line)) continue;
+
     const labelMatch = line.match(REFERENCE_LABELS);
     if (!labelMatch) continue;
 
     const after = line.slice(labelMatch.index! + labelMatch[0].length);
-    // Allow letter-prefixed refs (e.g. "TX8845120"), then normalise OCR slips.
-    const token = after.match(/[:\s.#-]*([A-Za-z0-9][A-Za-z0-9/-]{5,29})/);
-    if (!token) continue;
+    const sameLine = matchReferenceToken(after, exact);
+    if (sameLine) return sameLine;
 
-    const normalised = normaliseReference(token[1]);
-    if (normalised.length >= 6) return normalised;
+    // A two-column slip extracted from PDF puts the label and its value on
+    // separate lines, so a label with no number after it means "look below".
+    // Tested on the remainder rather than on emptiness because the tail is
+    // often a second label word ("Reference Details", "Ref Number :").
+    if (!/\d/.test(after)) {
+      const belowLine = nextNonEmptyLine(lines, i);
+      const below = belowLine && !NOT_A_REFERENCE_LINE.test(belowLine)
+        ? matchReferenceToken(belowLine, exact)
+        : null;
+      if (below) return below;
+    }
   }
 
   // No label found. Suggesting the wrong number is worse than suggesting
@@ -229,7 +297,8 @@ export async function scanReceipt(buffer: Buffer): Promise<ReceiptScan | null> {
       return {
         source: 'PDF_TEXT',
         text,
-        referenceNumber: extractReferenceNumber(text),
+        // Exact: no OCR digit-correction, the text was read rather than guessed.
+        referenceNumber: extractReferenceNumber(text, true),
         amount: extractAmount(text),
         confidence: null,
       };

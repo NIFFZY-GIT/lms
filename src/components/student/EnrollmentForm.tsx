@@ -22,6 +22,12 @@ const enrollFreeCourse = async ({ courseId }: { courseId: string }) => {
     return (await axios.post('/api/payments/upload', formData)).data;
 };
 
+// A PDF straight from a banking app carries exact text, so the reference number
+// and amount are read reliably; a photo has to go through OCR and often needs
+// the admin to re-key it. Worth steering students towards the PDF.
+const isPdfFile = (file: File) =>
+    file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
+
 export function EnrollmentForm({ courseId, isFree = false }: { courseId: string; isFree?: boolean }) {
     const [file, setFile] = useState<File | null>(null);
     const [error, setError] = useState<string | null>(null); // State for file validation errors
@@ -58,7 +64,7 @@ export function EnrollmentForm({ courseId, isFree = false }: { courseId: string;
         if (selectedFile) {
             // Optional: Add file size validation
             if (selectedFile.size > 10 * 1024 * 1024) { // 10MB limit
-                setError('File is too large. Please upload an image smaller than 10MB.');
+                setError('File is too large. Please upload a PDF or image smaller than 10MB.');
                 setFile(null);
                 e.target.value = ''; // Reset the input
                 return;
@@ -94,20 +100,41 @@ export function EnrollmentForm({ courseId, isFree = false }: { courseId: string;
             ) : (
                 <>
                     <div>
-                        <label htmlFor="receipt-upload" className="block text-sm font-medium text-gray-700">Upload Bank Receipt</label>
-                        <input 
+                        <label htmlFor="receipt-upload" className="block text-sm font-medium text-gray-700">Upload Bank Transfer Slip</label>
+                        <p className="mt-1 text-sm text-blue-800 bg-blue-50 border border-blue-200 rounded-md p-3">
+                            <strong>Please upload the PDF slip of your transfer.</strong> In your banking app
+                            or online banking, open the completed transfer and choose Download / Share
+                            receipt as PDF, then upload that file here. PDF slips are read exactly, so your
+                            payment is verified and approved much faster.
+                            <span className="block mt-1 text-blue-700">
+                                Paid over the counter or at an ATM? A clear photo or screenshot of the slip is still accepted.
+                            </span>
+                        </p>
+                        <input
                             id="receipt-upload"
                             type="file"
                             required
-                            accept="image/png, image/jpeg, image/jpg, application/pdf"
+                            accept="application/pdf, image/png, image/jpeg, image/jpg"
                             onChange={handleFileChange}
                             // This resets the input so re-selecting the same file triggers onChange.
                             onClick={(event: React.MouseEvent<HTMLInputElement>) => {
                                 (event.target as HTMLInputElement).value = '';
                             }}
-                            className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
+                            className="mt-3 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
                         />
-                        {file && <p className="text-xs text-gray-500 mt-2">Selected file: {file.name}</p>}
+                        {file && (
+                            isPdfFile(file) ? (
+                                <p className="text-xs text-green-700 mt-2">
+                                    PDF slip selected: {file.name}
+                                </p>
+                            ) : (
+                                <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md p-2 mt-2">
+                                    Selected image: {file.name} — if this was an online transfer, please
+                                    upload the PDF slip from your banking app instead. It is easier to
+                                    verify and gets approved faster.
+                                </p>
+                            )
+                        )}
                         {error && <p className="text-sm text-red-600 mt-2">{error}</p>}
                     </div>
                     <button type="submit" disabled={!file || mutation.isPending} className="btn-primary w-full">
