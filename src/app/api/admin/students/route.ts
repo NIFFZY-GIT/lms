@@ -3,6 +3,20 @@ import { db } from '../../../../lib/db';
 import { getServerUser } from '../../../../lib/auth';
 import { Role, StudentCourseInfo } from '../../../../types';
 
+interface StudentPaymentHistoryEntry {
+  courseId: string;
+  courseTitle: string;
+  paidMonths: number[];
+  unpaidMonths: number[];
+  payments: Array<{
+    id: string;
+    status: 'PENDING' | 'APPROVED' | 'REJECTED';
+    createdAt: string;
+    month: number;
+    monthLabel: string;
+  }>;
+}
+
 export async function GET(req: NextRequest) {
   try {
     const user = await getServerUser([Role.ADMIN, Role.INSTRUCTOR]);
@@ -78,9 +92,6 @@ export async function GET(req: NextRequest) {
     const students = result.rows.map(student => {
       const formattedCourses = (student.courses as StudentCourseInfo[]).map(course => ({
         ...course,
-        // Safely convert the score to a number.
-        // String() handles null/undefined gracefully, turning them into "null" or "undefined",
-        // which parseFloat correctly parses as NaN, triggering the null fallback.
         highestScore: course.highestScore ? parseFloat(String(course.highestScore)) : null,
       }));
 
@@ -91,7 +102,84 @@ export async function GET(req: NextRequest) {
       };
     });
 
-    return NextResponse.json(students);
+    if (!students.length) {
+      return NextResponse.json([]);
+    }
+
+    const studentIds = students.map(student => student.id);
+    const paymentHistoryResult = await db.query<{
+      studentId: string;
+      courseId: string;
+      courseTitle: string;
+      status: 'PENDING' | 'APPROVED' | 'REJECTED';
+      createdAt: string;
+    }>(`
+      SELECT p."studentId", c.id AS "courseId", c.title AS "courseTitle", p.status, p."createdAt"
+      FROM "Payment" p
+      JOIN "Course" c ON p."courseId" = c.id
+      WHERE p."studentId" = ANY($1)
+      ORDER BY p."studentId", c.title, p."createdAt" ASC
+    `, [studentIds]);
+
+    const paymentHistoryMap = new Map<string, Map<string, StudentPaymentHistoryEntry>>();
+
+    for (const payment of paymentHistoryResult.rows) {
+      if (!paymentHistoryMap.has(payment.studentId)) {
+        paymentHistoryMap.set(payment.studentId, new Map());
+      }
+
+      const historyByCourse = paymentHistoryMap.get(payment.studentId)!;
+      if (!historyByCourse.has(payment.courseId)) {
+        historyByCourse.set(payment.courseId, {
+          courseId: payment.courseId,
+          courseTitle: payment.courseTitle,
+          paidMonths: [],
+          unpaidMonths: [],
+          payments: [],
+        });
+      }
+
+      const courseHistory = historyByCourse.get(payment.courseId)!;
+      const paymentDate = new Date(payment.createdAt);
+      const monthNumber = paymentDate.getUTCMonth() + 1;
+      const monthLabel = new Intl.DateTimeFormat('en-US', { month: 'short' }).format(paymentDate);
+
+      courseHistory.payments.push({
+        id: `${payment.studentId}-${payment.courseId}-${payment.createdAt}`,
+        status: payment.status,
+        createdAt: payment.createdAt,
+        month: monthNumber,
+        monthLabel,
+      });
+    }
+
+    const monthNumbers = Array.from({ length: 12 }, (_, index) => index + 1);
+
+    const studentsWithPaymentHistory = students.map(student => {
+      const historyForStudent = Array.from(paymentHistoryMap.get(student.id)?.values() ?? []).map(courseHistory => {
+        const paidMonthSet = new Set(
+          courseHistory.payments
+            .filter(payment => payment.status === 'APPROVED')
+            .map(payment => payment.month)
+        );
+
+        const paidMonths = monthNumbers.filter(month => paidMonthSet.has(month));
+        const unpaidMonths = monthNumbers.filter(month => !paidMonthSet.has(month));
+
+        return {
+          ...courseHistory,
+          paidMonths,
+          unpaidMonths,
+        };
+      });
+
+      return {
+        ...student,
+        paymentHistory: historyForStudent,
+      };
+    });
+
+    return NextResponse.json(studentsWithPaymentHistory);
   } catch (error) {
     console.error("Fetch students error:", error);
     return NextResponse.json({ error: "Failed to fetch students" }, { status: 500 });

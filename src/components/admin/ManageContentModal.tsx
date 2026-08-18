@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'; 
 import axios, { AxiosError } from 'axios';
 import { useForm } from 'react-hook-form';
@@ -68,26 +68,36 @@ export function ManageContentModal({ isOpen, onClose, course }: { isOpen: boolea
     const queryClient = useQueryClient();
 
   // --- Materials Management Hooks ---
-  const { register: registerMaterial, handleSubmit: handleMaterialSubmit } = useForm<MaterialFormData>({
+  const { register: registerMaterial, handleSubmit: handleMaterialSubmit, reset } = useForm<MaterialFormData>({
     resolver: zodResolver(materialSchema),
     defaultValues: { zoomLink: course.zoomLink || '' },
   });
 
+  useEffect(() => {
+    reset({ zoomLink: course.zoomLink || '' });
+  }, [course.id, course.zoomLink, reset]);
+
   // Re-use the main course update mutation for all course detail changes
   const updateCourseMutation = useMutation({
       mutationFn: updateCourse,
-      onSuccess: () => {
+      onSuccess: (updatedCourse) => {
           queryClient.invalidateQueries({ queryKey: ['courses'] });
+          queryClient.setQueryData<Course[]>(['courses'], (oldCourses) => {
+              if (!oldCourses) return oldCourses;
+              return oldCourses.map((existingCourse) =>
+                  existingCourse.id === course.id
+                      ? { ...existingCourse, zoomLink: updatedCourse.zoomLink ?? '' }
+                      : existingCourse
+              );
+          });
           toast.success('Course details updated successfully!');
       },
       onError: (error: AxiosError<{ error?: string }>) => toast.error(error.response?.data?.error || error.message)
   });
 
-  // --- THIS IS THE FIX ---
-  // The submit handler now constructs FormData, matching the backend's expectation.
   const onZoomLinkSubmit = (data: MaterialFormData) => {
     const formData = new FormData();
-    formData.append('zoomLink', data.zoomLink || '');
+    formData.append('zoomLink', data.zoomLink ?? '');
     updateCourseMutation.mutate({ id: course.id, data: formData });
   };
   
@@ -166,7 +176,7 @@ export function ManageContentModal({ isOpen, onClose, course }: { isOpen: boolea
         <div className="pt-6 min-h-[400px]">
             {activeTab === 'materials' && (
                 <div className="space-y-8">
-                    <form onSubmit={handleMaterialSubmit(onZoomLinkSubmit)} className="space-y-2">
+                    <form key={course.id} onSubmit={handleMaterialSubmit(onZoomLinkSubmit)} className="space-y-2">
                          <h3 className="text-lg font-medium text-gray-900 flex items-center"><LinkIcon className="w-5 h-5 mr-2" /> Zoom Meeting Link</h3>
                         <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                            <div className="w-full sm:flex-1"><Input label="" registration={registerMaterial('zoomLink')} placeholder="https://zoom.us/j/..."/></div>

@@ -142,8 +142,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ course
         const price = formData.get('price') as string;
         const courseType = formData.get('courseType') as string;
         const tutor = formData.get('tutor') as string;
-        const zoomLink = formData.get('zoomLink') as string;
-        const whatsappGroupLink = formData.get('whatsappGroupLink') as string;
+        const zoomLink = formData.get('zoomLink') as string | null;
+        const whatsappGroupLink = formData.get('whatsappGroupLink') as string | null;
         const subject = formData.get('subject');
         const grade = formData.get('grade');
         const medium = formData.get('medium');
@@ -166,8 +166,18 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ course
             changedFields.push('course type');
         }
         if(tutor) { fields.push(`tutor = $${queryIndex++}`); values.push(tutor); changedFields.push('tutor'); }
-        if(zoomLink) { fields.push(`"zoomLink" = $${queryIndex++}`); values.push(zoomLink); changedFields.push('zoom link'); }
-        if(whatsappGroupLink) { fields.push(`"whatsappGroupLink" = $${queryIndex++}`); values.push(whatsappGroupLink); changedFields.push('whatsapp link'); }
+        if (formData.has('zoomLink')) {
+            const normalizedZoomLink = typeof zoomLink === 'string' ? zoomLink.trim() : null;
+            fields.push(`"zoomLink" = $${queryIndex++}`);
+            values.push(normalizedZoomLink || null);
+            changedFields.push('zoom link');
+        }
+        if (formData.has('whatsappGroupLink')) {
+            const normalizedWhatsappGroupLink = typeof whatsappGroupLink === 'string' ? whatsappGroupLink.trim() : null;
+            fields.push(`"whatsappGroupLink" = $${queryIndex++}`);
+            values.push(normalizedWhatsappGroupLink || null);
+            changedFields.push('whatsapp link');
+        }
         if (subject !== null) {
             fields.push(`subject = $${queryIndex++}`);
             values.push(typeof subject === 'string' && subject.trim() ? subject.trim() : null);

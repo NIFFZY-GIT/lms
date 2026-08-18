@@ -19,6 +19,23 @@ interface StudentCourseInfo {
     enrollmentStatus: 'PENDING' | 'APPROVED' | 'REJECTED';
     highestScore: number | null;
 }
+
+interface PaymentMonthSnapshot {
+  id: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  createdAt: string;
+  month: number;
+  monthLabel: string;
+}
+
+interface StudentPaymentHistoryEntry {
+  courseId: string;
+  courseTitle: string;
+  paidMonths: number[];
+  unpaidMonths: number[];
+  payments: PaymentMonthSnapshot[];
+}
+
 interface Student {
   id: string;
   name: string;
@@ -27,6 +44,7 @@ interface Student {
   address: string | null;
     role: Role;
   courses: StudentCourseInfo[];
+  paymentHistory?: StudentPaymentHistoryEntry[];
 }
 
 const formatStudentDisplayId = (id: string): string => {
@@ -79,6 +97,8 @@ const MONTH_OPTIONS = [
     { value: '12', label: 'December' },
 ] as const;
 
+const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
 // --- API Functions ---
 const fetchStudents = async (searchTerm: string, courseId: string, month: string): Promise<Student[]> => (
     await axios.get(`/api/admin/students?search=${searchTerm}&courseId=${courseId}&month=${month}`)
@@ -103,6 +123,7 @@ export default function AdminStudentsPage() {
     const [courseFilter, setCourseFilter] = useState('all');
     const [monthFilter, setMonthFilter] = useState('all');
     const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+    const [selectedHistoryStudent, setSelectedHistoryStudent] = useState<Student | null>(null);
     const queryClient = useQueryClient();
 
     const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm<StudentFormData>({
@@ -309,6 +330,9 @@ export default function AdminStudentsPage() {
                                     ) : <span className="text-gray-400">No enrollments</span>}
                                 </td>
                                 <td className="px-4 sm:px-6 py-4 flex items-center space-x-2">
+                                    <button type="button" onClick={() => setSelectedHistoryStudent(student)} className="p-2 text-gray-500 hover:text-green-600" title="View payment history">
+                                        <Search className="w-4 h-4" />
+                                    </button>
                                     {isAdmin ? (
                                         <>
                                             <button type="button" onClick={() => openModalForEdit(student)} className="p-2 text-gray-500 hover:text-blue-600"><Edit className="w-4 h-4" /></button>
@@ -355,17 +379,59 @@ export default function AdminStudentsPage() {
                                         <div className="text-gray-400">No enrollments</div>
                                     )}
                                 </div>
-                                {isAdmin ? (
-                                    <div className="mt-4 grid grid-cols-2 gap-2">
-                                        <button type="button" onClick={() => openModalForEdit(student)} className="btn-secondary w-full">Edit</button>
-                                        <button type="button" onClick={() => handleDelete(student.id)} className="btn-danger w-full">Delete</button>
-                                    </div>
-                                ) : null}
+                                <div className="mt-4 flex gap-2">
+                                    <button type="button" onClick={() => setSelectedHistoryStudent(student)} className="btn-secondary flex-1">Payment history</button>
+                                    {isAdmin ? (
+                                        <>
+                                            <button type="button" onClick={() => openModalForEdit(student)} className="btn-secondary flex-1">Edit</button>
+                                            <button type="button" onClick={() => handleDelete(student.id)} className="btn-danger flex-1">Delete</button>
+                                        </>
+                                    ) : null}
+                                </div>
                             </li>
                         ))}
                     </ul>
                 </div>
             </div>
+
+            <Modal isOpen={!!selectedHistoryStudent} onClose={() => setSelectedHistoryStudent(null)} title={`Payment history - ${selectedHistoryStudent?.name ?? ''}`} size="xl">
+                <div className="space-y-5 max-h-[75vh] overflow-y-auto pr-1">
+                    {!selectedHistoryStudent?.paymentHistory?.length && (
+                        <p className="text-sm text-gray-500">No payment records for this student yet.</p>
+                    )}
+                    {selectedHistoryStudent?.paymentHistory?.map(course => (
+                        <div key={course.courseId} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                            <div className="mb-3 flex items-center justify-between gap-3">
+                                <h3 className="text-base font-semibold text-gray-900">{course.courseTitle}</h3>
+                                <span className="text-xs font-medium text-gray-600">
+                                    {course.paidMonths.length} paid / {course.unpaidMonths.length} unpaid
+                                </span>
+                            </div>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+                                {MONTH_LABELS.map((monthLabel, index) => {
+                                    const monthNumber = index + 1;
+                                    const isPaid = course.paidMonths.includes(monthNumber);
+                                    return (
+                                        <div
+                                            key={`${course.courseId}-${monthNumber}`}
+                                            className={`rounded-md border px-2 py-2 text-center text-xs font-medium ${
+                                                isPaid
+                                                    ? 'border-green-200 bg-green-100 text-green-800'
+                                                    : 'border-gray-200 bg-white text-gray-600'
+                                            }`}
+                                        >
+                                            <div>{monthLabel}</div>
+                                            <div className="mt-1 text-[10px] uppercase tracking-wide">
+                                                {isPaid ? 'Paid' : 'Unpaid'}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </Modal>
 
             <Modal isOpen={isModalOpen} onClose={closeModal} title={editingStudent ? 'Edit Student' : 'Add New Student'}>
                 <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
