@@ -145,8 +145,8 @@ const updateCourseVisibility = async ({ id, isHidden }: { id: string; isHidden: 
   formData.append('isHidden', String(isHidden));
   return (await axios.patch(`/api/courses/${id}`, formData)).data;
 };
-const forceExtendSubscription = ({ paymentId, force }: { paymentId: string; force?: boolean }) =>
-  axios.patch(`/api/payments/${paymentId}/force-extend`, { force: force ?? false });
+const updateSubscriptionExpiry = ({ paymentId, force, expiryDate }: { paymentId: string; force?: boolean; expiryDate?: string }) =>
+  axios.patch(`/api/payments/${paymentId}/force-extend`, { force: force ?? false, expiryDate });
 
 export default function AdminCoursesPage() {
   const [isCourseModalOpen, setIsCourseModalOpen] = useState(false);
@@ -158,6 +158,7 @@ export default function AdminCoursesPage() {
   const [scheduleMode, setScheduleMode] = useState<'WEEKLY' | 'RECORDED'>('RECORDED');
   const [confirmForceExtendPaymentId, setConfirmForceExtendPaymentId] = useState<string | null>(null);
   const [forceExtendConflict, setForceExtendConflict] = useState<ForceExtendConflict | null>(null);
+  const [expiryDrafts, setExpiryDrafts] = useState<Record<string, string>>({});
   const [payersCourse, setPayersCourse] = useState<Course | null>(null);
   const queryClient = useQueryClient();
 
@@ -206,13 +207,21 @@ export default function AdminCoursesPage() {
       toast.error(error.response?.data?.error || error.message || 'Failed to update course visibility');
     },
   });
-  const forceExtendMutation = useMutation({
-    mutationFn: forceExtendSubscription,
-    onSuccess: () => {
+  const expiryMutation = useMutation({
+    mutationFn: updateSubscriptionExpiry,
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['payments'] });
+      queryClient.invalidateQueries({ queryKey: ['coursePayers'] });
+      if (variables.expiryDate) {
+        setExpiryDrafts((current) => {
+          const next = { ...current };
+          delete next[variables.paymentId];
+          return next;
+        });
+      }
       setForceExtendConflict(null);
       setConfirmForceExtendPaymentId(null);
-      toast.success('Subscription extended by 1 week.');
+      toast.success(variables.expiryDate ? 'Subscription expiry date updated.' : 'Subscription extended by 1 week.');
     },
     onError: (error: AxiosError<ForceExtendConflict & { error?: string }>) => {
       const data = error.response?.data;
@@ -312,12 +321,28 @@ export default function AdminCoursesPage() {
   const handleForceExtend = (paymentId: string) => {
     setConfirmForceExtendPaymentId(paymentId);
     setForceExtendConflict(null);
-    forceExtendMutation.mutate({ paymentId, force: false });
+    expiryMutation.mutate({ paymentId, force: false });
   };
 
   const handleForceExtendConfirmed = () => {
     if (!confirmForceExtendPaymentId) return;
-    forceExtendMutation.mutate({ paymentId: confirmForceExtendPaymentId, force: true });
+    expiryMutation.mutate({ paymentId: confirmForceExtendPaymentId, force: true });
+  };
+
+  const handleSaveExpiry = (paymentId: string) => {
+    const expiryValue = expiryDrafts[paymentId];
+    if (!expiryValue) {
+      toast.error('Please choose an expiry date.');
+      return;
+    }
+
+    const expiryDate = new Date(expiryValue);
+    if (Number.isNaN(expiryDate.getTime())) {
+      toast.error('Please choose a valid expiry date.');
+      return;
+    }
+
+    expiryMutation.mutate({ paymentId, expiryDate: expiryDate.toISOString() });
   };
 
   const revenueByCourseId = new Map((revenue?.courses ?? []).map((entry) => [entry.courseId, entry]));
@@ -577,7 +602,12 @@ export default function AdminCoursesPage() {
               <div className="space-y-3 max-h-[28rem] overflow-y-auto pr-1">
                 {subscriptionPayments.map((payment) => {
                   const isExpired = payment.subscriptionExpiryDate ? isPast(new Date(payment.subscriptionExpiryDate)) : false;
-                  const isSubmitting = forceExtendMutation.isPending && confirmForceExtendPaymentId === payment.id;
+                  const isSubmitting = expiryMutation.isPending && confirmForceExtendPaymentId === payment.id;
+                  const expiryValue = expiryDrafts[payment.id] ?? (
+                    payment.subscriptionExpiryDate
+                      ? format(new Date(payment.subscriptionExpiryDate), "yyyy-MM-dd'T'HH:mm")
+                      : ''
+                  );
 
                   return (
                     <div key={payment.id} className={`border rounded-lg p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 ${isExpired ? 'border-orange-300 bg-orange-50' : 'border-gray-200 bg-white'}`}>
@@ -590,16 +620,33 @@ export default function AdminCoursesPage() {
                             : 'No expiry date set yet'}
                         </div>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => handleForceExtend(payment.id)}
-                        disabled={isSubmitting}
-                        className="btn-secondary flex items-center justify-center text-purple-700 border-purple-300 hover:bg-purple-50 min-w-36"
-                        title="Extend this subscription by 1 week"
-                      >
-                        {isSubmitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
-                        Extend 1 Week
-                      </button>
+                      <div className="flex flex-wrap items-center justify-end gap-2">
+                        <input
+                          type="datetime-local"
+                          value={expiryValue}
+                          onChange={(event) => setExpiryDrafts((current) => ({ ...current, [payment.id]: event.target.value }))}
+                          className="border border-gray-300 rounded-md px-2 py-1.5 text-sm"
+                          aria-label={`Expiry date for ${payment.studentName}`}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleSaveExpiry(payment.id)}
+                          disabled={expiryMutation.isPending}
+                          className="btn-secondary text-blue-700 border-blue-300 hover:bg-blue-50"
+                        >
+                          {expiryMutation.isPending && expiryDrafts[payment.id] ? 'Saving...' : 'Save Date'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleForceExtend(payment.id)}
+                          disabled={isSubmitting}
+                          className="btn-secondary flex items-center justify-center text-purple-700 border-purple-300 hover:bg-purple-50 min-w-36"
+                          title="Extend this subscription by 1 week"
+                        >
+                          {isSubmitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
+                          Extend 1 Week
+                        </button>
+                      </div>
                     </div>
                   );
                 })}
@@ -628,8 +675,8 @@ export default function AdminCoursesPage() {
               <button type="button" className="btn-secondary" onClick={() => { setForceExtendConflict(null); setConfirmForceExtendPaymentId(null); }}>
                 Cancel
               </button>
-              <button type="button" className="btn-primary bg-orange-600 hover:bg-orange-700 border-orange-600" onClick={handleForceExtendConfirmed} disabled={forceExtendMutation.isPending}>
-                {forceExtendMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2 inline" /> : null}
+              <button type="button" className="btn-primary bg-orange-600 hover:bg-orange-700 border-orange-600" onClick={handleForceExtendConfirmed} disabled={expiryMutation.isPending}>
+                {expiryMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2 inline" /> : null}
                 Force Extend Anyway
               </button>
             </div>

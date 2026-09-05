@@ -12,8 +12,8 @@ function getSubscriptionExpiryDate(currentExpiry: Date | null): Date {
 
 /**
  * PATCH /api/payments/[paymentId]/force-extend
- * Admin-only: Force-extend a subscription payment's expiry by one week.
- * Body: { force?: boolean }  - pass force:true to override an existing active subscription conflict
+ * Admin-only: Extend a subscription payment by one week or set its expiry date.
+ * Body: { force?: boolean, expiryDate?: string }
  */
 export async function PATCH(req: Request, props: { params: Promise<{ paymentId: string }> }) {
   try {
@@ -22,6 +22,11 @@ export async function PATCH(req: Request, props: { params: Promise<{ paymentId: 
     const paymentId: string = resolvedParams.paymentId;
     const body = await req.json().catch(() => ({}));
     const force: boolean = body.force === true;
+    const requestedExpiryDate = typeof body.expiryDate === 'string' ? body.expiryDate : null;
+
+    if (requestedExpiryDate && Number.isNaN(new Date(requestedExpiryDate).getTime())) {
+      return NextResponse.json({ error: 'Please provide a valid expiry date.' }, { status: 400 });
+    }
 
     // --- Fetch the target payment alongside its course type ---
     const paymentResult = await db.query<{
@@ -50,7 +55,9 @@ export async function PATCH(req: Request, props: { params: Promise<{ paymentId: 
       return NextResponse.json({ error: 'Force-extend is only available for subscription courses.' }, { status: 400 });
     }
 
-    const newExpiry = getSubscriptionExpiryDate(payment.subscriptionExpiryDate);
+    const newExpiry = requestedExpiryDate
+      ? new Date(requestedExpiryDate)
+      : getSubscriptionExpiryDate(payment.subscriptionExpiryDate);
 
     // --- Conflict check: is there ANOTHER approved active subscription for the same student+course? ---
     const conflictResult = await db.query<{ id: string; subscriptionExpiryDate: Date }>(
@@ -86,7 +93,9 @@ export async function PATCH(req: Request, props: { params: Promise<{ paymentId: 
     );
 
     return NextResponse.json({
-      message: 'Subscription successfully extended by one week.',
+      message: requestedExpiryDate
+        ? 'Subscription expiry date updated successfully.'
+        : 'Subscription successfully extended by one week.',
       payment: updateResult.rows[0],
     });
   } catch (error) {

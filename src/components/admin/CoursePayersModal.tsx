@@ -201,6 +201,11 @@ export function CoursePayersModal({
                     Paid {format(new Date(student.paidAt), 'PP')}
                     {student.referenceNumber ? ` · Ref ${student.referenceNumber}` : ''}
                   </div>
+                  {student.subscriptionExpiryDate && (
+                    <div className="mt-1 text-xs font-medium text-gray-600">
+                      Expires {format(new Date(student.subscriptionExpiryDate), 'PPp')}
+                    </div>
+                  )}
                 </li>
               ))}
             </ul>
