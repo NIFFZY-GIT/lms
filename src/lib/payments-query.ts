@@ -66,6 +66,8 @@ export function buildPaymentsSql({
         p."subscriptionExpiryDate",
         p."studentId",
         u.name as "studentName",
+        u.email as "studentEmail",
+        u.phone as "studentPhone",
         c.title as "courseTitle",
         c.id as "courseId",
         c."courseType"${priceColumn}${duplicateColumns}

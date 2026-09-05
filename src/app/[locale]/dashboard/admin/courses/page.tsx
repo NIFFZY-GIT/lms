@@ -9,7 +9,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Course } from '@/types';
 import { Input } from '@/components/ui/Input';
-import { Plus, Edit, Trash2, BookCopy, RefreshCw, Loader2, AlertTriangle, Eye, EyeOff, Users } from 'lucide-react';
+import { Plus, Edit, Trash2, BookCopy, RefreshCw, Loader2, AlertTriangle, Eye, EyeOff, Users, Search, X } from 'lucide-react';
 import { ManageContentModal } from '@/components/admin/ManageContentModal';
 import { CoursePayersModal } from '@/components/admin/CoursePayersModal';
 import { formatCurrency } from '@/lib/utils';
@@ -101,6 +101,8 @@ type Payment = {
   id: string;
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
   studentName: string;
+  studentEmail: string;
+  studentPhone: string | null;
   studentId: string;
   courseId: string;
   courseTitle: string;
@@ -159,6 +161,7 @@ export default function AdminCoursesPage() {
   const [confirmForceExtendPaymentId, setConfirmForceExtendPaymentId] = useState<string | null>(null);
   const [forceExtendConflict, setForceExtendConflict] = useState<ForceExtendConflict | null>(null);
   const [expiryDrafts, setExpiryDrafts] = useState<Record<string, string>>({});
+  const [subscriptionSearch, setSubscriptionSearch] = useState('');
   const [payersCourse, setPayersCourse] = useState<Course | null>(null);
   const queryClient = useQueryClient();
 
@@ -265,6 +268,7 @@ export default function AdminCoursesPage() {
   const openContentManager = (course: Course) => { setSelectedCourse(course); setIsContentModalOpen(true); };
   const openSubscriptionManager = (course: Course) => {
     setSubscriptionCourse(course);
+    setSubscriptionSearch('');
     setForceExtendConflict(null);
     setConfirmForceExtendPaymentId(null);
   };
@@ -353,6 +357,13 @@ export default function AdminCoursesPage() {
     payment.courseType === 'SUBSCRIPTION' &&
     payment.status === 'APPROVED'
   ) ?? [];
+  const normalizedSubscriptionSearch = subscriptionSearch.trim().toLowerCase();
+  const filteredSubscriptionPayments = subscriptionPayments.filter((payment) => {
+    if (!normalizedSubscriptionSearch) return true;
+    return [payment.studentName, payment.studentEmail, payment.studentPhone]
+      .filter(Boolean)
+      .some((value) => value!.toLowerCase().includes(normalizedSubscriptionSearch));
+  });
 
   return (
     <div className="space-y-8">
@@ -588,10 +599,10 @@ export default function AdminCoursesPage() {
       </Modal>
 
       {subscriptionCourse && (
-        <Modal isOpen={!!subscriptionCourse} onClose={closeSubscriptionManager} title={`Extend Subscriptions: ${subscriptionCourse.title}`}>
+        <Modal isOpen={!!subscriptionCourse} onClose={closeSubscriptionManager} title={`Manage Student Expiry: ${subscriptionCourse.title}`}>
           <div className="space-y-4">
             <p className="text-sm text-gray-600">
-              Extend approved subscription payments for this course by 1 week.
+              View each student&apos;s expiry date, search by contact details, or update access time.
             </p>
 
             {isPaymentsLoading ? (
@@ -599,8 +610,39 @@ export default function AdminCoursesPage() {
             ) : subscriptionPayments.length === 0 ? (
               <div className="py-8 text-sm text-gray-500">No approved subscription payments found for this course.</div>
             ) : (
-              <div className="space-y-3 max-h-[28rem] overflow-y-auto pr-1">
-                {subscriptionPayments.map((payment) => {
+              <>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" aria-hidden="true" />
+                  <input
+                    type="search"
+                    value={subscriptionSearch}
+                    onChange={(event) => setSubscriptionSearch(event.target.value)}
+                    placeholder="Search by name, email, or phone number"
+                    aria-label="Search students by name, email, or phone number"
+                    className="w-full rounded-lg border border-gray-300 py-2.5 pl-9 pr-10 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  />
+                  {subscriptionSearch && (
+                    <button
+                      type="button"
+                      onClick={() => setSubscriptionSearch('')}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                      aria-label="Clear student search"
+                      title="Clear search"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+                <div className="text-xs text-gray-500">
+                  Showing {filteredSubscriptionPayments.length} of {subscriptionPayments.length} students
+                </div>
+                {filteredSubscriptionPayments.length === 0 ? (
+                  <div className="rounded-lg border border-dashed border-gray-300 py-8 text-center text-sm text-gray-500">
+                    No students match &quot;{subscriptionSearch}&quot;.
+                  </div>
+                ) : (
+                  <div className="space-y-3 max-h-[28rem] overflow-y-auto pr-1">
+                {filteredSubscriptionPayments.map((payment) => {
                   const isExpired = payment.subscriptionExpiryDate ? isPast(new Date(payment.subscriptionExpiryDate)) : false;
                   const isSubmitting = expiryMutation.isPending && confirmForceExtendPaymentId === payment.id;
                   const expiryValue = expiryDrafts[payment.id] ?? (
@@ -613,7 +655,9 @@ export default function AdminCoursesPage() {
                     <div key={payment.id} className={`border rounded-lg p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 ${isExpired ? 'border-orange-300 bg-orange-50' : 'border-gray-200 bg-white'}`}>
                       <div>
                         <div className="font-semibold text-gray-900">{payment.studentName}</div>
-                        <div className="text-sm text-gray-500">Payment ID: {payment.id}</div>
+                        <div className="text-sm text-gray-500 break-all">{payment.studentEmail}</div>
+                        {payment.studentPhone && <div className="text-sm text-gray-500">{payment.studentPhone}</div>}
+                        <div className="text-xs text-gray-400 mt-1">Payment ID: {payment.id}</div>
                         <div className={`text-sm mt-1 ${isExpired ? 'text-red-600 font-medium' : 'text-gray-600'}`}>
                           {payment.subscriptionExpiryDate
                             ? `${isExpired ? 'Expired on' : 'Active until'} ${format(new Date(payment.subscriptionExpiryDate), 'PPPp')}`
@@ -650,7 +694,9 @@ export default function AdminCoursesPage() {
                     </div>
                   );
                 })}
-              </div>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </Modal>
