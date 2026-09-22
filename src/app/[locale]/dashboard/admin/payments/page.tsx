@@ -86,9 +86,11 @@ const REJECTION_PRESETS = [
   'We could not verify this payment with the bank.',
   'The receipt is incomplete — the reference number is not visible.',
 ];
-const verifyRefNumber = async (refNumber: string): Promise<VerificationResult> => {
+const verifyRefNumber = async ({ refNumber, paymentId }: { refNumber: string; paymentId: string }): Promise<VerificationResult> => {
     if (!refNumber.trim()) return { isDuplicate: false };
-    const { data } = await axios.get(`/api/payments/verify/${refNumber.trim()}`);
+    const { data } = await axios.get(`/api/payments/verify/${encodeURIComponent(refNumber.trim())}`, {
+      params: { paymentId },
+    });
     return data;
 };
 const forceExtendSubscription = ({ paymentId, force }: { paymentId: string; force?: boolean }) =>
@@ -322,9 +324,9 @@ export default function AdminPaymentsPage() {
       rejectMutation.mutate({ paymentId: selectedPayment.id, reason: rejectReason.trim() });
     };
     const handleVerify = () => {
-      if (!refNumber) return;
+      if (!selectedPayment || !refNumber) return;
       setVerificationResult(null); // always clear stale result before a new check
-      verifyMutation.mutate(refNumber);
+      verifyMutation.mutate({ refNumber, paymentId: selectedPayment.id });
     };
     const closeModal = () => {
       setSelectedPayment(null);

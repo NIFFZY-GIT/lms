@@ -54,11 +54,15 @@ export async function GET(req: Request, { params }: { params: Promise<{ courseId
                 subscriptionExpiryDate: string | null;
                 rejectionReason: string | null;
             }>(
-                `SELECT status, "subscriptionExpiryDate"${withReason ? ', "rejectionReason"' : ', NULL AS "rejectionReason"'}
-                 FROM "Payment"
-                 WHERE "studentId" = $1 AND "courseId" = $2
-                 ORDER BY "createdAt" DESC
-                 LIMIT 1`,
+                                `SELECT status, "subscriptionExpiryDate"${withReason ? ', "rejectionReason"' : ', NULL AS "rejectionReason"'}
+                                 FROM "Payment"
+                                 WHERE "studentId" = $1 AND "courseId" = $2
+                                 ORDER BY
+                                     CASE WHEN status = 'APPROVED'
+                                                         AND "subscriptionExpiryDate" > CURRENT_TIMESTAMP
+                                                THEN 0 ELSE 1 END,
+                                     "createdAt" DESC
+                                 LIMIT 1`,
                 [user.id, courseId]
             );
 

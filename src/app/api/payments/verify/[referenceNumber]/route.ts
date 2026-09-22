@@ -7,6 +7,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ referenc
   try {
     await getServerUser(Role.ADMIN);
     const { referenceNumber } = await params;
+    const currentPaymentId = new URL(req.url).searchParams.get('paymentId');
 
     if (!referenceNumber || referenceNumber.trim() === '') {
       return NextResponse.json({ error: 'Reference number is required.' }, { status: 400 });
@@ -29,10 +30,11 @@ export async function GET(req: Request, { params }: { params: Promise<{ referenc
       JOIN "User" u ON p."studentId" = u.id
       JOIN "Course" c ON p."courseId" = c.id
       WHERE p."referenceNumber" = $1
-        AND p.status = 'APPROVED';
+        AND p.status = 'APPROVED'
+        AND ($2::varchar IS NULL OR p.id <> $2);
     `;
     
-    const result = await db.query(sql, [sanitizedRef]);
+      const result = await db.query(sql, [sanitizedRef, currentPaymentId]);
 
     if (result.rows.length > 0) {
       return NextResponse.json({ isDuplicate: true, payment: result.rows[0] });
