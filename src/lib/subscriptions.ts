@@ -1,15 +1,10 @@
 import 'server-only';
-import { lastDayOfMonth } from 'date-fns';
 
 /**
- * Get the subscription expiry date for the current month
- * Returns the last day of the current month at 23:59:59
+ * Get the subscription expiry date 30 days from now.
  */
 export function getSubscriptionExpiryDate(): Date {
-  const now = new Date();
-  const endOfMonth = lastDayOfMonth(now);
-  endOfMonth.setHours(23, 59, 59, 999);
-  return endOfMonth;
+  return new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 }
 
 /**

@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
-import { lastDayOfMonth } from 'date-fns';
 import { db } from '@/lib/db';
 import { getServerUser } from '@/lib/auth';
 import { Role } from '@/types';
+import { getSubscriptionExpiryDate as getThirtyDayExpiryDate } from '@/lib/subscriptions';
 
 type CourseRow = {
   id: string;
@@ -15,20 +15,11 @@ type CourseRow = {
 function getSubscriptionExpiryDate(duration?: string): Date {
   const now = new Date();
   if (duration === '1_week') {
-    const d = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-    d.setHours(23, 59, 59, 999);
-    return d;
+    const expiry = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    expiry.setHours(23, 59, 59, 999);
+    return expiry;
   }
-  if (duration === '1_month') {
-    const d = new Date(now);
-    d.setMonth(d.getMonth() + 1);
-    d.setHours(23, 59, 59, 999);
-    return d;
-  }
-  // default: end of current month
-  const endOfMonth = lastDayOfMonth(now);
-  endOfMonth.setHours(23, 59, 59, 999);
-  return endOfMonth;
+  return getThirtyDayExpiryDate();
 }
 
 export async function POST(req: Request) {

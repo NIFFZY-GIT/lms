@@ -11,17 +11,9 @@ import {
   sendPaymentApprovedEmail,
   sendReceiptUploadedEmailToAdmins,
 } from '@/lib/notify';
-import { lastDayOfMonth } from 'date-fns';
 import { ensureCourseVisibilityColumn } from '@/lib/course-visibility';
 import { fingerprintPaymentReceipt } from '@/lib/receipt-duplicates';
-
-// Helper: Get the last day of the current month (end of day)
-function getSubscriptionExpiryDate(): Date {
-  const now = new Date();
-  const endOfMonth = lastDayOfMonth(now);
-  endOfMonth.setHours(23, 59, 59, 999);
-  return endOfMonth;
-}
+import { getSubscriptionExpiryDate } from '@/lib/subscriptions';
 
 export async function POST(req: Request) {
   try {
@@ -83,12 +75,7 @@ export async function POST(req: Request) {
         }
       }
     } else {
-      // For SUBSCRIPTION courses, check if there's an active (APPROVED) payment for the current month
-      const now = new Date();
-      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-      const endOfMonth = lastDayOfMonth(now);
-      endOfMonth.setHours(23, 59, 59, 999);
-
+      // For subscriptions, only allow another request after access expires and no request is pending.
       const activePaymentResult = await db.query(
         `SELECT id, status FROM "Payment" 
          WHERE "studentId" = $1 AND "courseId" = $2 AND status = 'APPROVED' 
@@ -98,21 +85,19 @@ export async function POST(req: Request) {
 
       if (activePaymentResult.rows.length > 0) {
         return NextResponse.json({ 
-          error: 'You already have an active subscription for this month.' 
+          error: 'You already have an active subscription.' 
         }, { status: 409 });
       }
 
-      // Check for pending payments for the current month
       const pendingPaymentResult = await db.query(
         `SELECT id FROM "Payment" 
-         WHERE "studentId" = $1 AND "courseId" = $2 AND status = 'PENDING' 
-         AND "createdAt" > $3`,
-        [user.id, courseId, startOfMonth]
+         WHERE "studentId" = $1 AND "courseId" = $2 AND status = 'PENDING'`,
+        [user.id, courseId]
       );
 
       if (pendingPaymentResult.rows.length > 0) {
         return NextResponse.json({ 
-          error: 'You already have a pending subscription payment for this month.' 
+          error: 'You already have a pending subscription payment.' 
         }, { status: 409 });
       }
     }
@@ -182,7 +167,7 @@ export async function POST(req: Request) {
     const { publicPath: publicUrl } = await saveUploadFile(receiptFile, 'receipts');
     const paymentId = uuidv4();
     
-    // Note: subscriptionExpiryDate will be set to the end of current month when the payment is APPROVED by admin
+    // The subscription expiry is set when an admin approves the payment.
     const sql = isSubscription
       ? `INSERT INTO "Payment" (id, "studentId", "courseId", "receiptUrl", status, "subscriptionExpiryDate")
          VALUES ($1, $2, $3, $4, 'PENDING', NULL) RETURNING *;`

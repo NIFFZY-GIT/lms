@@ -453,7 +453,7 @@ export default function AdminStudentsPage() {
                                     className="w-full rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm"
                                 >
                                     <option value="1_week">1 Week</option>
-                                    <option value="1_month">1 Month</option>
+                                    <option value="1_month">30 Days</option>
                                 </select>
                             </div>
                             <div className="max-h-44 overflow-auto rounded-md border border-gray-200 p-2 space-y-1">

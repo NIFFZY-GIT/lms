@@ -3,18 +3,10 @@ import { db } from '../../../../../lib/db';
 import { getServerUser } from '../../../../../lib/auth';
 import { Role } from '../../../../../types';
 import { sendEnrollmentStatusToStaff, sendPaymentApprovedEmail } from '../../../../../lib/notify';
-import { lastDayOfMonth } from 'date-fns';
 import { ensurePaymentColumns, hasPaymentColumn } from '@/lib/receipt-duplicates';
+import { getSubscriptionExpiryDate } from '@/lib/subscriptions';
 
 interface PostgresError { code?: string; }
-
-// Helper: Get the last day of the current month (end of day)
-function getSubscriptionExpiryDate(): Date {
-  const now = new Date();
-  const endOfMonth = lastDayOfMonth(now);
-  endOfMonth.setHours(23, 59, 59, 999);
-  return endOfMonth;
-}
 
 export async function PATCH(req: Request, props: { params: Promise<{ paymentId: string }> }) {
   let referenceNumber: string | undefined;
