@@ -105,6 +105,10 @@ export async function GET(req: Request, { params }: { params: Promise<{ recordin
             return NextResponse.redirect(new URL(videoUrl, req.url));
         }
 
+        if (new URL(req.url).searchParams.get('open') === '1') {
+            return NextResponse.redirect(videoUrl);
+        }
+
         const embeddableYoutubeUrl = toEmbeddableYoutubeUrl(videoUrl);
         if (embeddableYoutubeUrl) {
             return NextResponse.redirect(embeddableYoutubeUrl);

@@ -365,14 +365,24 @@ export default function StudentCoursePage() {
                                       Your browser does not support the video tag.
                                   </video>
                                 ) : isProtectedRecordingUrl(rec.videoUrl) ? (
-                                  <iframe
-                                    src={rec.videoUrl}
-                                    title={`Protected recording - ${rec.title}`}
-                                    className="w-full rounded-lg aspect-video border border-gray-200 bg-black"
-                                    loading="lazy"
-                                    allow="autoplay; encrypted-media; picture-in-picture"
-                                    allowFullScreen
-                                  />
+                                  <>
+                                    <iframe
+                                      src={rec.videoUrl}
+                                      title={`Protected recording - ${rec.title}`}
+                                      className="w-full rounded-lg aspect-video border border-gray-200 bg-black"
+                                      loading="lazy"
+                                      allow="autoplay; encrypted-media; picture-in-picture"
+                                      allowFullScreen
+                                    />
+                                    <a
+                                      href={`${rec.videoUrl}?open=1`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex mt-2 text-sm text-blue-700 underline hover:text-blue-900"
+                                    >
+                                      If playback is unavailable, open the recording directly
+                                    </a>
+                                  </>
                                 ) : (
                                   (() => {
                                     const embedded = getEmbeddedRecordingUrl(rec.videoUrl);
