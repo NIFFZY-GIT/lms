@@ -9,15 +9,17 @@ function RecordingForm({
     courseId,
     onCancel,
     mutation,
+    recording,
 }: {
     courseId: string;
     onCancel: () => void;
-    mutation: UseMutationResult<Recording, unknown, { courseId: string; data: FormData }, unknown>;
+    mutation: UseMutationResult<Recording, unknown, { courseId: string; data: FormData; recordingId?: string }, unknown>;
+    recording?: Recording;
 }) {
-    const [recordingType, setRecordingType] = useState<'file' | 'link'>('file');
+    const [recordingType, setRecordingType] = useState<'file' | 'link'>(recording ? 'link' : 'file');
     const [file, setFile] = useState<File | null>(null);
-    const [videoLink, setVideoLink] = useState('');
-    const [title, setTitle] = useState('');
+    const [videoLink, setVideoLink] = useState(recording?.videoUrl ?? '');
+    const [title, setTitle] = useState(recording?.title ?? '');
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -47,7 +49,7 @@ function RecordingForm({
         }
         
         // Use mutateAsync to wait for the mutation to finish before resetting
-        await mutation.mutateAsync({ courseId, data: formData });
+        await mutation.mutateAsync({ courseId, data: formData, recordingId: recording?.id });
         setTitle('');
         setFile(null);
         setVideoLink('');
@@ -57,36 +59,38 @@ function RecordingForm({
     return (
         <form onSubmit={handleSubmit} className="space-y-4 p-4 border rounded-lg bg-gray-50">
             <button type="button" onClick={onCancel} className="text-sm text-gray-600 mb-2">← Back to list</button>
-            <h4 className="font-bold text-lg">Add New Recording</h4>
+            <h4 className="font-bold text-lg">{recording ? 'Edit Recording Link' : 'Add New Recording'}</h4>
             <div>
                 <label className="block text-sm font-medium text-gray-700">Recording Title</label>
                 <input type="text" value={title} onChange={e => setTitle(e.target.value)} required className="mt-1 w-full border-gray-300 rounded-md shadow-sm"/>
             </div>
-            <div>
-                <label className="block text-sm font-medium text-gray-700">Recording Source</label>
-                <div className="mt-1 flex gap-4">
-                    <label className="inline-flex items-center gap-2 text-sm text-gray-700">
-                        <input
-                            type="radio"
-                            name="recordingType"
-                            value="file"
-                            checked={recordingType === 'file'}
-                            onChange={() => setRecordingType('file')}
-                        />
-                        Upload video file
-                    </label>
-                    <label className="inline-flex items-center gap-2 text-sm text-gray-700">
-                        <input
-                            type="radio"
-                            name="recordingType"
-                            value="link"
-                            checked={recordingType === 'link'}
-                            onChange={() => setRecordingType('link')}
-                        />
-                        Use recording link
-                    </label>
+            {!recording && (
+                <div>
+                    <label className="block text-sm font-medium text-gray-700">Recording Source</label>
+                    <div className="mt-1 flex gap-4">
+                        <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                            <input
+                                type="radio"
+                                name="recordingType"
+                                value="file"
+                                checked={recordingType === 'file'}
+                                onChange={() => setRecordingType('file')}
+                            />
+                            Upload video file
+                        </label>
+                        <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                            <input
+                                type="radio"
+                                name="recordingType"
+                                value="link"
+                                checked={recordingType === 'link'}
+                                onChange={() => setRecordingType('link')}
+                            />
+                            Use recording link
+                        </label>
+                    </div>
                 </div>
-            </div>
+            )}
             {recordingType === 'file' ? (
                 <div>
                     <label className="block text-sm font-medium text-gray-700">Video File</label>
@@ -114,7 +118,7 @@ function RecordingForm({
             <div className="flex justify-end space-x-2">
                 <button type="button" onClick={onCancel} className="btn-secondary">Cancel</button>
                 <button type="submit" disabled={mutation.isPending} className="btn-primary">
-                    {mutation.isPending ? 'Saving...' : 'Save Recording'}
+                    {mutation.isPending ? 'Saving...' : recording ? 'Save Changes' : 'Save Recording'}
                 </button>
             </div>
         </form>

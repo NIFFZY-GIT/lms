@@ -25,7 +25,11 @@ type MaterialFormData = z.infer<typeof materialSchema>;
 const updateCourse = async ({ id, data }: { id: string; data: FormData }): Promise<Course> => (await axios.patch(`/api/courses/${id}`, data)).data;
 
 const fetchRecordings = async (courseId: string): Promise<Recording[]> => (await axios.get(`/api/courses/${courseId}/recordings`)).data;
-const addRecording = async ({ courseId, data }: { courseId: string, data: FormData }) => (await axios.post(`/api/courses/${courseId}/recordings`, data)).data;
+const addRecording = async ({ courseId, data, recordingId }: { courseId: string, data: FormData; recordingId?: string }): Promise<Recording> => (
+    recordingId
+        ? (await axios.patch(`/api/recordings/${recordingId}`, data)).data
+        : (await axios.post(`/api/courses/${courseId}/recordings`, data)).data
+);
 const deleteRecording = async (recordingId: string) => (await axios.delete(`/api/recordings/${recordingId}`)).data;
 
 const fetchQuizzes = async (courseId: string): Promise<Quiz[]> => (await axios.get(`/api/courses/${courseId}/quizzes`)).data;
@@ -57,6 +61,7 @@ export function ManageContentModal({ isOpen, onClose, course }: { isOpen: boolea
   const [managingQuestionsOf, setManagingQuestionsOf] = useState<Quiz | null>(null);
   const [showQuestionForm, setShowQuestionForm] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
+  const [editingRecording, setEditingRecording] = useState<Recording | null>(null);
   const [showRecordingForm, setShowRecordingForm] = useState(false);
     const [newQuizTitle, setNewQuizTitle] = useState('');
     const [newExternalQuizTitle, setNewExternalQuizTitle] = useState('');
@@ -103,7 +108,7 @@ export function ManageContentModal({ isOpen, onClose, course }: { isOpen: boolea
   
   // ... (Other hooks for recordings and quizzes remain the same) ...
   const { data: recordings } = useQuery<Recording[]>({ queryKey: ['recordings', course.id], queryFn: () => fetchRecordings(course.id), enabled: isOpen && activeTab === 'materials' });
-    const addRecordingMutation = useMutation({ mutationFn: addRecording, onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['recordings', course.id] }); setShowRecordingForm(false); toast.success('Recording added'); }, onError: (error: AxiosError<{ error?: string }>) => toast.error(error.response?.data?.error || error.message) });
+    const addRecordingMutation = useMutation({ mutationFn: addRecording, onSuccess: (_recording, variables) => { queryClient.invalidateQueries({ queryKey: ['recordings', course.id] }); setShowRecordingForm(false); setEditingRecording(null); toast.success(variables.recordingId ? 'Recording updated' : 'Recording added'); }, onError: (error: AxiosError<{ error?: string }>) => toast.error(error.response?.data?.error || error.message) });
     const deleteRecordingMutation = useMutation({ mutationFn: deleteRecording, onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['recordings', course.id] }); toast.info('Recording deleted'); }, onError: (error: AxiosError<{ error?: string }>) => toast.error(error.response?.data?.error || error.message) });
   const { data: quizzes } = useQuery<Quiz[]>({ queryKey: ['quizzes', course.id], queryFn: () => fetchQuizzes(course.id), enabled: isOpen && activeTab === 'quizzes' && !managingQuestionsOf });
   const { data: questions, isLoading: questionsLoading } = useQuery<Question[]>({ queryKey: ['questions', managingQuestionsOf?.id], queryFn: () => fetchQuestions(managingQuestionsOf!.id), enabled: !!managingQuestionsOf });
@@ -188,20 +193,25 @@ export function ManageContentModal({ isOpen, onClose, course }: { isOpen: boolea
                     <hr/>
                     <div>
                          {showRecordingForm ? (
-                           <RecordingForm courseId={course.id} onCancel={() => setShowRecordingForm(false)} mutation={addRecordingMutation} />
+                            <RecordingForm key={editingRecording?.id ?? 'new-recording'} courseId={course.id} recording={editingRecording ?? undefined} onCancel={() => { setShowRecordingForm(false); setEditingRecording(null); }} mutation={addRecordingMutation} />
                         ) : (
                             <div>
                                 <div className="flex justify-between items-center mb-4">
                                     <h3 className="text-lg font-medium text-gray-900 flex items-center"><Film className="w-5 h-5 mr-2" /> Course Recordings</h3>
-                                    <button onClick={() => setShowRecordingForm(true)} className="btn-primary flex items-center"><Plus className="w-4 h-4 mr-2" /> Add Recording</button>
+                                     <button onClick={() => { setEditingRecording(null); setShowRecordingForm(true); }} className="btn-primary flex items-center"><Plus className="w-4 h-4 mr-2" /> Add Recording</button>
                                 </div>
                                 <div className="space-y-3">
                                     {recordings?.map(rec => (
                                         <div key={rec.id} className="p-3 border rounded-md flex justify-between items-center bg-gray-50">
                                             <p className="font-medium text-gray-700 break-words pr-2">{rec.title}</p>
-                                            <button onClick={() => deleteRecordingMutation.mutate(rec.id)} className="p-2 text-gray-500 hover:text-red-600 flex-shrink-0" title="Delete Recording"><Trash2 className="w-4 h-4" /></button>
-                                        </div>
-                                    ))}
+                                             <div className="flex items-center flex-shrink-0">
+                                                 {/^https?:\/\//i.test(rec.videoUrl) && (
+                                                     <button onClick={() => { setEditingRecording(rec); setShowRecordingForm(true); }} className="p-2 text-gray-500 hover:text-blue-600" title="Edit Recording Link"><Edit className="w-4 h-4" /></button>
+                                                 )}
+                                                 <button onClick={() => deleteRecordingMutation.mutate(rec.id)} className="p-2 text-gray-500 hover:text-red-600" title="Delete Recording"><Trash2 className="w-4 h-4" /></button>
+                                             </div>
+                                         </div>
+                                     ))}
                                 </div>
                             </div>
                         )}

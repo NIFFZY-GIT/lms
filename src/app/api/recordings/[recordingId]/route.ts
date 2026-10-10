@@ -119,8 +119,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ recordin
 
 export async function DELETE(req: Request, { params }: { params: Promise<{ recordingId: string }> }) {
     try {
-    const user = await getServerUser([Role.ADMIN, Role.INSTRUCTOR]);
-    const { recordingId } = await params;
+        const user = await getServerUser([Role.ADMIN, Role.INSTRUCTOR]);
+        const { recordingId } = await params;
 
         // First, find the recording to get its file path
         const findResult = await db.query('SELECT "videoUrl" FROM "Recording" WHERE id = $1', [recordingId]);
@@ -155,5 +155,63 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ recor
     } catch (error) {
         console.error("Delete recording error:", error);
         return NextResponse.json({ error: 'Failed to delete recording.' }, { status: 500 });
+    }
+}
+
+export async function PATCH(req: Request, { params }: { params: Promise<{ recordingId: string }> }) {
+    try {
+        const user = await getServerUser([Role.ADMIN, Role.INSTRUCTOR]);
+        const { recordingId } = await params;
+        const recordingResult = await db.query<{ videoUrl: string; createdById: string }>(
+            `SELECT r."videoUrl", c."createdById"
+             FROM "Recording" r
+             JOIN "Course" c ON c.id = r."courseId"
+             WHERE r.id = $1`,
+            [recordingId]
+        );
+
+        if (recordingResult.rows.length === 0) {
+            return NextResponse.json({ error: 'Recording not found' }, { status: 404 });
+        }
+
+        const recording = recordingResult.rows[0];
+        if (user.role === Role.INSTRUCTOR && recording.createdById !== user.id) {
+            return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+        }
+        if (recording.videoUrl.startsWith('/uploads/')) {
+            return NextResponse.json({ error: 'Uploaded video files cannot be edited as recording links.' }, { status: 400 });
+        }
+
+        const formData = await req.formData();
+        const titleValue = formData.get('title');
+        const videoLinkValue = formData.get('videoLink');
+        const title = typeof titleValue === 'string' ? titleValue.trim() : '';
+        const videoLink = typeof videoLinkValue === 'string' ? videoLinkValue.trim() : '';
+
+        if (!title) {
+            return NextResponse.json({ error: 'Title is required.' }, { status: 400 });
+        }
+        if (!videoLink) {
+            return NextResponse.json({ error: 'Recording link is required.' }, { status: 400 });
+        }
+
+        try {
+            const url = new URL(videoLink);
+            if (!['http:', 'https:'].includes(url.protocol)) {
+                return NextResponse.json({ error: 'Recording link must use http or https.' }, { status: 400 });
+            }
+        } catch {
+            return NextResponse.json({ error: 'Recording link is invalid.' }, { status: 400 });
+        }
+
+        const result = await db.query(
+            'UPDATE "Recording" SET title = $1, "videoUrl" = $2 WHERE id = $3 RETURNING *',
+            [title, videoLink, recordingId]
+        );
+
+        return NextResponse.json(result.rows[0]);
+    } catch (error) {
+        console.error('Update recording error:', error);
+        return NextResponse.json({ error: 'Failed to update recording.' }, { status: 500 });
     }
 }
